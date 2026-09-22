@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token install up down build logs ps test test-backend test-web \
-        test-live seed seed-clear lint fmt backend-dev web-dev
+        test-live test-ios test-ios-live ios-build ios-open seed seed-clear lint fmt backend-dev web-dev
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -34,13 +34,19 @@ logs: ## Follow container logs
 ps: ## Show container status
 	$(COMPOSE) ps
 
-test: test-backend test-web ## Run all tests
+test: test-backend test-web test-ios ## Run all tests
 
 test-backend:
 	cd backend && uv run pytest
 
 test-web:
 	cd web && npx vitest run
+
+# SwiftPM keeps bare repositories in its cache; a global safe.bareRepository=explicit breaks it.
+SWIFT_ENV := GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.bareRepository GIT_CONFIG_VALUE_0=all
+
+test-ios: ## iOS core (SDVGCore): shared fixtures, store, sync
+	cd ios/SDVGCore && $(SWIFT_ENV) swift test
 
 LIVE_PORT := 8422
 LIVE_TOKEN := live-test-token-0123456789
@@ -61,6 +67,23 @@ lint: ## Lint and typecheck
 
 fmt: ## Format code
 	cd backend && uv run ruff check --fix . && uv run ruff format .
+
+ios-build: ## Build the iOS app for the simulator
+	cd ios && $(SWIFT_ENV) xcodebuild -project SDVGTracker.xcodeproj -scheme SDVGTracker \
+		-destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData build | tail -3
+
+ios-open: ## Open the iOS project in Xcode (git override so Xcode can fetch GRDB)
+	$(SWIFT_ENV) open ios/SDVGTracker.xcodeproj
+
+test-ios-live: ## iOS sync client against a real backend on a throwaway database
+	@cd backend && uv sync -q
+	@tmp=$$(mktemp -d); \
+	( cd backend && API_TOKEN=$(LIVE_TOKEN) DATABASE_PATH=$$tmp/live.db exec .venv/bin/uvicorn \
+		--factory app.main:create_app --port $(LIVE_PORT) --log-level warning ) & \
+	pid=$$!; trap 'kill $$pid 2>/dev/null; rm -rf $$tmp' EXIT; \
+	for i in $$(seq 50); do curl -sf localhost:$(LIVE_PORT)/api/health >/dev/null && break; sleep 0.2; done; \
+	cd ios/SDVGCore && SDVG_LIVE_URL=http://localhost:$(LIVE_PORT) SDVG_LIVE_TOKEN=$(LIVE_TOKEN) \
+		$(SWIFT_ENV) swift test --filter LiveSyncTests
 
 SEED_URL ?= http://localhost:$$(grep -E '^PORT=' $(CURDIR)/.env | cut -d= -f2)
 SEED_TOKEN = $$(grep -E '^API_TOKEN=' $(CURDIR)/.env | cut -d= -f2)

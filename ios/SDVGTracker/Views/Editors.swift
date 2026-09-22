@@ -1,0 +1,253 @@
+import SDVGCore
+import SwiftUI
+
+struct AppearancePicker: View {
+    @Binding var emoji: String?
+    @Binding var color: Int
+    @State private var showEmojis = false
+
+    static let emojis = [
+        "✅", "📞", "💬", "📧", "🛒", "💳", "🧾", "📦", "🛠️", "💡", "🧹", "🧺", "🍲", "🥣", "☕", "💊",
+        "💧", "🚿", "🪥", "🛏️", "🧘", "🏋️", "🚶", "🚼", "👶", "❤️", "🎁", "📚", "📖", "📝", "📊", "💻",
+        "🗓️", "⏰", "🚗", "🏠", "🪴", "🐶", "🎨", "🎵", "🧠", "🌙", "☀️", "⭐", "🔥", "🎯", "🧪", "🦷",
+    ]
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button { showEmojis.toggle() } label: { EmojiCircle(emoji: emoji, color: color, size: 52) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Выбрать эмодзи")
+            FlowLayout(spacing: 7) {
+                ForEach(0..<12) { i in
+                    Circle().fill(Palette.color(i)).frame(width: 24, height: 24)
+                        .overlay(Circle().strokeBorder(Color.primary, lineWidth: color == i ? 2 : 0))
+                        .onTapGesture { color = i }
+                        .accessibilityLabel("Цвет \(i + 1)")
+                        .accessibilityAddTraits(color == i ? .isSelected : [])
+                }
+            }
+        }
+        if showEmojis {
+            TextField("Своё эмодзи", text: Binding(get: { emoji ?? "" }, set: { emoji = $0.isEmpty ? nil : String($0.prefix(8)) }))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 6) {
+                ForEach(Self.emojis, id: \.self) { e in
+                    Text(e).font(.title2)
+                        .padding(3)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(emoji == e ? Color(.tertiarySystemFill) : .clear))
+                        .onTapGesture { emoji = e; showEmojis = false }
+                }
+            }
+        }
+    }
+}
+
+struct TimingPicker: View {
+    @Binding var timing: Timing
+    @Binding var duration: Int?
+
+    private static let choices: [(String, TimeKind, PartOfDay?)] = [
+        ("В любое время", .none, nil), ("🌅 Утро", .part, .morning), ("☀️ День", .part, .day),
+        ("🌙 Вечер", .part, .evening), ("⏰ Точное время", .exact, nil),
+    ]
+    private static let durations: [(Int, String)] = [
+        (5, "5 мин"), (10, "10 мин"), (15, "15 мин"), (30, "30 мин"), (60, "1 ч"), (120, "2 ч"), (180, "3 ч"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Когда").font(.footnote).foregroundStyle(.secondary)
+            FlowLayout {
+                ForEach(Self.choices, id: \.0) { label, kind, part in
+                    Chip(label: label, selected: timing.kind == kind && (kind != .part || timing.part == part)) {
+                        timing.kind = kind
+                        if let part { timing.part = part }
+                        if kind == .exact && timing.time == nil { timing.time = "09:00" }
+                    }
+                }
+            }
+        }
+        if timing.kind == .exact {
+            DatePicker("Время", selection: timeBinding, displayedComponents: .hourAndMinute)
+        }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Длительность").font(.footnote).foregroundStyle(.secondary)
+            FlowLayout {
+                ForEach(Self.durations, id: \.0) { min, label in
+                    Chip(label: label, selected: duration == min) { duration = duration == min ? nil : min }
+                }
+            }
+        }
+    }
+
+    /// "HH:MM" <-> Date on an arbitrary day, in the local calendar.
+    private var timeBinding: Binding<Date> {
+        Binding(
+            get: {
+                let p = (timing.time ?? "09:00").split(separator: ":").compactMap { Int($0) }
+                return Calendar.current.date(bySettingHour: p[0], minute: p[1], second: 0, of: Date()) ?? Date()
+            },
+            set: {
+                let c = Calendar.current.dateComponents([.hour, .minute], from: $0)
+                timing.time = String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+            })
+    }
+}
+
+private func dateBinding(_ value: Binding<LocalDate?>, default fallback: LocalDate) -> Binding<Date> {
+    Binding(
+        get: {
+            let d = value.wrappedValue ?? fallback
+            var c = DateComponents()
+            (c.year, c.month, c.day) = (Int(d.prefix(4)), Int(d.dropFirst(5).prefix(2)), Int(d.dropFirst(8).prefix(2)))
+            return Calendar.current.date(from: c) ?? Date()
+        },
+        set: { value.wrappedValue = String(Dates.localNow($0).prefix(10)) })
+}
+
+struct TaskEditor: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let id: String?
+    @State var draft: TaskDraft
+    @State private var moves = 0
+    @State private var done = false
+
+    var body: some View {
+        let today = model.today
+        NavigationStack {
+            Form {
+                SwiftUI.Section {
+                    TextField("Что нужно сделать?", text: $draft.title, axis: .vertical).font(.title3.weight(.semibold))
+                    AppearancePicker(emoji: $draft.emoji, color: $draft.color)
+                }
+                SwiftUI.Section("День") {
+                    FlowLayout {
+                        Chip(label: "Сегодня", selected: draft.date == today) { draft.date = today }
+                        Chip(label: "Завтра", selected: draft.date == Dates.addDays(today, 1)) { draft.date = Dates.addDays(today, 1) }
+                        Chip(label: "📥 Во входящие", selected: draft.date == nil) { draft.date = nil }
+                    }
+                    if draft.date != nil {
+                        DatePicker("Дата", selection: dateBinding($draft.date, default: today), displayedComponents: .date)
+                    }
+                }
+                SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
+                SwiftUI.Section("Дедлайн") {
+                    Toggle("Есть дедлайн", isOn: Binding(
+                        get: { draft.deadlineDate != nil },
+                        set: { draft.deadlineDate = $0 ? Dates.addDays(today, 3) : nil }))
+                    if draft.deadlineDate != nil {
+                        DatePicker("Дата", selection: dateBinding($draft.deadlineDate, default: today), displayedComponents: .date)
+                        Toggle("До определённого времени", isOn: Binding(
+                            get: { draft.deadlineTime != nil },
+                            set: { draft.deadlineTime = $0 ? "18:00" : nil }))
+                        if draft.deadlineTime != nil {
+                            TextField("ЧЧ:ММ", text: Binding(get: { draft.deadlineTime ?? "" }, set: { draft.deadlineTime = $0 }))
+                                .keyboardType(.numbersAndPunctuation)
+                        }
+                    }
+                }
+                SwiftUI.Section("Заметки") {
+                    TextField("Шаги, ссылки, мысли…", text: $draft.notes, axis: .vertical).lineLimit(2...6)
+                }
+                if moves > 0 {
+                    SwiftUI.Section {
+                        Text("↻ Задачу переносили уже \(moves) \(plural(moves, "раз", "раза", "раз")). Может, разбить её на шаги поменьше?")
+                            .foregroundStyle(Palette.warn)
+                    }
+                }
+                if let id {
+                    SwiftUI.Section {
+                        if !done {
+                            Button("↷ Перенести на завтра") { save(); model.perform { try $0.postponeTask(id, today: today) }; dismiss() }
+                                .disabled(!valid)
+                        }
+                        Button("Удалить задачу", role: .destructive) { model.perform { try $0.deleteTask(id) }; dismiss() }
+                    }
+                }
+            }
+            .navigationTitle(id == nil ? "Новая задача" : "Задача")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save(); dismiss() }.disabled(!valid) }
+            }
+            .onAppear {
+                guard let id else { return }
+                moves = (try? model.store.moveCount(id)) ?? 0
+                done = (try? model.store.get(.task, id).map(TaskRecord.init))?.doneOn != nil
+            }
+        }
+    }
+
+    private var valid: Bool { !draft.title.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    private func save() {
+        guard valid else { return }
+        var d = draft
+        d.title = d.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let today = model.today
+        model.perform { [id] in
+            if let id { try $0.saveTask(id, d, today: today) } else { try $0.createTask(d) }
+        }
+    }
+}
+
+struct RoutineEditor: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let id: String?
+    @State private var draft = RoutineDraft()
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                SwiftUI.Section {
+                    TextField("Например, «Пообедать»", text: $draft.title).font(.title3.weight(.semibold))
+                    AppearancePicker(emoji: $draft.emoji, color: $draft.color)
+                }
+                SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
+                SwiftUI.Section {
+                    FlowLayout {
+                        ForEach(0..<7) { i in
+                            Chip(label: Fmt.weekdays[i], selected: draft.weekdays & (1 << i) != 0) { draft.weekdays ^= 1 << i }
+                        }
+                    }
+                } header: {
+                    Text("Дни недели")
+                } footer: {
+                    Text("Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего, если сегодня уже отмечено) — прошлые дни остаются как были.")
+                }
+                if let id {
+                    SwiftUI.Section {
+                        Button("Убрать рутину", role: .destructive) {
+                            let today = model.today
+                            model.perform { try $0.archiveRoutine(id, today: today) }
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .navigationTitle(id == nil ? "Новая рутина" : "Рутина")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") { save(); dismiss() }
+                        .disabled(draft.title.trimmingCharacters(in: .whitespaces).isEmpty || draft.weekdays == 0)
+                }
+            }
+            .onAppear {
+                if let id, let v = try? model.store.latestVersion(id) { draft = RoutineDraft(v) }
+            }
+        }
+    }
+
+    private func save() {
+        var d = draft
+        d.title = d.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let today = model.today
+        model.perform { [id] in
+            if let id { try $0.editRoutine(id, d, today: today) } else { try $0.createRoutine(d, today: today) }
+        }
+    }
+}

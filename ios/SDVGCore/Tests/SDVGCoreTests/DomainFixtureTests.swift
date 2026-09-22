@@ -1,0 +1,108 @@
+import Foundation
+import XCTest
+
+@testable import SDVGCore
+
+private struct FixtureVersion: VersionRef {
+    var id: String
+    var routineID: String
+    var effectiveFrom: LocalDate
+    var weekdays: Int
+    var archived: Bool
+    var hlc: String
+}
+
+private func settings(_ v: JSONValue?) -> Settings { Settings(v?.object ?? [:]) }
+
+private func timing(_ i: JSONValue) -> Timing {
+    Timing([
+        "time_kind": i["time_kind"] ?? "none", "part_of_day": i["part_of_day"] ?? nil, "time": i["time"] ?? nil,
+    ])
+}
+
+/// One adapter per shared/domain-fixtures file: fixture input -> implementation -> expect shape.
+private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
+    "logical_day": { i in
+        ["date": .string(Dates.logicalDay(i["now"]!.string!, dayStartHour: i["day_start_hour"]!.int!))]
+    },
+    "part_of_day": { i in
+        ["part": .string(Dates.partOfDay(i["now"]!.string!, settings(i["settings"])).rawValue)]
+    },
+    "routines_for_day": { i in
+        let versions = i["versions"]!.array!.map {
+            FixtureVersion(
+                id: $0["id"]!.string!, routineID: $0["routine_id"]!.string!, effectiveFrom: $0["effective_from"]!.string!,
+                weekdays: $0["weekdays"]!.int!, archived: $0["archived"]!.bool!, hlc: $0["hlc"]!.string!)
+        }
+        let picked = Rules.routinesForDay(i["date"]!.string!, versions)
+        return ["versions": .object(picked.mapValues { .string($0.id) })]
+    },
+    "auto_rollover": { i in
+        let tasks = i["tasks"]!.array!.map {
+            Rules.RolloverTask(id: $0["id"]!.string!, date: $0["date"]?.string, doneOn: $0["done_on"]?.string, deleted: $0["deleted"]!.bool!)
+        }
+        let plan = Rules.planRollover(today: i["today"]!.string!, tasks: tasks)
+        let moves: [JSONValue] = plan.moves.map {
+            ["id": .string($0.id), "task_id": .string($0.taskID), "from_date": .string($0.fromDate),
+             "to_date": .string($0.toDate), "kind": .string($0.kind)]
+        }
+        return ["new_moves": .array(moves), "task_dates": .object(plan.dates.mapValues { .string($0) })]
+    },
+    "attention_level": { i in
+        ["level": .int(Rules.attentionLevel(moves: i["moves"]!.int!, thresholds: i["thresholds"]!.array!.map { $0.int! }))]
+    },
+    "deadline_status": { i in
+        let status = Rules.deadlineStatus(
+            now: i["now"]!.string!, dayStartHour: i["day_start_hour"]!.int!, createdOn: i["created_on"]!.string!,
+            deadlineDate: i["deadline_date"]?.string, deadlineTime: i["deadline_time"]?.string, done: i["done"]!.bool!)
+        return ["status": .string(status.rawValue)]
+    },
+    "day_stats": { i in
+        let s = Rules.dayStats(
+            date: i["date"]!.string!,
+            taskDoneOn: i["tasks"]!.array!.map { $0["done_on"]?.string },
+            checks: i["routine_checks"]!.array!.map { ($0["date"]!.string!, $0["status"]?.string.flatMap(CheckStatus.init)) })
+        return ["done": .int(s.done), "skipped": .int(s.skipped)]
+    },
+    "streak": { i in
+        let days = i["days"]!.object!.mapValues { Rules.DayStats(done: $0["done"]!.int!, skipped: $0["skipped"]!.int!) }
+        return ["streak": .int(Rules.streak(today: i["today"]!.string!, days: days, minDone: i["streak_min_done"]!.int!))]
+    },
+    "now_score": { i in
+        let item = i["item"]!
+        let r = Rules.nowScore(
+            now: i["now"]!.string!, settings: settings(i["settings"]), timing: timing(item),
+            deadline: Rules.DeadlineStatus(rawValue: item["deadline_status"]!.string!)!, moves: item["moves"]!.int!)
+        return ["score": .int(r.score), "reasons": .array(r.reasons.map { .string($0.rawValue) })]
+    },
+    "heatmap_levels": { i in
+        ["levels": .array(Rules.heatmapLevels(i["counts"]!.array!.map { $0.int! }).map(JSONValue.int))]
+    },
+    "heatmap_grid": { i in
+        let days = Rules.heatmapGrid(today: i["today"]!.string!)
+        return ["first": .string(days.first!), "last": .string(days.last!), "days": .int(days.count)]
+    },
+]
+
+final class DomainFixtureTests: XCTestCase {
+    func testEveryFixtureFileHasARunner() throws {
+        let kinds = try sharedFiles("domain-fixtures").map { String($0.dropLast(5)) }
+        XCTAssertEqual(runners.keys.sorted(), kinds)
+    }
+
+    func testDomainFixtures() throws {
+        for (kind, run) in runners {
+            for c in try loadShared("domain-fixtures/\(kind).json")["cases"]!.array! {
+                XCTAssertEqual(run(c["input"]!), c["expect"]!, "\(kind): \(c["name"]!.string!)")
+            }
+        }
+    }
+
+    func testDateArithmetic() {
+        XCTAssertEqual(Dates.addDays("2024-02-28", 1), "2024-02-29")
+        XCTAssertEqual(Dates.addDays("2026-12-31", 1), "2027-01-01")
+        XCTAssertEqual(Dates.addDays("2026-03-01", -1), "2026-02-28")
+        XCTAssertEqual(Dates.weekdayIndex("2026-09-21"), 0) // Monday
+        XCTAssertEqual(Dates.daysBetween("2025-09-22", "2026-09-22"), 365)
+    }
+}

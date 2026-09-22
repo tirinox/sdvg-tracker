@@ -18,6 +18,21 @@ make up        # создаст .env со случайным токеном и �
 Открыть http://localhost:8420 → «Настройки» → вставить токен (`API_TOKEN` из `.env`) → «Подключить». Наружу публикуется один порт (`PORT` в `.env`): nginx отдаёт веб
 и проксирует `/api` на backend. iOS-клиент ходит на тот же адрес.
 
+## iOS
+
+```bash
+make ios-open      # открыть проект в Xcode
+make test-ios      # тесты ядра SDVGCore на общих фикстурах
+```
+
+- Проект: `ios/SDVGTracker.xcodeproj`, логика — Swift-пакет `ios/SDVGCore` (GRDB, те же правила и протокол).
+- На телефоне: в Xcode выбрать свою команду (Signing & Capabilities → Team), при необходимости сменить
+  bundle id `com.tirinox.sdvgtracker` и App Group `group.com.tirinox.sdvgtracker` на свои.
+- Адрес сервера в приложении — IP компьютера в той же сети: `http://192.168.x.x:8420`
+  (в симуляторе работает `http://localhost:8420`). Токен хранится в Keychain.
+- Если в глобальном git-конфиге стоит `safe.bareRepository=explicit`, SwiftPM не может скачать GRDB.
+  `make ios-open` и цели Makefile переопределяют это только для своих команд.
+
 ## Разработка
 
 ```bash
