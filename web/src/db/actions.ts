@@ -111,6 +111,33 @@ export async function postponeTask(store: Store, id: string, today: LocalDate): 
   ])
 }
 
+/**
+ * Re-plan a task. Pushing a planned task to a later day counts as a postpone (one manual move),
+ * so editing the date is not a way around the counter.
+ */
+export async function rescheduleTask(
+  store: Store,
+  id: string,
+  to: LocalDate | null,
+  today: LocalDate,
+): Promise<void> {
+  const task = await store.get('task', id)
+  if (!task) throw new Error(`No task ${id}`)
+  const from = task.date
+  if (from === null || to === null || to <= from || to <= today || task.done_on) {
+    await updateTask(store, id, { date: to })
+    return
+  }
+  await store.write([
+    {
+      entity: 'task_move',
+      id: taskMoveId(id, from),
+      fields: { task_id: id, from_date: from, to_date: to, kind: 'manual' },
+    },
+    { entity: 'task', id, fields: { date: to } },
+  ])
+}
+
 /** Moves every open task planned before today to today. Safe to call repeatedly. */
 export async function runRollover(store: Store, today: LocalDate): Promise<number> {
   const overdue = await store.db.task.where('fields.date').below(today).toArray()

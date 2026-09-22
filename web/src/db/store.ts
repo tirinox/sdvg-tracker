@@ -121,7 +121,10 @@ export class Store {
 
   private async mergeRow(change: Change): Promise<void> {
     const table = this.db.table(change.entity)
-    const row: Row = (await table.get(change.id)) ?? { id: change.id, fields: {}, clocks: {} }
+    // Copy: Dexie may hand out the same object it caches for live queries, and mutating it in
+    // place would make the change invisible to them.
+    const stored: Row | undefined = await table.get(change.id)
+    const row: Row = stored ? structuredClone(stored) : { id: change.id, fields: {}, clocks: {} }
     if (mergeFields(row.fields, row.clocks, change.fields, change.clocks)) await table.put(row)
   }
 }

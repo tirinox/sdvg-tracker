@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token install up down build logs ps test test-backend test-web \
-        test-live lint fmt backend-dev web-dev
+        test-live seed seed-clear lint fmt backend-dev web-dev
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -61,6 +61,15 @@ lint: ## Lint and typecheck
 
 fmt: ## Format code
 	cd backend && uv run ruff check --fix . && uv run ruff format .
+
+SEED_URL ?= http://localhost:$$(grep -E '^PORT=' $(CURDIR)/.env | cut -d= -f2)
+SEED_TOKEN = $$(grep -E '^API_TOKEN=' $(CURDIR)/.env | cut -d= -f2)
+
+seed: ## Fill the running server (make up) with demo data: routines, tasks, 4 months of history
+	cd web && SDVG_TOKEN=$(SEED_TOKEN) npx tsx scripts/seed.ts --url $(SEED_URL)
+
+seed-clear: ## Remove the demo data from the server and, after sync, from every device
+	cd web && SDVG_TOKEN=$(SEED_TOKEN) npx tsx scripts/seed.ts --url $(SEED_URL) --clear
 
 backend-dev: env ## Run backend locally with reload on :8421
 	cd backend && uv run uvicorn --factory app.main:create_app --reload --port 8421

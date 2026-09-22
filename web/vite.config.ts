@@ -1,9 +1,31 @@
 /// <reference types="vitest/config" />
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // The app shell is precached so the tracker opens without the server; data lives in IndexedDB.
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+      },
+      manifest: {
+        name: 'СДВГ-трекер',
+        short_name: 'Трекер',
+        lang: 'ru',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#f6f5fb',
+        theme_color: '#6a5ae0',
+        icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+      },
+    }),
+  ],
   server: {
     proxy: {
       '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8421',

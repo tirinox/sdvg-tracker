@@ -15,7 +15,7 @@ Local-first трекер задач для людей с СДВГ: разовы�
 make up        # создаст .env со случайным токеном и поднимет всё в docker
 ```
 
-Открыть http://localhost:8420. Наружу публикуется один порт (`PORT` в `.env`): nginx отдаёт веб
+Открыть http://localhost:8420 → «Настройки» → вставить токен (`API_TOKEN` из `.env`) → «Подключить». Наружу публикуется один порт (`PORT` в `.env`): nginx отдаёт веб
 и проксирует `/api` на backend. iOS-клиент ходит на тот же адрес.
 
 ## Разработка
@@ -26,6 +26,8 @@ make backend-dev   # backend с перезагрузкой на :8421
 make web-dev       # Vite на :5173, /api проксируется на :8421
 make test          # тесты backend (включая проверку контрактов shared/) и web
 make test-live     # web-клиент синхронизации против настоящего backend на временной БД
+make seed          # демо-данные на запущенный сервер: ~24 рутины, ~40 задач, история за 4 месяца
+make seed-clear    # убрать демо-данные (через синхронизацию — со всех устройств)
 make lint          # ruff + vue-tsc
 make help          # все команды
 ```
@@ -34,7 +36,7 @@ make help          # все команды
 backend/   FastAPI, uv, pytest
 web/       Vue 3 + Vite + TypeScript, Dexie (IndexedDB), Vitest
            src/core — HLC, ID, слияние; src/domain — правила; src/db — локальная БД и действия;
-           src/sync — клиент /api/sync и триггеры
+           src/sync — клиент /api/sync и триггеры; src/app — модели экранов; src/views — экраны
 shared/    JSON Schema, тест-векторы, фикстуры синхронизации и доменной логики
 docs/      архитектура и план
 ```

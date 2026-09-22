@@ -1,0 +1,302 @@
+// View models: read the local Store and shape it for screens. Pure reads, safe inside liveQuery.
+import type {
+  CheckStatus,
+  LocalDate,
+  LocalDateTime,
+  PartOfDay,
+  Row,
+  RoutineVersion,
+  Settings,
+  Task,
+  TimeKind,
+} from '../core/types'
+import { routineVersions, type VersionWithMeta } from '../db/actions'
+import type { Store } from '../db/store'
+import { localNow, logicalDay, partOfDay } from '../domain/dates'
+import { heatmapGrid, heatmapLevels, streak, type DayStats } from '../domain/progress'
+import { routinesForDay } from '../domain/routines'
+import { nowScore, type ScoreReason } from '../domain/score'
+import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
+
+export type Section = 'anytime' | PartOfDay
+
+export const SECTIONS: Section[] = ['anytime', 'morning', 'day', 'evening']
+
+export interface DayItem {
+  key: string
+  kind: 'task' | 'routine'
+  id: string
+  title: string
+  emoji: string | null
+  color: number
+  time_kind: TimeKind
+  part_of_day: PartOfDay | null
+  time: string | null
+  duration_min: number | null
+  section: Section
+  done: boolean
+  skipped: boolean
+  moves: number
+  attention: number
+  deadline: DeadlineStatus
+  deadline_date: LocalDate | null
+  deadline_time: string | null
+  score: number
+  reasons: ScoreReason[]
+  sort_key: string
+}
+
+/** Section a timed item belongs to: exact times fall into the part of day they are in. */
+export function sectionOf(
+  item: { time_kind: TimeKind; part_of_day: PartOfDay | null; time: string | null },
+  s: Settings,
+): Section {
+  if (item.time_kind === 'part' && item.part_of_day) return item.part_of_day
+  if (item.time_kind === 'exact' && item.time) return partOfDay(`2000-01-01T${item.time}`, s)
+  return 'anytime'
+}
+
+/** Open first; timed ones by time, then the rest by manual order; done at the end. */
+export function compareItems(a: DayItem, b: DayItem): number {
+  if (a.done !== b.done || a.skipped !== b.skipped) {
+    return Number(a.done || a.skipped) - Number(b.done || b.skipped)
+  }
+  if (a.time && b.time && a.time !== b.time) return a.time < b.time ? -1 : 1
+  if (Boolean(a.time) !== Boolean(b.time)) return a.time ? 1 : -1
+  return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0
+}
+
+/** created_at is UTC; deadlines are measured in local days. */
+function localDateOf(isoUtc: string): LocalDate {
+  return localNow(new Date(isoUtc)).slice(0, 10)
+}
+
+async function moveCounts(store: Store): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  for (const m of await store.rows('task_move')) {
+    const id = m.fields.task_id
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
+}
+
+export function taskItem(
+  row: Row<'task'>,
+  moves: number,
+  now: LocalDateTime,
+  s: Settings,
+  today: LocalDate,
+): DayItem {
+  const t = row.fields as Task
+  const deadline = deadlineStatus({
+    now,
+    dayStartHour: s.day_start_hour,
+    createdOn: t.created_at ? localDateOf(t.created_at) : today,
+    deadlineDate: t.deadline_date ?? null,
+    deadlineTime: t.deadline_time ?? null,
+    done: Boolean(t.done_on),
+  })
+  const base = {
+    key: `task:${row.id}`,
+    kind: 'task' as const,
+    id: row.id,
+    title: t.title ?? '',
+    emoji: t.emoji ?? null,
+    color: t.color ?? 0,
+    time_kind: t.time_kind ?? 'none',
+    part_of_day: t.part_of_day ?? null,
+    time: t.time_kind === 'exact' ? (t.time ?? null) : null,
+    duration_min: t.duration_min ?? null,
+    done: Boolean(t.done_on),
+    skipped: false,
+    moves,
+    attention: attentionLevel(moves, s.attention_thresholds),
+    deadline,
+    deadline_date: t.deadline_date ?? null,
+    deadline_time: t.deadline_time ?? null,
+    sort_key: t.sort_key ?? '',
+  }
+  const { score, reasons } =
+    t.date === today && !base.done
+      ? nowScore(now, s, { ...base, deadline_status: deadline })
+      : { score: 0, reasons: [] }
+  return { ...base, section: sectionOf(base, s), score, reasons }
+}
+
+function routineItem(
+  v: VersionWithMeta,
+  status: CheckStatus,
+  sortKey: string,
+  now: LocalDateTime,
+  s: Settings,
+  isToday: boolean,
+): DayItem {
+  const base = {
+    key: `routine:${v.routine_id}`,
+    kind: 'routine' as const,
+    id: v.routine_id,
+    title: v.title,
+    emoji: v.emoji,
+    color: v.color,
+    time_kind: v.time_kind,
+    part_of_day: v.part_of_day,
+    time: v.time_kind === 'exact' ? v.time : null,
+    duration_min: v.duration_min,
+    done: status === 'done',
+    skipped: status === 'skipped',
+    moves: 0,
+    attention: 0,
+    deadline: 'none' as const,
+    deadline_date: null,
+    deadline_time: null,
+    sort_key: sortKey,
+  }
+  const { score, reasons } =
+    isToday && !status
+      ? nowScore(now, s, { ...base, deadline_status: 'none' })
+      : { score: 0, reasons: [] }
+  return { ...base, section: sectionOf(base, s), score, reasons }
+}
+
+export interface DayView {
+  date: LocalDate
+  items: DayItem[]
+  done: number
+  total: number
+}
+
+export async function loadDay(store: Store, date: LocalDate, now: LocalDateTime): Promise<DayView> {
+  const s = await store.settings()
+  const today = logicalDay(now, s.day_start_hour)
+  const [versions, checks, routines, planned, doneThatDay, moves] = await Promise.all([
+    routineVersions(store),
+    store.db.routine_check.where('fields.date').equals(date).toArray(),
+    store.rows('routine'),
+    store.db.task.where('fields.date').equals(date).toArray(),
+    store.db.task.where('fields.done_on').equals(date).toArray(),
+    moveCounts(store),
+  ])
+  const status = new Map(checks.map((c) => [c.fields.routine_id, c.fields.status ?? null]))
+  const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
+
+  const items: DayItem[] = []
+  for (const v of routinesForDay(date, versions).values()) {
+    const st = status.get(v.routine_id) ?? null
+    items.push(routineItem(v, st, sortKeys.get(v.routine_id) ?? '', now, s, date === today))
+  }
+  const seen = new Set<string>()
+  for (const row of [...planned, ...doneThatDay]) {
+    if (seen.has(row.id) || row.fields.deleted) continue
+    // A task done on another day but still dated here belongs to that other day.
+    if (row.fields.done_on && row.fields.done_on !== date) continue
+    seen.add(row.id)
+    items.push(taskItem(row, moves.get(row.id) ?? 0, now, s, today))
+  }
+  items.sort((a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) || compareItems(a, b))
+  return {
+    date,
+    items,
+    done: items.filter((i) => i.done).length,
+    total: items.filter((i) => !i.skipped).length,
+  }
+}
+
+/** Top items for the "Now" screen: highest score first, topped up with the next open items. */
+export function pickNow(day: DayView, max = 7, min = 5): DayItem[] {
+  const open = day.items.filter((i) => !i.done && !i.skipped)
+  const ranked = open
+    .filter((i) => i.score > 0)
+    .sort((a, b) => b.score - a.score || compareItems(a, b))
+    .slice(0, max)
+  const rest = open.filter((i) => !ranked.includes(i))
+  return [...ranked, ...rest.slice(0, Math.max(0, min - ranked.length))]
+}
+
+export interface HeatCell {
+  date: LocalDate
+  count: number
+  /** -1 for days after today. */
+  level: number
+}
+
+export interface StatsView {
+  streak: number
+  totalDone: number
+  heatmap: HeatCell[]
+}
+
+export async function loadStats(store: Store, today: LocalDate): Promise<StatsView> {
+  const s = await store.settings()
+  const [tasks, checks] = await Promise.all([store.rows('task'), store.rows('routine_check')])
+  // Same counting rule as domain dayStats (shared/domain-fixtures/day_stats.json), in one pass.
+  const byDay: Record<LocalDate, DayStats> = {}
+  const bump = (d: LocalDate, key: keyof DayStats) => {
+    byDay[d] ??= { done: 0, skipped: 0 }
+    byDay[d][key] += 1
+  }
+  for (const t of tasks) if (t.fields.done_on) bump(t.fields.done_on, 'done')
+  for (const c of checks) {
+    if (c.fields.status === 'done') bump(c.fields.date!, 'done')
+    else if (c.fields.status === 'skipped') bump(c.fields.date!, 'skipped')
+  }
+  const grid = heatmapGrid(today)
+  const past = grid.filter((d) => d <= today)
+  const levels = heatmapLevels(past.map((d) => byDay[d]?.done ?? 0))
+  const heatmap = grid.map((date, i) => ({
+    date,
+    count: byDay[date]?.done ?? 0,
+    level: date <= today ? levels[i]! : -1,
+  }))
+  const totalDone = Object.values(byDay).reduce((n, d) => n + d.done, 0)
+  return { streak: streak(today, byDay, s.streak_min_done), totalDone, heatmap }
+}
+
+export async function loadInbox(store: Store, now: LocalDateTime): Promise<DayItem[]> {
+  const s = await store.settings()
+  const today = logicalDay(now, s.day_start_hour)
+  const moves = await moveCounts(store)
+  return (await store.rows('task'))
+    .filter((r) => r.fields.date === null && !r.fields.deleted && !r.fields.done_on)
+    .map((r) => taskItem(r, moves.get(r.id) ?? 0, now, s, today))
+    .sort(compareItems)
+}
+
+export interface RoutineListItem {
+  id: string
+  version: VersionWithMeta
+  /** Set when an edit takes effect after today. */
+  pendingFrom: LocalDate | null
+  section: Section
+  sort_key: string
+}
+
+export async function loadRoutines(store: Store, today: LocalDate): Promise<RoutineListItem[]> {
+  const s = await store.settings()
+  const [versions, routines] = await Promise.all([routineVersions(store), store.rows('routine')])
+  const latest = new Map<string, VersionWithMeta>()
+  for (const v of versions) {
+    const cur = latest.get(v.routine_id)
+    if (
+      !cur ||
+      v.effective_from > cur.effective_from ||
+      (v.effective_from === cur.effective_from && v.hlc > cur.hlc)
+    ) {
+      latest.set(v.routine_id, v)
+    }
+  }
+  const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
+  return [...latest.values()]
+    .filter((v) => !v.archived)
+    .map((v) => ({
+      id: v.routine_id,
+      version: v,
+      pendingFrom: v.effective_from > today ? v.effective_from : null,
+      section: sectionOf(v as RoutineVersion, s),
+      sort_key: sortKeys.get(v.routine_id) ?? '',
+    }))
+    .sort((a, b) =>
+      SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) ||
+      (a.version.time ?? '').localeCompare(b.version.time ?? '') ||
+      a.sort_key.localeCompare(b.sort_key),
+    )
+}

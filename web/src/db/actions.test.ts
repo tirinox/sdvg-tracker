@@ -9,6 +9,7 @@ import {
   editRoutine,
   moveCount,
   postponeTask,
+  rescheduleTask,
   routinesOn,
   runRollover,
   setRoutineCheck,
@@ -107,6 +108,19 @@ describe('tasks', () => {
     await postponeTask(store, id, TODAY)
     expect((await store.get('task', id))!.date).toBe('2026-09-24')
     expect(await moveCount(store, id)).toBe(2)
+  })
+
+  it('moving a planned task later counts once; earlier or from inbox does not', async () => {
+    const store = await openStore()
+    const id = await createTask(store, { title: 'Отчёт', date: TODAY })
+    await rescheduleTask(store, id, '2026-09-30', TODAY)
+    expect(await moveCount(store, id)).toBe(1)
+    await rescheduleTask(store, id, '2026-09-25', TODAY)
+    expect(await moveCount(store, id)).toBe(1)
+    expect((await store.get('task', id))!.date).toBe('2026-09-25')
+    const inbox = await createTask(store, { title: 'Когда-нибудь' })
+    await rescheduleTask(store, inbox, '2026-09-30', TODAY)
+    expect(await moveCount(store, inbox)).toBe(0)
   })
 
   it('postponing an inbox task plans it without a move', async () => {

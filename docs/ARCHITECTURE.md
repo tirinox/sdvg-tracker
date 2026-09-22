@@ -204,7 +204,7 @@ Authorization: Bearer <token>
 | часть | технологии |
 |---|---|
 | Backend | Python 3.12, uv, FastAPI, SQLAlchemy 2, Alembic, SQLite (WAL), pytest |
-| Web | Vue 3, Vite, TypeScript, Pinia, Dexie (IndexedDB), vite-plugin-pwa, Vitest |
+| Web | Vue 3, Vue Router, Vite, TypeScript, Dexie (IndexedDB), vite-plugin-pwa, Vitest |
 | iOS | SwiftUI, GRDB, BGAppRefreshTask, локальные уведомления, WidgetKit, ActivityKit, App Intents, App Group |
 | Инфра | docker compose, Makefile |
 
@@ -215,7 +215,7 @@ Authorization: Bearer <token>
 
 ```
 backend/    app/{api,models,sync,domain}, alembic/, tests/
-web/        src/{core,domain,db,sync,stores,views,components}
+web/        src/{core,domain,db,sync,app,demo,views,components}
 ios/        SDVGCore/{DB,Sync,Domain}, SDVGTracker/Features, SDVGWidgets/{Widgets,LiveActivity}
 shared/     sync-fixtures/, domain-fixtures/
 docs/       ARCHITECTURE.md, ROADMAP.md
