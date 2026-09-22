@@ -6,7 +6,6 @@ import type { DayItem } from '../app/views'
 import {
   completeTask,
   deleteTask,
-  postponeTask,
   reopenTask,
   setRoutineCheck,
   updateTask,
@@ -48,7 +47,6 @@ async function toggleSkip() {
   await setRoutineCheck(store, props.item.id, day.value, props.item.skipped ? null : 'skipped')
 }
 
-const postpone = () => postponeTask(store, props.item.id, today.value)
 const toInbox = () => updateTask(store, props.item.id, { date: null })
 const remove = () => deleteTask(store, props.item.id)
 const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.item.id))
@@ -82,15 +80,6 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
     </button>
 
     <div class="actions">
-      <button
-        v-if="isTask && !item.done"
-        class="icon"
-        type="button"
-        title="Перенести на завтра"
-        @click="postpone"
-      >
-        ↷<span class="lbl">Завтра</span>
-      </button>
       <button
         v-if="!isTask && !item.done"
         class="icon"

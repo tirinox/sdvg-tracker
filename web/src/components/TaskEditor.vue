@@ -3,7 +3,15 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
 import { plural } from '../app/format'
 import type { Task } from '../core/types'
-import { createTask, deleteTask, moveCount, rescheduleTask, updateTask, type NewTask } from '../db/actions'
+import {
+  createTask,
+  deleteTask,
+  moveCount,
+  postponeTask,
+  rescheduleTask,
+  updateTask,
+  type NewTask,
+} from '../db/actions'
 import { addDays } from '../domain/dates'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
@@ -28,6 +36,7 @@ const form = reactive({
   ...props.defaults,
 })
 const moves = ref(0)
+const done = ref(false)
 let originalDate: string | null = null
 const loaded = ref(props.id === null)
 const title = ref<HTMLInputElement>()
@@ -38,6 +47,7 @@ onMounted(async () => {
     if (t) {
       Object.assign(form, pick(t))
       originalDate = t.date
+      done.value = Boolean(t.done_on)
     }
     moves.value = await moveCount(store, props.id)
     loaded.value = true
@@ -57,8 +67,7 @@ const inbox = computed({
 })
 const valid = computed(() => form.title.trim().length > 0 && (form.time_kind !== 'exact' || !!form.time))
 
-async function save() {
-  if (!valid.value) return
+async function persist() {
   const data = {
     ...form,
     title: form.title.trim(),
@@ -73,6 +82,19 @@ async function save() {
   } else {
     await createTask(store, data)
   }
+}
+
+async function save() {
+  if (!valid.value) return
+  await persist()
+  emit('close')
+}
+
+/** Keeps any edits made in the form, then moves the task one day forward. */
+async function postpone() {
+  if (!props.id || !valid.value) return
+  await persist()
+  await postponeTask(store, props.id, today.value)
   emit('close')
 }
 
@@ -147,6 +169,16 @@ async function remove() {
     <template #footer>
       <button v-if="id" class="btn danger" type="button" @click="remove">Удалить</button>
       <span style="flex: 1" />
+      <button
+        v-if="id && !done"
+        class="btn"
+        type="button"
+        :disabled="!valid"
+        title="Перенести на следующий день — это посчитается как перенос"
+        @click="postpone"
+      >
+        ↷ На завтра
+      </button>
       <button class="btn" type="button" @click="emit('close')">Отмена</button>
       <button class="btn primary" type="button" :disabled="!valid" @click="save">Сохранить</button>
     </template>

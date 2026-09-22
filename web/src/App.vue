@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { isOnboardingDone } from './app/connect'
 import { useApp } from './app/context'
 import RoutineEditor from './components/RoutineEditor.vue'
 import TaskEditor from './components/TaskEditor.vue'
+import WelcomeDialog from './components/WelcomeDialog.vue'
+import { loadSyncConfig } from './sync/client'
 
-const { editor, syncStatus, openTask } = useApp()
+const { store, editor, syncStatus, openTask } = useApp()
+
+// First run without a server: suggest connecting before showing an empty, device-only list.
+const welcome = ref(false)
+onMounted(async () => {
+  welcome.value = !(await loadSyncConfig(store)) && !(await isOnboardingDone(store))
+})
 
 const NAV = [
   { to: '/', label: 'Сейчас', icon: '✦' },
@@ -63,6 +72,7 @@ const sync = computed(() => {
       @close="editor = null"
     />
     <RoutineEditor v-if="editor?.kind === 'routine'" :id="editor.id" :key="`r${editor.id}`" @close="editor = null" />
+    <WelcomeDialog v-if="welcome" @close="welcome = false" />
   </div>
 </template>
 

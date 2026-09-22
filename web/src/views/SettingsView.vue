@@ -4,12 +4,13 @@ import { useApp } from '../app/context'
 import { useLive } from '../app/useLive'
 import { updateSettings } from '../db/actions'
 import { clearDemo, generateDemo } from '../demo/demo'
-import { loadSyncConfig, saveSyncConfig } from '../sync/client'
+import { connectServer, type ConnectResult } from '../app/connect'
+import { loadSyncConfig } from '../sync/client'
 
 const { store, sync, syncStatus, settings, today, now } = useApp()
 
 const conn = reactive({ baseUrl: '', token: '' })
-const check = ref<'idle' | 'checking' | 'ok' | 'bad' | 'offline'>('idle')
+const check = ref<'idle' | 'checking' | ConnectResult>('idle')
 const busy = ref('')
 const outbox = useLive(() => store.db.outbox.count(), 0)
 const rejected = useLive(() => store.db.rejected.count(), 0)
@@ -21,19 +22,7 @@ onMounted(async () => {
 
 async function connect() {
   check.value = 'checking'
-  try {
-    const resp = await fetch(`${conn.baseUrl}/api/auth/check`, {
-      headers: { Authorization: `Bearer ${conn.token}` },
-      signal: AbortSignal.timeout(5000),
-    })
-    check.value = resp.ok ? 'ok' : resp.status === 401 ? 'bad' : 'offline'
-  } catch {
-    check.value = 'offline'
-  }
-  if (check.value === 'ok') {
-    await saveSyncConfig(store, { baseUrl: conn.baseUrl.replace(/\/$/, ''), token: conn.token })
-    await sync.sync()
-  }
+  check.value = await connectServer(store, sync, conn.baseUrl, conn.token)
 }
 
 const STATE_TEXT: Record<string, string> = {
@@ -90,7 +79,7 @@ const removeDemo = () =>
           Подключить
         </button>
         <span v-if="check === 'ok'" class="ok">Подключено ✓</span>
-        <span v-else-if="check === 'bad'" class="bad">Неверный токен</span>
+        <span v-else-if="check === 'bad-token'" class="bad">Неверный токен</span>
         <span v-else-if="check === 'offline'" class="bad">Сервер не отвечает</span>
       </div>
       <dl class="status">

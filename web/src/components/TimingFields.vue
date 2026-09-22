@@ -15,6 +15,19 @@ const CHOICES: Choice[] = [
   { label: '⏰ Точное время', kind: 'exact' },
 ]
 
+const DURATIONS = [
+  { min: 5, label: '5 мин' },
+  { min: 10, label: '10 мин' },
+  { min: 15, label: '15 мин' },
+  { min: 30, label: '30 мин' },
+  { min: 60, label: '1 ч' },
+  { min: 120, label: '2 ч' },
+  { min: 180, label: '3 ч' },
+]
+
+/** Tapping the selected duration again clears it. */
+const pickDuration = (min: number) => (duration.value = duration.value === min ? null : min)
+
 const selected = (c: Choice) => c.kind === kind.value && (c.kind !== 'part' || c.part === part.value)
 
 function pick(c: Choice) {
@@ -40,31 +53,44 @@ function pick(c: Choice) {
       </button>
     </div>
   </div>
-  <div class="row">
-    <label v-if="kind === 'exact'" class="field">
-      <span>Время</span>
-      <input v-model="time" class="input" type="time" required />
-    </label>
-    <label class="field">
-      <span>Длительность, мин</span>
+  <label v-if="kind === 'exact'" class="field">
+    <span>Время</span>
+    <input v-model="time" class="input time" type="time" required />
+  </label>
+  <div class="field">
+    <span>Длительность</span>
+    <div class="chips">
+      <button
+        v-for="d in DURATIONS"
+        :key="d.min"
+        type="button"
+        class="chip"
+        :aria-pressed="duration === d.min"
+        @click="pickDuration(d.min)"
+      >
+        {{ d.label }}
+      </button>
       <input
-        class="input"
+        class="input custom"
         type="number"
         min="1"
         max="1440"
-        step="5"
         :value="duration ?? ''"
-        placeholder="—"
+        placeholder="мин"
+        aria-label="Своя длительность в минутах"
         @input="duration = Number(($event.target as HTMLInputElement).value) || null"
       />
-    </label>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+.time {
+  width: auto;
+}
+.custom {
+  width: 78px;
+  padding: 4px 8px;
+  border-radius: 999px;
 }
 </style>
