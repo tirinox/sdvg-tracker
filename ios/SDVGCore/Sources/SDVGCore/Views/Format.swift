@@ -1,17 +1,20 @@
 import Foundation
-import SDVGCore
 import SwiftUI
 
-// Russian labels. Mirrors web/src/app/format.ts.
+#if canImport(UIKit)
+    import UIKit
+#endif
 
-func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
+// Russian labels and the shared palette, used by the app and the widgets.
+
+public func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
     let m10 = n % 10, m100 = n % 100
     if m10 == 1 && m100 != 11 { return one }
     if (2...4).contains(m10) && !(12...14).contains(m100) { return few }
     return many
 }
 
-enum Fmt {
+public enum Fmt {
     private static func formatter(_ template: String) -> DateFormatter {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ru_RU")
@@ -33,26 +36,26 @@ enum Fmt {
         Date(timeIntervalSince1970: Double(Dates.epochDay(d)) * 86400 + 43200)
     }
 
-    static func shortDate(_ d: LocalDate) -> String { shortDM.string(from: date(d)).replacingOccurrences(of: ".", with: "") }
-    static func month(_ d: LocalDate) -> String { monthOnly.string(from: date(d)).replacingOccurrences(of: ".", with: "") }
+    public static func shortDate(_ d: LocalDate) -> String { shortDM.string(from: date(d)).replacingOccurrences(of: ".", with: "") }
+    public static func month(_ d: LocalDate) -> String { monthOnly.string(from: date(d)).replacingOccurrences(of: ".", with: "") }
 
-    static func dayTitle(_ d: LocalDate, today: LocalDate) -> (title: String, subtitle: String) {
+    public static func dayTitle(_ d: LocalDate, today: LocalDate) -> (title: String, subtitle: String) {
         let wd = weekday.string(from: date(d)), dm = dayMonth.string(from: date(d))
         let rel: String? = d == today ? "Сегодня" : d == Dates.addDays(today, 1) ? "Завтра" : d == Dates.addDays(today, -1) ? "Вчера" : nil
         return rel.map { ($0, "\(wd), \(dm)") } ?? (wd.prefix(1).uppercased() + wd.dropFirst(), dm)
     }
 
-    static let sectionTitles: [DaySection: String] = [.anytime: "В любое время", .morning: "Утро", .day: "День", .evening: "Вечер"]
-    static let partTitles: [PartOfDay: String] = [.morning: "Утро", .day: "День", .evening: "Вечер"]
+    public static let sectionTitles: [DaySection: String] = [.anytime: "В любое время", .morning: "Утро", .day: "День", .evening: "Вечер"]
+    public static let partTitles: [PartOfDay: String] = [.morning: "Утро", .day: "День", .evening: "Вечер"]
 
-    static func duration(_ min: Int?) -> String {
+    public static func duration(_ min: Int?) -> String {
         guard let min, min > 0 else { return "" }
         if min < 60 { return "\(min) мин" }
         let h = min / 60, m = min % 60
         return m > 0 ? "\(h) ч \(m) мин" : "\(h) ч"
     }
 
-    static func timing(_ t: Timing, duration minutes: Int?) -> String {
+    public static func timing(_ t: Timing, duration minutes: Int?) -> String {
         let dur = duration(minutes)
         let head: String? = switch t.kind {
         case .exact: t.time
@@ -62,7 +65,7 @@ enum Fmt {
         return [head, dur.isEmpty ? nil : dur].compactMap { $0 }.joined(separator: " · ")
     }
 
-    static func deadline(_ i: DayItem, today: LocalDate) -> String {
+    public static func deadline(_ i: DayItem, today: LocalDate) -> String {
         guard i.deadline != .none, let dd = i.deadlineDate else { return "" }
         let time = i.deadlineTime.map { " до \($0)" } ?? ""
         switch i.deadline {
@@ -76,10 +79,10 @@ enum Fmt {
         }
     }
 
-    static func moves(_ n: Int) -> String { "\(n) \(plural(n, "перенос", "переноса", "переносов"))" }
+    public static func moves(_ n: Int) -> String { "\(n) \(plural(n, "перенос", "переноса", "переносов"))" }
 
     /// Timing hint for the Now screen (deadline and moves already have tags on the row).
-    static func nowHint(_ i: DayItem, now: LocalDateTime, today: LocalDate) -> String? {
+    public static func nowHint(_ i: DayItem, now: LocalDateTime, today: LocalDate) -> String? {
         guard i.reasons.contains(.now) else { return nil }
         guard let time = i.timing.time else { return "🕐 самое время" }
         var mins = Dates.minutesBetween(now, "\(today)T\(time)")
@@ -87,9 +90,9 @@ enum Fmt {
         return mins > 0 ? "⏰ через \(mins) мин" : mins == 0 ? "⏰ сейчас" : "⏰ идёт \(-mins) мин"
     }
 
-    static let weekdays = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+    public static let weekdays = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
 
-    static func weekdays(_ mask: Int) -> String {
+    public static func weekdays(_ mask: Int) -> String {
         switch mask {
         case 127: "каждый день"
         case 0b0011111: "по будням"
@@ -100,29 +103,34 @@ enum Fmt {
 }
 
 /// The shared 12-color palette (index stored in data).
-enum Palette {
-    static let colors: [Color] = [
+public enum Palette {
+    public static let colors: [Color] = [
         0xF06A6A, 0xF39A4C, 0xEEC14A, 0xA9CF54, 0x5DBB7A, 0x45B8A8,
         0x4BB0DE, 0x5B8DEF, 0x7B74E6, 0xA97BE0, 0xE57BB8, 0x8E95A8,
     ].map { Color(hex: $0) }
 
-    static func color(_ i: Int) -> Color { colors[(i % 12 + 12) % 12] }
+    public static func color(_ i: Int) -> Color { colors[(i % 12 + 12) % 12] }
 
-    static let heat: [Color] = [
+    public static let heat: [Color] = [
         Color(light: 0xE9E7F2, dark: 0x24222E), Color(light: 0xCFE8D6, dark: 0x1D4630), Color(light: 0x97D2A8, dark: 0x247046),
         Color(light: 0x54B07A, dark: 0x34A062), Color(light: 0x2A8452, dark: 0x5FD394),
     ]
-    static let ok = Color(light: 0x2F9E6A, dark: 0x5FD39A)
-    static let warn = Color(light: 0xC7771A, dark: 0xF0A94B)
-    static let danger = Color(light: 0xD4483B, dark: 0xFF7B6E)
+    public static let ok = Color(light: 0x2F9E6A, dark: 0x5FD39A)
+    public static let warn = Color(light: 0xC7771A, dark: 0xF0A94B)
+    public static let danger = Color(light: 0xD4483B, dark: 0xFF7B6E)
 }
 
 extension Color {
-    init(hex: Int) {
+    public init(hex: Int) {
         self.init(red: Double((hex >> 16) & 0xff) / 255, green: Double((hex >> 8) & 0xff) / 255, blue: Double(hex & 0xff) / 255)
     }
 
-    init(light: Int, dark: Int) {
-        self.init(UIColor { $0.userInterfaceStyle == .dark ? UIColor(Color(hex: dark)) : UIColor(Color(hex: light)) })
+    /// Two shades of the same role, picked by the interface style.
+    public init(light: Int, dark: Int) {
+        #if canImport(UIKit)
+            self.init(UIColor { $0.userInterfaceStyle == .dark ? UIColor(Color(hex: dark)) : UIColor(Color(hex: light)) })
+        #else
+            self.init(hex: light)
+        #endif
     }
 }

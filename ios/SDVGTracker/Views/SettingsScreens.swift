@@ -90,6 +90,16 @@ struct SettingsScreen: View {
                 Button("Синхронизировать сейчас") { model.syncNow() }
             }
             SwiftUI.Section {
+                Toggle("Показывать «сделано из всего»", isOn: Binding(
+                    get: { s.showDayTotal },
+                    set: { v in model.perform { try $0.updateSettings(["show_day_total": .bool(v)]) } }))
+                NavigationLink("Как выглядят виджеты") { WidgetPreviewScreen() }
+            } header: {
+                Text("Вид")
+            } footer: {
+                Text("Без общего числа виджеты и экран «Сейчас» показывают только количество сделанного.")
+            }
+            SwiftUI.Section {
                 stepper("День начинается в", s.dayStartHour, 0...12, "day_start_hour")
                 stepper("Утро с", s.partMorningFrom, 0...23, "part_morning_from")
                 stepper("День с", s.partDayFrom, 0...23, "part_day_from")

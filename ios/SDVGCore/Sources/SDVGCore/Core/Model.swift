@@ -142,6 +142,8 @@ public struct Settings: Hashable, Sendable {
     public var partEveningFrom = 18
     public var attentionThresholds = [1, 3, 6, 10]
     public var streakMinDone = 1
+    /// Show today's progress as "done/total"; false shows only the done count.
+    public var showDayTotal = true
 
     public init() {}
 
@@ -152,5 +154,6 @@ public struct Settings: Hashable, Sendable {
         if let v = f["part_evening_from"]?.int { partEveningFrom = v }
         if let v = f["attention_thresholds"]?.array?.compactMap(\.int), v.count == 4 { attentionThresholds = v }
         if let v = f["streak_min_done"]?.int { streakMinDone = v }
+        if let v = f["show_day_total"]?.bool { showDayTotal = v }
     }
 }

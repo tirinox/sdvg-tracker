@@ -50,6 +50,11 @@
       "type": "integer",
       "minimum": 1,
       "default": 1
+    },
+    "show_day_total": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show today's progress as 'done/total'; false shows only the done count"
     }
   },
   "required": [
@@ -58,7 +63,8 @@
     "part_day_from",
     "part_evening_from",
     "attention_thresholds",
-    "streak_min_done"
+    "streak_min_done",
+    "show_day_total"
   ],
   "additionalProperties": false
 }

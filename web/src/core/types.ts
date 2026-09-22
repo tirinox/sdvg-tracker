@@ -80,6 +80,8 @@ export interface Settings {
   part_evening_from: number
   attention_thresholds: [number, number, number, number]
   streak_min_done: number
+  /** Show today's progress as "done/total"; false shows only the done count. */
+  show_day_total: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -89,6 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   part_evening_from: 18,
   attention_thresholds: [1, 3, 6, 10],
   streak_min_done: 1,
+  show_day_total: true,
 }
 
 export interface EntityFields {

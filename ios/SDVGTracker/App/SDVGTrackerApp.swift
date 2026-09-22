@@ -1,6 +1,7 @@
 import BackgroundTasks
 import SDVGCore
 import SwiftUI
+import WidgetKit
 
 @main
 struct SDVGTrackerApp: App {
@@ -39,7 +40,10 @@ struct SDVGTrackerApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: model.syncNow()
-            case .background: Self.scheduleRefresh()
+            case .background:
+                Self.scheduleRefresh()
+                // Pick up everything done in the app (and pulled by sync) on the home screen.
+                WidgetCenter.shared.reloadAllTimelines()
             default: break
             }
         }
