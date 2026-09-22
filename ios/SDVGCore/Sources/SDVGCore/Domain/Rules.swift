@@ -126,6 +126,28 @@ public enum Rules {
         }
     }
 
+    public struct DayRecord: Hashable, Sendable {
+        /// Day the previous record was first set; nil when nothing was done before today.
+        public var bestDate: LocalDate?
+        public var bestDone = 0
+        public var todayDone = 0
+        /// How many more to do today to beat the record.
+        public var toBeat: Int { max(0, bestDone + 1 - todayDone) }
+        public var broken: Bool { bestDone > 0 && todayDone > bestDone }
+    }
+
+    /// Most done in a day before today (earliest day on a tie) and how today compares to it.
+    public static func dayRecord(today: LocalDate, days: [LocalDate: DayStats]) -> DayRecord {
+        var r = DayRecord(todayDone: days[today]?.done ?? 0)
+        for (d, s) in days where d < today && s.done > 0 {
+            if s.done > r.bestDone || (s.done == r.bestDone && d < r.bestDate!) {
+                r.bestDate = d
+                r.bestDone = s.done
+            }
+        }
+        return r
+    }
+
     /// Levels 0...4 relative to personal history: quartiles of the non-zero counts.
     public static func heatmapLevels(_ counts: [Int]) -> [Int] {
         let v = counts.filter { $0 > 0 }.sorted()

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { completeTask, createRoutine, createTask, postponeTask, setRoutineCheck } from '../db/actions'
 import { Store } from '../db/store'
 import { DEMO_OPEN_TASK_COUNT, DEMO_ROUTINE_COUNT, clearDemo, generateDemo } from '../demo/demo'
-import { loadDay, loadInbox, loadRoutines, loadStats, pickNow } from './views'
+import { claimRecordCelebration, loadDay, loadInbox, loadRecord, loadRoutines, loadStats, pickNow } from './views'
 
 const TODAY = '2026-09-22' // Tuesday
 const NOW = `${TODAY}T14:40`
@@ -52,6 +52,27 @@ describe('loadDay', () => {
     const r = await createRoutine(store, { title: 'Спортзал' }, TODAY)
     await setRoutineCheck(store, r, TODAY, 'skipped')
     expect(await loadDay(store, TODAY, NOW)).toMatchObject({ done: 0, total: 0 })
+  })
+})
+
+describe('day record', () => {
+  it('counts tasks and routines of any kind and celebrates once a day', async () => {
+    const store = await openStore()
+    const YESTERDAY = '2026-09-21'
+    await completeTask(store, await createTask(store, { title: 'Вчера', date: YESTERDAY }), YESTERDAY)
+    const r = await createRoutine(store, { title: 'Душ' }, YESTERDAY)
+    await setRoutineCheck(store, r, YESTERDAY, 'done')
+
+    expect(await loadRecord(store, TODAY)).toMatchObject({ best_date: YESTERDAY, best_done: 2, to_beat: 3 })
+
+    await setRoutineCheck(store, r, TODAY, 'done')
+    for (const title of ['Раз', 'Два']) await completeTask(store, await createTask(store, { title, date: TODAY }), TODAY)
+    const record = await loadRecord(store, TODAY)
+    expect(record).toMatchObject({ today_done: 3, to_beat: 0, broken: true })
+    expect(await claimRecordCelebration(store, record, TODAY)).toBe(true)
+
+    await completeTask(store, await createTask(store, { title: 'Три', date: TODAY }), TODAY)
+    expect(await claimRecordCelebration(store, await loadRecord(store, TODAY), TODAY)).toBe(false)
   })
 })
 

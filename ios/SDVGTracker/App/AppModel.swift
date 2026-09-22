@@ -35,6 +35,8 @@ final class AppModel {
     var editor: EditorTarget?
     var showWelcome = false
     var dayDate: LocalDate?
+    /// Set when today's record was just broken; shows the confetti once a day.
+    var celebration: Rules.DayRecord?
 
     var today: LocalDate { Dates.logicalDay(now, dayStartHour: settings.dayStartHour) }
 
@@ -107,12 +109,19 @@ final class AppModel {
     private func databaseChanged() {
         revision &+= 1
         settings = (try? store.settings()) ?? settings
+        checkRecord()
         notifyDebounce?.cancel()
         notifyDebounce = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard let self, !Task.isCancelled else { return }
             await Notifications.reschedule(store: self.store, now: self.now)
         }
+    }
+
+    private func checkRecord() {
+        guard let record = try? store.loadRecord(today: today),
+              (try? store.claimRecordCelebration(record, today: today)) == true else { return }
+        celebration = record
     }
 
     func syncNow() {

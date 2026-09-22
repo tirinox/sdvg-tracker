@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { domainCases, sharedFiles, type Case, type Json } from '../test/shared'
 import { logicalDay, partOfDay } from './dates'
-import { dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
+import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routinesForDay } from './routines'
 import { nowScore } from './score'
 import { attentionLevel, deadlineStatus, planRollover } from './tasks'
@@ -34,6 +34,7 @@ const RUNNERS: Record<string, Runner> = {
   }),
   day_stats: (i) => dayStats(i.date, i.tasks, i.routine_checks),
   streak: (i) => ({ streak: streak(i.today, i.days, i.streak_min_done) }),
+  day_record: (i) => dayRecord(i.today, i.days),
   now_score: (i) => nowScore(i.now, i.settings, i.item),
   heatmap_levels: (i) => ({ levels: heatmapLevels(i.counts) }),
   heatmap_grid: (i) => {

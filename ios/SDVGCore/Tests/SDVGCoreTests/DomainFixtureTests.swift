@@ -68,6 +68,12 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
         let days = i["days"]!.object!.mapValues { Rules.DayStats(done: $0["done"]!.int!, skipped: $0["skipped"]!.int!) }
         return ["streak": .int(Rules.streak(today: i["today"]!.string!, days: days, minDone: i["streak_min_done"]!.int!))]
     },
+    "day_record": { i in
+        let days = i["days"]!.object!.mapValues { Rules.DayStats(done: $0["done"]!.int!, skipped: $0["skipped"]!.int!) }
+        let r = Rules.dayRecord(today: i["today"]!.string!, days: days)
+        return ["best_date": r.bestDate.map(JSONValue.string) ?? .null, "best_done": .int(r.bestDone),
+                "today_done": .int(r.todayDone), "to_beat": .int(r.toBeat), "broken": .bool(r.broken)]
+    },
     "now_score": { i in
         let item = i["item"]!
         let r = Rules.nowScore(

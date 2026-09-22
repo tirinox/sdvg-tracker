@@ -25,6 +25,11 @@ struct RootView: View {
             }
         }
         .sheet(isPresented: $model.showWelcome) { WelcomeScreen() }
+        .overlay {
+            if let record = model.celebration {
+                RecordCelebration(record: record) { model.celebration = nil }
+            }
+        }
     }
 }
 
@@ -72,6 +77,7 @@ struct NowScreen: View {
                          progress: day.map { $0.total > 0 ? Double($0.done) / Double($0.total) : 0 })
                     stat("\(stats?.totalDone ?? 0)", "всего сделано")
                 }
+                if let record = stats?.record, record.bestDate != nil { RecordCard(record: record) }
                 Text("ГЛАВНОЕ СЕЙЧАС").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 if top.isEmpty {
                     Card {

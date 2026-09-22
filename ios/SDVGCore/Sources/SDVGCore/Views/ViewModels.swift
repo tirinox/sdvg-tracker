@@ -68,6 +68,7 @@ public struct StatsView: Sendable {
 
     public var streak: Int
     public var totalDone: Int
+    public var record: Rules.DayRecord
     public var heatmap: [Cell]
 }
 
@@ -141,18 +142,39 @@ extension Store {
         }
     }
 
+    /// Done/skipped per day, by the day_stats rule in one pass.
+    private static func statsByDay(_ db: Database) throws -> [LocalDate: Rules.DayStats] {
+        var byDay: [LocalDate: Rules.DayStats] = [:]
+        for d in try String.fetchAll(db, sql: "SELECT done_on FROM task WHERE done_on IS NOT NULL") {
+            byDay[d, default: .init()].done += 1
+        }
+        for r in try GRDB.Row.fetchAll(db, sql: "SELECT date, json_extract(fields, '$.status') AS status FROM routine_check") {
+            guard let d: String = r["date"], let st: String = r["status"] else { continue }
+            if st == "done" { byDay[d, default: .init()].done += 1 }
+            if st == "skipped" { byDay[d, default: .init()].skipped += 1 }
+        }
+        return byDay
+    }
+
+    public func loadRecord(today: LocalDate) throws -> Rules.DayRecord {
+        try read { Rules.dayRecord(today: today, days: try Self.statsByDay($0)) }
+    }
+
+    /// True once per day on this device: when today's record is broken and it was not celebrated yet.
+    /// Marks the day as celebrated.
+    public func claimRecordCelebration(_ record: Rules.DayRecord, today: LocalDate) throws -> Bool {
+        guard record.broken else { return false }
+        return try writer.write { db in
+            if try Meta.get(db, "record_celebrated")?.string == today { return false }
+            try Meta.set(db, "record_celebrated", .string(today))
+            return true
+        }
+    }
+
     public func loadStats(today: LocalDate) throws -> StatsView {
         try read { db in
             let s = try Rows.settings(db)
-            var byDay: [LocalDate: Rules.DayStats] = [:]
-            for d in try String.fetchAll(db, sql: "SELECT done_on FROM task WHERE done_on IS NOT NULL") {
-                byDay[d, default: .init()].done += 1
-            }
-            for r in try GRDB.Row.fetchAll(db, sql: "SELECT date, json_extract(fields, '$.status') AS status FROM routine_check") {
-                guard let d: String = r["date"], let st: String = r["status"] else { continue }
-                if st == "done" { byDay[d, default: .init()].done += 1 }
-                if st == "skipped" { byDay[d, default: .init()].skipped += 1 }
-            }
+            let byDay = try Self.statsByDay(db)
             let grid = Rules.heatmapGrid(today: today)
             let past = grid.filter { $0 <= today }
             let levels = Rules.heatmapLevels(past.map { byDay[$0]?.done ?? 0 })
@@ -162,6 +184,7 @@ extension Store {
             return StatsView(
                 streak: Rules.streak(today: today, days: byDay, minDone: s.streakMinDone),
                 totalDone: byDay.values.reduce(0) { $0 + $1.done },
+                record: Rules.dayRecord(today: today, days: byDay),
                 heatmap: cells)
         }
     }

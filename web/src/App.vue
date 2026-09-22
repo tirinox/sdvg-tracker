@@ -1,18 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { isOnboardingDone } from './app/connect'
 import { useApp } from './app/context'
+import { useLive } from './app/useLive'
+import { claimRecordCelebration, loadRecord } from './app/views'
+import RecordConfetti from './components/RecordConfetti.vue'
 import RoutineEditor from './components/RoutineEditor.vue'
 import TaskEditor from './components/TaskEditor.vue'
 import WelcomeDialog from './components/WelcomeDialog.vue'
 import { loadSyncConfig } from './sync/client'
 
-const { store, editor, syncStatus, openTask } = useApp()
+const { store, editor, syncStatus, openTask, today } = useApp()
 
 // First run without a server: suggest connecting before showing an empty, device-only list.
 const welcome = ref(false)
 onMounted(async () => {
   welcome.value = !(await loadSyncConfig(store)) && !(await isOnboardingDone(store))
+})
+
+// Confetti once a day, on whichever screen the record gets broken.
+const record = useLive(() => loadRecord(store, today.value), null, [today])
+const celebrate = ref<{ done: number; previous: number } | null>(null)
+watch(record, async (r) => {
+  if (r && (await claimRecordCelebration(store, r, today.value))) {
+    celebrate.value = { done: r.today_done, previous: r.best_done }
+  }
 })
 
 const NAV = [
@@ -73,6 +85,7 @@ const sync = computed(() => {
     />
     <RoutineEditor v-if="editor?.kind === 'routine'" :id="editor.id" :key="`r${editor.id}`" @close="editor = null" />
     <WelcomeDialog v-if="welcome" @close="welcome = false" />
+    <RecordConfetti v-if="celebrate" v-bind="celebrate" @close="celebrate = null" />
   </div>
 </template>
 

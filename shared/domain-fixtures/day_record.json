@@ -1,0 +1,56 @@
+{
+  "description": "Record of done items per day. best = the day before today with the most done (day_stats.done); on a tie the earliest such day, when the record was first set. No day with done > 0 before today: best_date null, best_done 0. Days after today are ignored. to_beat = max(0, best_done + 1 - today_done). broken = best_done > 0 and today_done > best_done (the very first active day is not a record).",
+  "cases": [
+    {
+      "name": "empty history",
+      "input": { "today": "2026-09-22", "days": {} },
+      "expect": { "best_date": null, "best_done": 0, "today_done": 0, "to_beat": 1, "broken": false }
+    },
+    {
+      "name": "first active day is not a record",
+      "input": { "today": "2026-09-22", "days": { "2026-09-22": { "done": 4, "skipped": 0 } } },
+      "expect": { "best_date": null, "best_done": 0, "today_done": 4, "to_beat": 0, "broken": false }
+    },
+    {
+      "name": "tie keeps the earliest day",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-10": { "done": 5, "skipped": 0 },
+          "2026-09-15": { "done": 5, "skipped": 1 },
+          "2026-09-20": { "done": 3, "skipped": 0 },
+          "2026-09-22": { "done": 2, "skipped": 0 }
+        }
+      },
+      "expect": { "best_date": "2026-09-10", "best_done": 5, "today_done": 2, "to_beat": 4, "broken": false }
+    },
+    {
+      "name": "equal to the record is not broken yet",
+      "input": {
+        "today": "2026-09-22",
+        "days": { "2026-09-20": { "done": 3, "skipped": 0 }, "2026-09-22": { "done": 3, "skipped": 0 } }
+      },
+      "expect": { "best_date": "2026-09-20", "best_done": 3, "today_done": 3, "to_beat": 1, "broken": false }
+    },
+    {
+      "name": "broken",
+      "input": {
+        "today": "2026-09-22",
+        "days": { "2026-09-20": { "done": 3, "skipped": 0 }, "2026-09-22": { "done": 5, "skipped": 0 } }
+      },
+      "expect": { "best_date": "2026-09-20", "best_done": 3, "today_done": 5, "to_beat": 0, "broken": true }
+    },
+    {
+      "name": "future and skipped-only days are ignored",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-19": { "done": 0, "skipped": 4 },
+          "2026-09-21": { "done": 2, "skipped": 0 },
+          "2026-09-25": { "done": 9, "skipped": 0 }
+        }
+      },
+      "expect": { "best_date": "2026-09-21", "best_done": 2, "today_done": 0, "to_beat": 3, "broken": false }
+    }
+  ]
+}

@@ -13,7 +13,7 @@ import type {
 import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
 import { localNow, logicalDay, partOfDay } from '../domain/dates'
-import { heatmapGrid, heatmapLevels, streak, type DayStats } from '../domain/progress'
+import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
 import { routinesForDay } from '../domain/routines'
 import { nowScore, type ScoreReason } from '../domain/score'
 import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
@@ -222,13 +222,13 @@ export interface HeatCell {
 export interface StatsView {
   streak: number
   totalDone: number
+  record: DayRecord
   heatmap: HeatCell[]
 }
 
-export async function loadStats(store: Store, today: LocalDate): Promise<StatsView> {
-  const s = await store.settings()
+/** Done/skipped per day. Same counting rule as domain dayStats (shared/domain-fixtures/day_stats.json), in one pass. */
+async function statsByDay(store: Store): Promise<Record<LocalDate, DayStats>> {
   const [tasks, checks] = await Promise.all([store.rows('task'), store.rows('routine_check')])
-  // Same counting rule as domain dayStats (shared/domain-fixtures/day_stats.json), in one pass.
   const byDay: Record<LocalDate, DayStats> = {}
   const bump = (d: LocalDate, key: keyof DayStats) => {
     byDay[d] ??= { done: 0, skipped: 0 }
@@ -239,6 +239,12 @@ export async function loadStats(store: Store, today: LocalDate): Promise<StatsVi
     if (c.fields.status === 'done') bump(c.fields.date!, 'done')
     else if (c.fields.status === 'skipped') bump(c.fields.date!, 'skipped')
   }
+  return byDay
+}
+
+export async function loadStats(store: Store, today: LocalDate): Promise<StatsView> {
+  const s = await store.settings()
+  const byDay = await statsByDay(store)
   const grid = heatmapGrid(today)
   const past = grid.filter((d) => d <= today)
   const levels = heatmapLevels(past.map((d) => byDay[d]?.done ?? 0))
@@ -248,7 +254,28 @@ export async function loadStats(store: Store, today: LocalDate): Promise<StatsVi
     level: date <= today ? levels[i]! : -1,
   }))
   const totalDone = Object.values(byDay).reduce((n, d) => n + d.done, 0)
-  return { streak: streak(today, byDay, s.streak_min_done), totalDone, heatmap }
+  return {
+    streak: streak(today, byDay, s.streak_min_done),
+    totalDone,
+    record: dayRecord(today, byDay),
+    heatmap,
+  }
+}
+
+export async function loadRecord(store: Store, today: LocalDate): Promise<DayRecord> {
+  return dayRecord(today, await statsByDay(store))
+}
+
+const RECORD_CELEBRATED = 'record_celebrated'
+
+/**
+ * True once per day on this device: when today's record is broken and it was not celebrated yet.
+ * Marks the day as celebrated.
+ */
+export async function claimRecordCelebration(store: Store, record: DayRecord, today: LocalDate): Promise<boolean> {
+  if (!record.broken || (await store.getMeta<LocalDate>(RECORD_CELEBRATED)) === today) return false
+  await store.setMeta(RECORD_CELEBRATED, today)
+  return true
 }
 
 export async function loadInbox(store: Store, now: LocalDateTime): Promise<DayItem[]> {

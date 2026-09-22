@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { dayTitle, plural } from '../app/format'
+import { dayTitle, plural, shortDate } from '../app/format'
 import { useLive } from '../app/useLive'
 import { loadDay, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
 import Heatmap from '../components/Heatmap.vue'
@@ -17,6 +17,7 @@ const title = computed(() => dayTitle(today.value, today.value))
 const progress = computed(() =>
   day.value && day.value.total ? Math.round((day.value.done / day.value.total) * 100) : 0,
 )
+const record = computed(() => stats.value?.record ?? null)
 const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
 </script>
 
@@ -48,6 +49,25 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
         <span class="big">{{ stats?.totalDone ?? 0 }}</span>
         <span class="muted">всего сделано</span>
       </div>
+    </div>
+
+    <div v-if="record?.best_date" class="record card" :class="{ broken: record.broken }">
+      <span class="cup" aria-hidden="true">🏆</span>
+      <div v-if="record.broken">
+        <b>Новый рекорд: {{ record.today_done }} {{ plural(record.today_done, 'дело', 'дела', 'дел') }} за день</b>
+        <span class="muted">
+          Прежний — {{ record.best_done }}, {{ shortDate(record.best_date) }}
+        </span>
+      </div>
+      <div v-else>
+        <b>Рекорд: {{ record.best_done }} {{ plural(record.best_done, 'дело', 'дела', 'дел') }} за день</b>
+        <span class="muted">
+          {{ shortDate(record.best_date) }} · чтобы побить, сделайте сегодня ещё {{ record.to_beat }}
+        </span>
+      </div>
+      <span v-if="!record.broken" class="bar">
+        <span :style="{ width: `${(record.today_done / (record.best_done + 1)) * 100}%` }" />
+      </span>
     </div>
 
     <h2 class="section-title">Главное сейчас</h2>
@@ -122,6 +142,32 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
   height: 100%;
   background: var(--ok);
   transition: width 0.3s;
+}
+.record {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+.record b {
+  display: block;
+  font-size: 15px;
+}
+.record .cup {
+  font-size: 26px;
+}
+.record .bar {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+.record .bar span {
+  background: var(--warn);
+}
+.record.broken {
+  background: var(--warn-soft);
 }
 .list {
   display: grid;
