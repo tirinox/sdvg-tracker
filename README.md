@@ -25,13 +25,16 @@ make install       # зависимости backend и web
 make backend-dev   # backend с перезагрузкой на :8421
 make web-dev       # Vite на :5173, /api проксируется на :8421
 make test          # тесты backend (включая проверку контрактов shared/) и web
+make test-live     # web-клиент синхронизации против настоящего backend на временной БД
 make lint          # ruff + vue-tsc
 make help          # все команды
 ```
 
 ```
 backend/   FastAPI, uv, pytest
-web/       Vue 3 + Vite + TypeScript, Vitest
+web/       Vue 3 + Vite + TypeScript, Dexie (IndexedDB), Vitest
+           src/core — HLC, ID, слияние; src/domain — правила; src/db — локальная БД и действия;
+           src/sync — клиент /api/sync и триггеры
 shared/    JSON Schema, тест-векторы, фикстуры синхронизации и доменной логики
 docs/      архитектура и план
 ```

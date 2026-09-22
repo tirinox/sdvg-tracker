@@ -1,0 +1,49 @@
+{
+  "description": "53 week columns, weeks start on Monday, the last column is the week containing today (days after today are shown empty). first = Monday 52 weeks before this week's Monday, last = this week's Sunday, days = 371.",
+  "cases": [
+    {
+      "name": "2026-09-22 (Tuesday)",
+      "input": {
+        "today": "2026-09-22"
+      },
+      "expect": {
+        "first": "2025-09-22",
+        "last": "2026-09-27",
+        "days": 371
+      }
+    },
+    {
+      "name": "2026-09-21 (Monday)",
+      "input": {
+        "today": "2026-09-21"
+      },
+      "expect": {
+        "first": "2025-09-22",
+        "last": "2026-09-27",
+        "days": 371
+      }
+    },
+    {
+      "name": "2026-09-27 (Sunday)",
+      "input": {
+        "today": "2026-09-27"
+      },
+      "expect": {
+        "first": "2025-09-22",
+        "last": "2026-09-27",
+        "days": 371
+      }
+    },
+    {
+      "name": "2026-01-01 (over new year)",
+      "input": {
+        "today": "2026-01-01"
+      },
+      "expect": {
+        "first": "2024-12-30",
+        "last": "2026-01-04",
+        "days": 371
+      }
+    }
+  ]
+}

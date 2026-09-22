@@ -215,7 +215,7 @@ Authorization: Bearer <token>
 
 ```
 backend/    app/{api,models,sync,domain}, alembic/, tests/
-web/        src/{db,sync,domain,stores,views,components}
+web/        src/{core,domain,db,sync,stores,views,components}
 ios/        SDVGCore/{DB,Sync,Domain}, SDVGTracker/Features, SDVGWidgets/{Widgets,LiveActivity}
 shared/     sync-fixtures/, domain-fixtures/
 docs/       ARCHITECTURE.md, ROADMAP.md

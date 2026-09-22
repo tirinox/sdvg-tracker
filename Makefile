@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token install up down build logs ps test test-backend test-web \
-        lint fmt backend-dev web-dev
+        test-live lint fmt backend-dev web-dev
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -41,6 +41,19 @@ test-backend:
 
 test-web:
 	cd web && npx vitest run
+
+LIVE_PORT := 8422
+LIVE_TOKEN := live-test-token-0123456789
+
+test-live: ## Web sync client against a real backend on a throwaway database
+	@cd backend && uv sync -q
+	@tmp=$$(mktemp -d); \
+	( cd backend && API_TOKEN=$(LIVE_TOKEN) DATABASE_PATH=$$tmp/live.db exec .venv/bin/uvicorn \
+		--factory app.main:create_app --port $(LIVE_PORT) --log-level warning ) & \
+	pid=$$!; trap 'kill $$pid 2>/dev/null; rm -rf $$tmp' EXIT; \
+	for i in $$(seq 50); do curl -sf localhost:$(LIVE_PORT)/api/health >/dev/null && break; sleep 0.2; done; \
+	cd web && SDVG_LIVE_URL=http://localhost:$(LIVE_PORT) SDVG_LIVE_TOKEN=$(LIVE_TOKEN) \
+		npx vitest run src/sync/live.test.ts
 
 lint: ## Lint and typecheck
 	cd backend && uv run ruff check . && uv run ruff format --check .

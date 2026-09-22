@@ -1,0 +1,100 @@
+{
+  "description": "Level 0 for zero. Otherwise take the sorted non-zero counts v (n items), q(p) = v[ceil(p*n) - 1] for p in 0.25, 0.5, 0.75; level = 1 + number of q strictly below the count. Levels are relative to personal history, so a 2-task day is not always pale.",
+  "cases": [
+    {
+      "name": "no activity",
+      "input": {
+        "counts": [
+          0,
+          0,
+          0
+        ]
+      },
+      "expect": {
+        "levels": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "all equal",
+      "input": {
+        "counts": [
+          1,
+          1,
+          1,
+          0
+        ]
+      },
+      "expect": {
+        "levels": [
+          1,
+          1,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "spread",
+      "input": {
+        "counts": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "expect": {
+        "levels": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    },
+    {
+      "name": "mixed",
+      "input": {
+        "counts": [
+          0,
+          5,
+          1,
+          10,
+          2,
+          2,
+          0,
+          3
+        ]
+      },
+      "expect": {
+        "levels": [
+          0,
+          3,
+          1,
+          4,
+          1,
+          1,
+          0,
+          3
+        ]
+      }
+    },
+    {
+      "name": "single day",
+      "input": {
+        "counts": [
+          7
+        ]
+      },
+      "expect": {
+        "levels": [
+          1
+        ]
+      }
+    }
+  ]
+}
