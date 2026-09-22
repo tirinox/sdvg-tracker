@@ -76,6 +76,10 @@
     "response": {
       "type": "object",
       "properties": {
+        "server_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Identifies the server database. If it differs from the one the client stored, the client must reset its cursor to 0 and push its full state."
+        },
         "cursor": {
           "type": "integer",
           "minimum": 0
@@ -91,6 +95,7 @@
         }
       },
       "required": [
+        "server_id",
         "cursor",
         "changes",
         "has_more"

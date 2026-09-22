@@ -50,7 +50,7 @@ fmt: ## Format code
 	cd backend && uv run ruff check --fix . && uv run ruff format .
 
 backend-dev: env ## Run backend locally with reload on :8421
-	cd backend && uv run uvicorn app.main:app --reload --port 8421
+	cd backend && uv run uvicorn --factory app.main:create_app --reload --port 8421
 
 web-dev: ## Run Vite dev server on :5173 (proxies /api to :8421)
 	cd web && npm run dev

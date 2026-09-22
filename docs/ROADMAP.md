@@ -19,7 +19,7 @@
 
 ## Этап 1 — Backend: хранение и синхронизация
 
-- Модели и миграции Alembic для всех сущностей, `server_seq`.
+- Хранилище: одна таблица `records` + `meta` (`server_id`), миграции Alembic, `server_seq`.
 - HLC, слияние LWW по полям, неизменяемые сущности, tombstones.
 - `POST /api/sync`: push + pull, транзакция, идемпотентность.
 - Прогон всех `sync-fixtures`.

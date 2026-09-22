@@ -7,13 +7,15 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "jsonschema>=4.23",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "httpx>=0.28",
-    "jsonschema>=4.23",
     "ruff>=0.8",
 ]
 
