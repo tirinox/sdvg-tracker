@@ -1,0 +1,369 @@
+{
+  "description": "Rows created independently on two devices with the same id",
+  "cases": [
+    {
+      "name": "two lunches",
+      "description": "Lunch is marked done on phone and web offline. Same id -> one row, later mark wins.",
+      "order_independent": true,
+      "initial": [],
+      "changes": [
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done",
+            "done_at": "2026-09-22T10:01:00Z",
+            "snapshot": {
+              "title": "Пообедать",
+              "emoji": "🍲",
+              "color": 5,
+              "time_kind": "part",
+              "part_of_day": "day",
+              "time": null
+            }
+          },
+          "clocks": {
+            "routine_id": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "date": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "status": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "done_at": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "snapshot": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done",
+            "done_at": "2026-09-22T10:05:00Z",
+            "snapshot": {
+              "title": "Пообедать",
+              "emoji": "🍲",
+              "color": 5,
+              "time_kind": "part",
+              "part_of_day": "day",
+              "time": null
+            }
+          },
+          "clocks": {
+            "routine_id": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "date": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "status": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "done_at": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "snapshot": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        }
+      ],
+      "expected": [
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done",
+            "done_at": "2026-09-22T10:05:00Z",
+            "snapshot": {
+              "title": "Пообедать",
+              "emoji": "🍲",
+              "color": 5,
+              "time_kind": "part",
+              "part_of_day": "day",
+              "time": null
+            }
+          },
+          "clocks": {
+            "routine_id": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "date": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "status": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "done_at": "1790000000200-0000-bbbbbbbbbbbbbbbb",
+            "snapshot": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mark then clear",
+      "description": "Web marks lunch done, phone later clears the mark.",
+      "order_independent": true,
+      "initial": [],
+      "changes": [
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done",
+            "done_at": "2026-09-22T10:01:00Z",
+            "snapshot": {
+              "title": "Пообедать",
+              "emoji": "🍲",
+              "color": 5,
+              "time_kind": "part",
+              "part_of_day": "day",
+              "time": null
+            }
+          },
+          "clocks": {
+            "routine_id": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "date": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "status": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "done_at": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "snapshot": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "status": null,
+            "done_at": null
+          },
+          "clocks": {
+            "status": "1790000000300-0000-bbbbbbbbbbbbbbbb",
+            "done_at": "1790000000300-0000-bbbbbbbbbbbbbbbb"
+          }
+        }
+      ],
+      "expected": [
+        {
+          "entity": "routine_check",
+          "id": "317d1fb0-295d-5798-a960-d9d9027c1489",
+          "fields": {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": null,
+            "done_at": null,
+            "snapshot": {
+              "title": "Пообедать",
+              "emoji": "🍲",
+              "color": 5,
+              "time_kind": "part",
+              "part_of_day": "day",
+              "time": null
+            }
+          },
+          "clocks": {
+            "routine_id": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "date": "1790000000100-0000-aaaaaaaaaaaaaaaa",
+            "status": "1790000000300-0000-bbbbbbbbbbbbbbbb",
+            "done_at": "1790000000300-0000-bbbbbbbbbbbbbbbb",
+            "snapshot": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          }
+        }
+      ]
+    },
+    {
+      "name": "double auto rollover",
+      "description": "Both devices roll the task over 2026-09-20 and 2026-09-21. Moves have the same ids -> the counter is 2, not 4.",
+      "order_independent": true,
+      "initial": [
+        {
+          "entity": "task",
+          "id": "0192f0a0-0000-7000-8000-000000000001",
+          "fields": {
+            "title": "Починить коляску",
+            "notes": "",
+            "emoji": "🛠️",
+            "color": 3,
+            "date": "2026-09-20",
+            "first_date": "2026-09-20",
+            "time_kind": "none",
+            "part_of_day": null,
+            "time": null,
+            "duration_min": null,
+            "deadline_date": null,
+            "deadline_time": null,
+            "done_on": null,
+            "deleted": false,
+            "sort_key": "a0",
+            "created_at": "2026-09-22T07:00:00Z"
+          },
+          "clocks": {
+            "title": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "notes": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "emoji": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "color": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "date": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "first_date": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "time_kind": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "part_of_day": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "time": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "duration_min": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deadline_date": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deadline_time": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "done_on": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deleted": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "sort_key": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "created_at": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "changes": [
+        {
+          "entity": "task_move",
+          "id": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-20",
+            "to_date": "2026-09-21",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001000-0000-aaaaaaaaaaaaaaaa",
+            "from_date": "1790000001000-0000-aaaaaaaaaaaaaaaa",
+            "to_date": "1790000001000-0000-aaaaaaaaaaaaaaaa",
+            "kind": "1790000001000-0000-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "task_move",
+          "id": "21d03215-603e-5737-a725-89365c308a08",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001000-0001-aaaaaaaaaaaaaaaa",
+            "from_date": "1790000001000-0001-aaaaaaaaaaaaaaaa",
+            "to_date": "1790000001000-0001-aaaaaaaaaaaaaaaa",
+            "kind": "1790000001000-0001-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "task",
+          "id": "0192f0a0-0000-7000-8000-000000000001",
+          "fields": {
+            "date": "2026-09-22"
+          },
+          "clocks": {
+            "date": "1790000001000-0002-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "task_move",
+          "id": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-20",
+            "to_date": "2026-09-21",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "from_date": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "to_date": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "kind": "1790000001500-0000-bbbbbbbbbbbbbbbb"
+          }
+        },
+        {
+          "entity": "task_move",
+          "id": "21d03215-603e-5737-a725-89365c308a08",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "from_date": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "to_date": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "kind": "1790000001500-0001-bbbbbbbbbbbbbbbb"
+          }
+        },
+        {
+          "entity": "task",
+          "id": "0192f0a0-0000-7000-8000-000000000001",
+          "fields": {
+            "date": "2026-09-22"
+          },
+          "clocks": {
+            "date": "1790000001500-0002-bbbbbbbbbbbbbbbb"
+          }
+        }
+      ],
+      "expected": [
+        {
+          "entity": "task",
+          "id": "0192f0a0-0000-7000-8000-000000000001",
+          "fields": {
+            "title": "Починить коляску",
+            "notes": "",
+            "emoji": "🛠️",
+            "color": 3,
+            "date": "2026-09-22",
+            "first_date": "2026-09-20",
+            "time_kind": "none",
+            "part_of_day": null,
+            "time": null,
+            "duration_min": null,
+            "deadline_date": null,
+            "deadline_time": null,
+            "done_on": null,
+            "deleted": false,
+            "sort_key": "a0",
+            "created_at": "2026-09-22T07:00:00Z"
+          },
+          "clocks": {
+            "title": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "notes": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "emoji": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "color": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "date": "1790000001500-0002-bbbbbbbbbbbbbbbb",
+            "first_date": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "time_kind": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "part_of_day": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "time": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "duration_min": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deadline_date": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deadline_time": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "done_on": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "deleted": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "sort_key": "1790000000000-0000-aaaaaaaaaaaaaaaa",
+            "created_at": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "entity": "task_move",
+          "id": "21d03215-603e-5737-a725-89365c308a08",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "from_date": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "to_date": "1790000001500-0001-bbbbbbbbbbbbbbbb",
+            "kind": "1790000001500-0001-bbbbbbbbbbbbbbbb"
+          }
+        },
+        {
+          "entity": "task_move",
+          "id": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a",
+          "fields": {
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-20",
+            "to_date": "2026-09-21",
+            "kind": "auto"
+          },
+          "clocks": {
+            "task_id": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "from_date": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "to_date": "1790000001500-0000-bbbbbbbbbbbbbbbb",
+            "kind": "1790000001500-0000-bbbbbbbbbbbbbbbb"
+          }
+        }
+      ]
+    }
+  ]
+}

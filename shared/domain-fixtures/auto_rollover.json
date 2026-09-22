@@ -1,0 +1,164 @@
+{
+  "description": "For each task that is not done, not deleted, has a date and date < today: one auto move per missed day (from d to d+1), then task.date = today. Done, deleted, inbox and future tasks are untouched. Move ids are deterministic (see vectors/ids.json).",
+  "cases": [
+    {
+      "name": "missed yesterday",
+      "input": {
+        "today": "2026-09-22",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-21",
+            "done_on": null,
+            "deleted": false
+          }
+        ]
+      },
+      "expect": {
+        "new_moves": [
+          {
+            "id": "21d03215-603e-5737-a725-89365c308a08",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          }
+        ],
+        "task_dates": {
+          "0192f0a0-0000-7000-8000-000000000001": "2026-09-22"
+        }
+      }
+    },
+    {
+      "name": "app not opened for three days",
+      "input": {
+        "today": "2026-09-22",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-19",
+            "done_on": null,
+            "deleted": false
+          }
+        ]
+      },
+      "expect": {
+        "new_moves": [
+          {
+            "id": "f7640f7e-a745-596a-b308-62f057d72b8f",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-19",
+            "to_date": "2026-09-20",
+            "kind": "auto"
+          },
+          {
+            "id": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-20",
+            "to_date": "2026-09-21",
+            "kind": "auto"
+          },
+          {
+            "id": "21d03215-603e-5737-a725-89365c308a08",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          }
+        ],
+        "task_dates": {
+          "0192f0a0-0000-7000-8000-000000000001": "2026-09-22"
+        }
+      }
+    },
+    {
+      "name": "nothing to do",
+      "input": {
+        "today": "2026-09-22",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-22",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000002",
+            "date": "2026-09-25",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000003",
+            "date": null,
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000004",
+            "date": "2026-09-20",
+            "done_on": "2026-09-20",
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000005",
+            "date": "2026-09-20",
+            "done_on": null,
+            "deleted": true
+          }
+        ]
+      },
+      "expect": {
+        "new_moves": [],
+        "task_dates": {}
+      }
+    },
+    {
+      "name": "mixed",
+      "input": {
+        "today": "2026-09-22",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-20",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000002",
+            "date": "2026-09-22",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000003",
+            "date": "2026-09-21",
+            "done_on": "2026-09-22",
+            "deleted": false
+          }
+        ]
+      },
+      "expect": {
+        "new_moves": [
+          {
+            "id": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-20",
+            "to_date": "2026-09-21",
+            "kind": "auto"
+          },
+          {
+            "id": "21d03215-603e-5737-a725-89365c308a08",
+            "task_id": "0192f0a0-0000-7000-8000-000000000001",
+            "from_date": "2026-09-21",
+            "to_date": "2026-09-22",
+            "kind": "auto"
+          }
+        ],
+        "task_dates": {
+          "0192f0a0-0000-7000-8000-000000000001": "2026-09-22"
+        }
+      }
+    }
+  ]
+}

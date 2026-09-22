@@ -1,0 +1,140 @@
+{
+  "description": "Level = number of thresholds <= move count. Default thresholds [1, 3, 6, 10] give 0 | 1-2 | 3-5 | 6-9 | 10+.",
+  "cases": [
+    {
+      "name": "0 moves",
+      "input": {
+        "moves": 0,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 0
+      }
+    },
+    {
+      "name": "1 moves",
+      "input": {
+        "moves": 1,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 1
+      }
+    },
+    {
+      "name": "2 moves",
+      "input": {
+        "moves": 2,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 1
+      }
+    },
+    {
+      "name": "3 moves",
+      "input": {
+        "moves": 3,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 2
+      }
+    },
+    {
+      "name": "5 moves",
+      "input": {
+        "moves": 5,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 2
+      }
+    },
+    {
+      "name": "6 moves",
+      "input": {
+        "moves": 6,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 3
+      }
+    },
+    {
+      "name": "9 moves",
+      "input": {
+        "moves": 9,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 3
+      }
+    },
+    {
+      "name": "10 moves",
+      "input": {
+        "moves": 10,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 4
+      }
+    },
+    {
+      "name": "25 moves",
+      "input": {
+        "moves": 25,
+        "thresholds": [
+          1,
+          3,
+          6,
+          10
+        ]
+      },
+      "expect": {
+        "level": 4
+      }
+    }
+  ]
+}

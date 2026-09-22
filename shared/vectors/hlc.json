@@ -1,0 +1,160 @@
+{
+  "description": "HLC test vectors. 'initial' is the {l, c} state before steps (null = 0, 0). 'pt' is physical wall time in ms. 'ordering' is sorted ascending: plain string comparison must reproduce it.",
+  "cases": [
+    {
+      "name": "physical time moves forward",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": null,
+      "steps": [
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000000005,
+          "expect": "1790000000005-0000-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "same millisecond increments counter",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": null,
+      "steps": [
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000000-0001-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000000-0002-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "clock goes backwards: logical time holds",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": null,
+      "steps": [
+        {
+          "op": "now",
+          "pt": 1790000001000,
+          "expect": "1790000001000-0000-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000001000-0001-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000001001,
+          "expect": "1790000001001-0000-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "receive from the future",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": null,
+      "steps": [
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "recv",
+          "pt": 1790000000001,
+          "remote": "1790000060000-0003-bbbbbbbbbbbbbbbb",
+          "expect": "1790000060000-0004-aaaaaaaaaaaaaaaa"
+        },
+        {
+          "op": "now",
+          "pt": 1790000000002,
+          "expect": "1790000060000-0005-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "receive with equal logical time",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": {
+        "l": 1790000000000,
+        "c": 2
+      },
+      "steps": [
+        {
+          "op": "recv",
+          "pt": 1789999999990,
+          "remote": "1790000000000-0007-bbbbbbbbbbbbbbbb",
+          "expect": "1790000000000-0008-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "receive from the past",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": {
+        "l": 1790000000000,
+        "c": 2
+      },
+      "steps": [
+        {
+          "op": "recv",
+          "pt": 1789999999990,
+          "remote": "1789999999500-0009-bbbbbbbbbbbbbbbb",
+          "expect": "1790000000000-0003-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "physical time beats both",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": {
+        "l": 1790000000000,
+        "c": 2
+      },
+      "steps": [
+        {
+          "op": "recv",
+          "pt": 1790000000100,
+          "remote": "1790000000050-0001-bbbbbbbbbbbbbbbb",
+          "expect": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "counter overflow advances logical ms",
+      "node_id": "aaaaaaaaaaaaaaaa",
+      "initial": {
+        "l": 1790000000000,
+        "c": 9999
+      },
+      "steps": [
+        {
+          "op": "now",
+          "pt": 1790000000000,
+          "expect": "1790000000001-0000-aaaaaaaaaaaaaaaa"
+        }
+      ]
+    }
+  ],
+  "ordering": [
+    "1789999999999-0005-bbbbbbbbbbbbbbbb",
+    "1790000000000-0000-aaaaaaaaaaaaaaaa",
+    "1790000000000-0000-bbbbbbbbbbbbbbbb",
+    "1790000000000-0001-aaaaaaaaaaaaaaaa",
+    "1790000000001-0000-aaaaaaaaaaaaaaaa",
+    "1790000001000-0000-aaaaaaaaaaaaaaaa"
+  ]
+}

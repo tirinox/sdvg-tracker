@@ -1,0 +1,27 @@
+{
+  "description": "Deterministic IDs: uuidv5(namespace, name). Output is lowercase canonical.",
+  "namespace": "3465ee0a-140d-5444-83db-ce0c741cf433",
+  "namespace_derivation": "uuidv5(NAMESPACE_URL, 'urn:sdvg-tracker:ids')",
+  "cases": [
+    {
+      "entity": "routine_check",
+      "name": "routine_check:0192f0a0-0000-7000-8000-000000000101:2026-09-22",
+      "expect": "317d1fb0-295d-5798-a960-d9d9027c1489"
+    },
+    {
+      "entity": "routine_check",
+      "name": "routine_check:0192f0a0-0000-7000-8000-000000000101:2026-09-23",
+      "expect": "ad4436b7-2ac1-5383-8c7f-7e37ee91f128"
+    },
+    {
+      "entity": "task_move",
+      "name": "task_move:0192f0a0-0000-7000-8000-000000000001:2026-09-20",
+      "expect": "5ba86521-5d4e-5315-8f55-7f7b4ecb496a"
+    },
+    {
+      "entity": "task_move",
+      "name": "task_move:0192f0a0-0000-7000-8000-000000000001:2026-09-21",
+      "expect": "21d03215-603e-5737-a725-89365c308a08"
+    }
+  ]
+}

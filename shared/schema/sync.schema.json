@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sync.schema.json",
+  "title": "Sync protocol",
+  "$defs": {
+    "change": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "enum": [
+            "task",
+            "task_move",
+            "routine",
+            "routine_version",
+            "routine_check",
+            "settings"
+          ]
+        },
+        "id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/uuid"
+            },
+            {
+              "const": "settings"
+            }
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "clocks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/hlc"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "entity",
+        "id",
+        "fields",
+        "clocks"
+      ],
+      "additionalProperties": false,
+      "description": "A set of field values with their clocks. Push: any subset of fields. Pull: full row. Keys of fields and clocks must match."
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/change"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000,
+          "default": 1000
+        }
+      },
+      "required": [
+        "cursor",
+        "changes"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/change"
+          }
+        },
+        "has_more": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cursor",
+        "changes",
+        "has_more"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

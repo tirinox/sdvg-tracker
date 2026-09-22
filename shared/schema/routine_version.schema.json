@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "routine_version.schema.json",
+  "title": "Routine version",
+  "description": "Snapshot of a routine valid from effective_from until the next version.",
+  "x-mutability": "immutable",
+  "type": "object",
+  "properties": {
+    "routine_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "effective_from": {
+      "$ref": "common.schema.json#/$defs/date"
+    },
+    "title": {
+      "$ref": "common.schema.json#/$defs/title"
+    },
+    "emoji": {
+      "$ref": "common.schema.json#/$defs/emoji"
+    },
+    "color": {
+      "$ref": "common.schema.json#/$defs/color"
+    },
+    "time_kind": {
+      "$ref": "common.schema.json#/$defs/time_kind"
+    },
+    "part_of_day": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/part_of_day"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "time": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "duration_min": {
+      "$ref": "common.schema.json#/$defs/duration_min"
+    },
+    "weekdays": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 127,
+      "description": "Bit mask: bit 0 = Monday ... bit 6 = Sunday; 127 = daily"
+    },
+    "archived": {
+      "type": "boolean",
+      "description": "true = routine is removed starting from effective_from"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "routine_id",
+    "effective_from",
+    "title",
+    "emoji",
+    "color",
+    "time_kind",
+    "part_of_day",
+    "time",
+    "duration_min",
+    "weekdays",
+    "archived",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

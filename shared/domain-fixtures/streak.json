@@ -1,0 +1,156 @@
+{
+  "description": "Day kinds: success (done >= streak_min_done), neutral (not success but skipped > 0), fail (otherwise). Streak = number of success days in the unbroken run of success/neutral days ending today; today is ignored unless it is already a success. 'days' holds day_stats; missing days are fail.",
+  "cases": [
+    {
+      "name": "empty history",
+      "input": {
+        "today": "2026-09-22",
+        "days": {},
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 0
+      }
+    },
+    {
+      "name": "today not done yet does not break",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-21": {
+            "done": 2,
+            "skipped": 0
+          },
+          "2026-09-20": {
+            "done": 1,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 2
+      }
+    },
+    {
+      "name": "today done counts",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-22": {
+            "done": 1,
+            "skipped": 0
+          },
+          "2026-09-21": {
+            "done": 2,
+            "skipped": 0
+          },
+          "2026-09-20": {
+            "done": 1,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 3
+      }
+    },
+    {
+      "name": "gap breaks",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-22": {
+            "done": 1,
+            "skipped": 0
+          },
+          "2026-09-21": {
+            "done": 1,
+            "skipped": 0
+          },
+          "2026-09-19": {
+            "done": 5,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 2
+      }
+    },
+    {
+      "name": "skipped day keeps but does not add",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-22": {
+            "done": 1,
+            "skipped": 0
+          },
+          "2026-09-21": {
+            "done": 0,
+            "skipped": 2
+          },
+          "2026-09-20": {
+            "done": 1,
+            "skipped": 0
+          },
+          "2026-09-19": {
+            "done": 1,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 3
+      }
+    },
+    {
+      "name": "yesterday missed",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-22": {
+            "done": 0,
+            "skipped": 0
+          },
+          "2026-09-20": {
+            "done": 3,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 1
+      },
+      "expect": {
+        "streak": 0
+      }
+    },
+    {
+      "name": "min_done threshold",
+      "input": {
+        "today": "2026-09-22",
+        "days": {
+          "2026-09-22": {
+            "done": 3,
+            "skipped": 0
+          },
+          "2026-09-21": {
+            "done": 2,
+            "skipped": 0
+          },
+          "2026-09-20": {
+            "done": 4,
+            "skipped": 0
+          }
+        },
+        "streak_min_done": 3
+      },
+      "expect": {
+        "streak": 1
+      }
+    }
+  ]
+}

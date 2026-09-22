@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "settings.schema.json",
+  "title": "Settings",
+  "description": "Singleton, id = 'settings'.",
+  "x-mutability": "mutable",
+  "type": "object",
+  "properties": {
+    "day_start_hour": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 12,
+      "default": 4
+    },
+    "part_morning_from": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 23,
+      "default": 6
+    },
+    "part_day_from": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 23,
+      "default": 12
+    },
+    "part_evening_from": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 23,
+      "default": 18
+    },
+    "attention_thresholds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "default": [
+        1,
+        3,
+        6,
+        10
+      ],
+      "description": "Move counts at which attention levels 1..4 start"
+    },
+    "streak_min_done": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    }
+  },
+  "required": [
+    "day_start_hour",
+    "part_morning_from",
+    "part_day_from",
+    "part_evening_from",
+    "attention_thresholds",
+    "streak_min_done"
+  ],
+  "additionalProperties": false
+}

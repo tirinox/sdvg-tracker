@@ -1,0 +1,463 @@
+{
+  "description": "For each routine pick the version with max (effective_from, hlc) where effective_from <= date; include it if not archived and weekdays has the date's bit (bit 0 = Monday). 'hlc' stands for the version's clock. expect.versions maps routine_id -> version id.",
+  "cases": [
+    {
+      "name": "2026-08-31: before any version",
+      "input": {
+        "date": "2026-08-31",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {}
+      }
+    },
+    {
+      "name": "2026-09-19: old versions; Saturday, gym is Mon/Wed/Fri",
+      "input": {
+        "date": "2026-09-19",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {
+          "0192f0a0-0000-7000-8000-000000000101": "0192f0a0-0000-7000-8000-000000000301",
+          "0192f0a0-0000-7000-8000-000000000102": "0192f0a0-0000-7000-8000-000000000303"
+        }
+      }
+    },
+    {
+      "name": "2026-09-20: new lunch version applies from its date; Sunday",
+      "input": {
+        "date": "2026-09-20",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {
+          "0192f0a0-0000-7000-8000-000000000101": "0192f0a0-0000-7000-8000-000000000302",
+          "0192f0a0-0000-7000-8000-000000000102": "0192f0a0-0000-7000-8000-000000000303"
+        }
+      }
+    },
+    {
+      "name": "2026-09-21: shower archived from this day; Monday, gym present",
+      "input": {
+        "date": "2026-09-21",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {
+          "0192f0a0-0000-7000-8000-000000000101": "0192f0a0-0000-7000-8000-000000000302",
+          "0192f0a0-0000-7000-8000-000000000103": "0192f0a0-0000-7000-8000-000000000305"
+        }
+      }
+    },
+    {
+      "name": "2026-09-22: Tuesday: no gym",
+      "input": {
+        "date": "2026-09-22",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {
+          "0192f0a0-0000-7000-8000-000000000101": "0192f0a0-0000-7000-8000-000000000302"
+        }
+      }
+    },
+    {
+      "name": "2026-09-25: two versions with the same effective_from: higher HLC wins",
+      "input": {
+        "date": "2026-09-25",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "title": "Пообедать",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000302",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-20",
+            "title": "Пообедать без телефона",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000303",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-01",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000304",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "effective_from": "2026-09-21",
+            "title": "Принять душ",
+            "weekdays": 127,
+            "archived": true,
+            "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000305",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "effective_from": "2026-09-01",
+            "title": "Спортзал",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000306",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант A)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000100-0000-aaaaaaaaaaaaaaaa"
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000307",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-25",
+            "title": "Пообедать (вариант B)",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000200-0000-bbbbbbbbbbbbbbbb"
+          }
+        ]
+      },
+      "expect": {
+        "versions": {
+          "0192f0a0-0000-7000-8000-000000000101": "0192f0a0-0000-7000-8000-000000000307",
+          "0192f0a0-0000-7000-8000-000000000103": "0192f0a0-0000-7000-8000-000000000305"
+        }
+      }
+    }
+  ]
+}

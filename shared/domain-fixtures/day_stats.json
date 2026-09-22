@@ -1,0 +1,179 @@
+{
+  "description": "done = tasks with done_on == date (deleted ones included: the work was done) + routine checks with status done. skipped = routine checks with status skipped. Cleared checks (status null) count as nothing.",
+  "cases": [
+    {
+      "name": "2026-09-22",
+      "input": {
+        "date": "2026-09-22",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000002",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": true
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000003",
+            "date": "2026-09-22",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000004",
+            "date": "2026-09-23",
+            "done_on": "2026-09-21",
+            "deleted": false
+          }
+        ],
+        "routine_checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "date": "2026-09-22",
+            "status": "skipped"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "date": "2026-09-22",
+            "status": null
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "done"
+          }
+        ]
+      },
+      "expect": {
+        "done": 3,
+        "skipped": 1
+      }
+    },
+    {
+      "name": "2026-09-21",
+      "input": {
+        "date": "2026-09-21",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000002",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": true
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000003",
+            "date": "2026-09-22",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000004",
+            "date": "2026-09-23",
+            "done_on": "2026-09-21",
+            "deleted": false
+          }
+        ],
+        "routine_checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "date": "2026-09-22",
+            "status": "skipped"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "date": "2026-09-22",
+            "status": null
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "done"
+          }
+        ]
+      },
+      "expect": {
+        "done": 2,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "2026-09-20",
+      "input": {
+        "date": "2026-09-20",
+        "tasks": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000001",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000002",
+            "date": "2026-09-22",
+            "done_on": "2026-09-22",
+            "deleted": true
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000003",
+            "date": "2026-09-22",
+            "done_on": null,
+            "deleted": false
+          },
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000004",
+            "date": "2026-09-23",
+            "done_on": "2026-09-21",
+            "deleted": false
+          }
+        ],
+        "routine_checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000102",
+            "date": "2026-09-22",
+            "status": "skipped"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000103",
+            "date": "2026-09-22",
+            "status": null
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "done"
+          }
+        ]
+      },
+      "expect": {
+        "done": 0,
+        "skipped": 0
+      }
+    }
+  ]
+}

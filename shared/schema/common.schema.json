@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common.schema.json",
+  "title": "Common definitions",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Lowercase canonical UUID"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+      "description": "Local calendar date YYYY-MM-DD, no timezone"
+    },
+    "time": {
+      "type": "string",
+      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+      "description": "Local wall-clock time HH:MM, no timezone"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$",
+      "description": "UTC instant, ISO 8601 with Z"
+    },
+    "hlc": {
+      "type": "string",
+      "pattern": "^\\d{13}-\\d{4}-[0-9a-f]{16}$",
+      "description": "Hybrid logical clock: {ms:013}-{counter:04}-{node_id}"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "emoji": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 32
+    },
+    "color": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 11,
+      "description": "Index into the shared 12-color palette"
+    },
+    "time_kind": {
+      "enum": [
+        "none",
+        "part",
+        "exact"
+      ],
+      "description": "Source of truth for timing; part_of_day/time are ignored unless time_kind selects them"
+    },
+    "part_of_day": {
+      "enum": [
+        "morning",
+        "day",
+        "evening"
+      ]
+    },
+    "duration_min": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 1440
+    },
+    "sort_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Fractional index, compared as a plain string"
+    }
+  }
+}

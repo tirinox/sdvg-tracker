@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task.schema.json",
+  "title": "One-off task",
+  "description": "One-off task. Rolls over to the next day automatically until done.",
+  "x-mutability": "mutable",
+  "type": "object",
+  "properties": {
+    "title": {
+      "$ref": "common.schema.json#/$defs/title"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 20000
+    },
+    "emoji": {
+      "$ref": "common.schema.json#/$defs/emoji"
+    },
+    "color": {
+      "$ref": "common.schema.json#/$defs/color"
+    },
+    "date": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Current planned day; null = inbox"
+    },
+    "first_date": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "First day the task was planned for; set once"
+    },
+    "time_kind": {
+      "$ref": "common.schema.json#/$defs/time_kind"
+    },
+    "part_of_day": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/part_of_day"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "time": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "duration_min": {
+      "$ref": "common.schema.json#/$defs/duration_min"
+    },
+    "deadline_date": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deadline_time": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "done_on": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Logical day of completion; null = not done"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "sort_key": {
+      "$ref": "common.schema.json#/$defs/sort_key"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "title",
+    "notes",
+    "emoji",
+    "color",
+    "date",
+    "first_date",
+    "time_kind",
+    "part_of_day",
+    "time",
+    "duration_min",
+    "deadline_date",
+    "deadline_time",
+    "done_on",
+    "deleted",
+    "sort_key",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

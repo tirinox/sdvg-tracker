@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "routine_check.schema.json",
+  "title": "Routine check",
+  "description": "Mark of a routine for a day. id = uuidv5(NS, 'routine_check:{routine_id}:{date}').",
+  "x-mutability": "mutable",
+  "type": "object",
+  "properties": {
+    "routine_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "date": {
+      "$ref": "common.schema.json#/$defs/date"
+    },
+    "status": {
+      "enum": [
+        "done",
+        "skipped",
+        null
+      ],
+      "description": "null = mark was cleared"
+    },
+    "done_at": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "snapshot": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "$ref": "common.schema.json#/$defs/title"
+            },
+            "emoji": {
+              "$ref": "common.schema.json#/$defs/emoji"
+            },
+            "color": {
+              "$ref": "common.schema.json#/$defs/color"
+            },
+            "time_kind": {
+              "$ref": "common.schema.json#/$defs/time_kind"
+            },
+            "part_of_day": {
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/part_of_day"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "time": {
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "title",
+            "emoji",
+            "color",
+            "time_kind",
+            "part_of_day",
+            "time"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "How the routine looked when it was marked"
+    }
+  },
+  "required": [
+    "routine_id",
+    "date",
+    "status",
+    "done_at",
+    "snapshot"
+  ],
+  "additionalProperties": false
+}

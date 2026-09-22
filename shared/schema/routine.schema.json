@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "routine.schema.json",
+  "title": "Routine",
+  "description": "Recurring task identity. Content lives in routine_version rows.",
+  "x-mutability": "mutable",
+  "type": "object",
+  "properties": {
+    "sort_key": {
+      "$ref": "common.schema.json#/$defs/sort_key"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "sort_key",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

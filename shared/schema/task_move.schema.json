@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task_move.schema.json",
+  "title": "Task move (postpone)",
+  "description": "One postponement of a task. id = uuidv5(NS, 'task_move:{task_id}:{from_date}'). Postpone counter = number of moves of the task.",
+  "x-mutability": "immutable",
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "from_date": {
+      "$ref": "common.schema.json#/$defs/date"
+    },
+    "to_date": {
+      "$ref": "common.schema.json#/$defs/date"
+    },
+    "kind": {
+      "enum": [
+        "auto",
+        "manual"
+      ]
+    }
+  },
+  "required": [
+    "task_id",
+    "from_date",
+    "to_date",
+    "kind"
+  ],
+  "additionalProperties": false
+}

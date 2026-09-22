@@ -1,0 +1,159 @@
+{
+  "description": "Statuses: none | ok | soon | today | overdue. overdue: deadline_time set and now >= deadline_date+deadline_time, or logical today > deadline_date. today: logical today == deadline_date. soon: days left <= 2, or more than 80% of the days from created_on (local date of created_at) to the deadline have elapsed.",
+  "cases": [
+    {
+      "name": "no deadline",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": null,
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "none"
+      }
+    },
+    {
+      "name": "done task has no indicator",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-20",
+        "deadline_time": null,
+        "done": true
+      },
+      "expect": {
+        "status": "none"
+      }
+    },
+    {
+      "name": "far away",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-20",
+        "deadline_date": "2026-10-10",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "ok"
+      }
+    },
+    {
+      "name": "two days left",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-20",
+        "deadline_date": "2026-09-24",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "soon"
+      }
+    },
+    {
+      "name": "three days left, early in the term",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-20",
+        "deadline_date": "2026-09-25",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "ok"
+      }
+    },
+    {
+      "name": "over 80% of the term elapsed",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-08-23",
+        "deadline_date": "2026-09-26",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "soon"
+      }
+    },
+    {
+      "name": "deadline today",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-22",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "today"
+      }
+    },
+    {
+      "name": "deadline today, time not yet passed",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-22",
+        "deadline_time": "15:00",
+        "done": false
+      },
+      "expect": {
+        "status": "today"
+      }
+    },
+    {
+      "name": "deadline today, time passed",
+      "input": {
+        "now": "2026-09-22T16:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-22",
+        "deadline_time": "15:00",
+        "done": false
+      },
+      "expect": {
+        "status": "overdue"
+      }
+    },
+    {
+      "name": "deadline yesterday",
+      "input": {
+        "now": "2026-09-22T10:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-21",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "overdue"
+      }
+    },
+    {
+      "name": "after midnight is still yesterday's logical day",
+      "input": {
+        "now": "2026-09-23T01:00",
+        "day_start_hour": 4,
+        "created_on": "2026-09-01",
+        "deadline_date": "2026-09-22",
+        "deadline_time": null,
+        "done": false
+      },
+      "expect": {
+        "status": "today"
+      }
+    }
+  ]
+}
