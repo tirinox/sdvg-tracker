@@ -16,6 +16,7 @@ import { localNow, logicalDay, partOfDay } from '../domain/dates'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
 import { routinesForDay } from '../domain/routines'
 import { nowScore, type ScoreReason } from '../domain/score'
+import { titleHistory, type TitleHistory } from '../domain/suggest'
 import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
 
 export type Section = 'anytime' | PartOfDay
@@ -286,6 +287,24 @@ export async function loadInbox(store: Store, now: LocalDateTime): Promise<DayIt
     .filter((r) => r.fields.date === null && !r.fields.deleted && !r.fields.done_on)
     .map((r) => taskItem(r, moves.get(r.id) ?? 0, now, s, today))
     .sort(compareItems)
+}
+
+/** Every task as history for title suggestions; see domain/suggest. */
+export async function loadTitleHistory(store: Store, today: LocalDate): Promise<TitleHistory> {
+  const tasks = (await store.rows('task')).map((r) => {
+    const t = r.fields
+    return {
+      id: r.id,
+      title: t.title ?? '',
+      emoji: t.emoji ?? null,
+      color: t.color ?? 0,
+      duration_min: t.duration_min ?? null,
+      done_on: t.done_on ?? null,
+      deleted: t.deleted ?? false,
+      created_on: t.created_at ? localDateOf(t.created_at) : today,
+    }
+  })
+  return titleHistory(tasks, today)
 }
 
 export interface RoutineListItem {

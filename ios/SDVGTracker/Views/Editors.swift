@@ -111,13 +111,24 @@ struct TaskEditor: View {
     @State var draft: TaskDraft
     @State private var moves = 0
     @State private var done = false
+    @State private var history: [Rules.TitleGroup] = []
+    @FocusState private var titleFocused: Bool
 
     var body: some View {
         let today = model.today
+        // Suggestions only for a new task: an existing one already has its title.
+        let suggestions = id == nil && titleFocused ? Rules.suggestTitles(history, query: draft.title) : []
         NavigationStack {
             Form {
                 SwiftUI.Section {
                     TextField("Что нужно сделать?", text: $draft.title, axis: .vertical).font(.title3.weight(.semibold))
+                        .focused($titleFocused)
+                    if !suggestions.isEmpty {
+                        TitleSuggestions(items: suggestions) { s in
+                            draft.apply(s)
+                            titleFocused = false
+                        }
+                    }
                     AppearancePicker(emoji: $draft.emoji, color: $draft.color)
                 }
                 SwiftUI.Section("День") {
@@ -172,7 +183,10 @@ struct TaskEditor: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save(); dismiss() }.disabled(!valid) }
             }
             .onAppear {
-                guard let id else { return }
+                guard let id else {
+                    history = (try? model.store.loadTitleHistory(today: today)) ?? []
+                    return
+                }
                 moves = (try? model.store.moveCount(id)) ?? 0
                 done = (try? model.store.get(.task, id).map(TaskRecord.init))?.doneOn != nil
             }

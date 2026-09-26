@@ -1,0 +1,811 @@
+{
+  "description": "Suggestions for the title of a new task, from the history of tasks, as the user types. History: every task except deleted ones that were never done. A task was used on `done_on` if done, else on `created_on`. Normalize a text: Unicode NFC, lowercase, ё → е, every run of characters that are not letters or digits → one space, trim; words are the space-separated parts. Tasks are grouped by the normalized title. Per group: `title` is the trimmed title of the latest task (max used_on, then max id); `emoji` and `color` come from the latest task that has an emoji, or from the latest task if none has; `duration_min` is the latest non-null one; `uses` is the number of tasks; weight = sum over its tasks of 0.5^(age / 30), age = max(0, days from used_on to today). The query is normalized the same way; an empty query suggests nothing. A group matches with tier 0 if its normalized title starts with the query, else tier 1 if every word of the query is a prefix of some word of the title; a group whose normalized title equals the query is not suggested. Order: tier, weight desc, latest used_on desc, normalized title (code point order). At most `limit` suggestions.",
+  "cases": [
+    {
+      "name": "title prefix first, then word prefix in the middle",
+      "input": {
+        "today": "2026-09-26",
+        "query": "я",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000001",
+            "title": "Купить яблоки",
+            "emoji": "🍎",
+            "color": 3,
+            "duration_min": null,
+            "done_on": "2026-09-24",
+            "deleted": false,
+            "created_on": "2026-09-24"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000002",
+            "title": "Позвонить Яне",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000003",
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-20",
+            "deleted": false,
+            "created_on": "2026-09-20"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000004",
+            "title": "Сделать зарядку",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Позвонить Яне",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Купить яблоки",
+            "emoji": "🍎",
+            "color": 3,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "same title in any case and punctuation is one entry; frequent beats a single recent one",
+      "input": {
+        "today": "2026-09-26",
+        "query": "Яп",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000005",
+            "title": "японский ",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-17",
+            "deleted": false,
+            "created_on": "2026-09-17"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000006",
+            "title": "Японский",
+            "emoji": null,
+            "color": 0,
+            "duration_min": 30,
+            "done_on": "2026-09-19",
+            "deleted": false,
+            "created_on": "2026-09-19"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000007",
+            "title": "Японский",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-21",
+            "deleted": false,
+            "created_on": "2026-09-21"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000008",
+            "title": "Японский",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-23",
+            "deleted": false,
+            "created_on": "2026-09-23"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000009",
+            "title": "Японский: кандзи",
+            "emoji": "🈶",
+            "color": 9,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Японский",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": 30,
+            "uses": 4
+          },
+          {
+            "title": "Японский: кандзи",
+            "emoji": "🈶",
+            "color": 9,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "word in the middle of the title",
+      "input": {
+        "today": "2026-09-26",
+        "query": "слова",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000010",
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-20",
+            "deleted": false,
+            "created_on": "2026-09-20"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000011",
+            "title": "Английский: слова",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-10",
+            "deleted": false,
+            "created_on": "2026-09-10"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000012",
+            "title": "Словарь купить",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-08-01",
+            "deleted": false,
+            "created_on": "2026-08-01"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000013",
+            "title": "Прочитать главу",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Словарь купить",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Английский: слова",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "several words match in any order, each as a word prefix",
+      "input": {
+        "today": "2026-09-26",
+        "query": "сл яп",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000014",
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-20",
+            "deleted": false,
+            "created_on": "2026-09-20"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000015",
+            "title": "Японский: кандзи",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000016",
+            "title": "Слушать подкаст",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Японский: слова",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "the exact title typed so far is not suggested",
+      "input": {
+        "today": "2026-09-26",
+        "query": "ЯПОНСКИЙ!",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000017",
+            "title": "Японский",
+            "emoji": "🇯🇵",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-23",
+            "deleted": false,
+            "created_on": "2026-09-23"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000018",
+            "title": "Японский: кандзи",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Японский: кандзи",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "ё and е are the same letter",
+      "input": {
+        "today": "2026-09-26",
+        "query": "елк",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000019",
+            "title": "Ёлку нарядить",
+            "emoji": "🎄",
+            "color": 4,
+            "duration_min": null,
+            "done_on": "2025-12-30",
+            "deleted": false,
+            "created_on": "2025-12-30"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000020",
+            "title": "Позвонить в Ёлки-Палки",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-01",
+            "deleted": false,
+            "created_on": "2026-09-01"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Ёлку нарядить",
+            "emoji": "🎄",
+            "color": 4,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Позвонить в Ёлки-Палки",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "letters typed as a base and a combining mark match the composed ones",
+      "input": {
+        "today": "2026-09-26",
+        "query": "ёлк",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000021",
+            "title": "Ёлку нарядить",
+            "emoji": "🎄",
+            "color": 4,
+            "duration_min": null,
+            "done_on": "2025-12-30",
+            "deleted": false,
+            "created_on": "2025-12-30"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Ёлку нарядить",
+            "emoji": "🎄",
+            "color": 4,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "deleted tasks count only if they were done; open tasks count from creation",
+      "input": {
+        "today": "2026-09-26",
+        "query": "на",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000022",
+            "title": "Налоги подать",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": null,
+            "deleted": true,
+            "created_on": "2026-09-24"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000023",
+            "title": "Налоги: декларация",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-10",
+            "deleted": true,
+            "created_on": "2026-09-10"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000024",
+            "title": "Написать маме",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": null,
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Написать маме",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Налоги: декларация",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "old history fades: one recent use beats many a year ago",
+      "input": {
+        "today": "2026-09-26",
+        "query": "от",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000025",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-09-01",
+            "deleted": false,
+            "created_on": "2025-09-01"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000026",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-09-08",
+            "deleted": false,
+            "created_on": "2025-09-08"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000027",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-09-15",
+            "deleted": false,
+            "created_on": "2025-09-15"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000028",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-09-22",
+            "deleted": false,
+            "created_on": "2025-09-22"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000029",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-09-29",
+            "deleted": false,
+            "created_on": "2025-09-29"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000030",
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "done_on": "2025-10-06",
+            "deleted": false,
+            "created_on": "2025-10-06"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000031",
+            "title": "Отпуск спланировать",
+            "emoji": "🏖️",
+            "color": 2,
+            "duration_min": null,
+            "done_on": "2026-09-23",
+            "deleted": false,
+            "created_on": "2026-09-23"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Отпуск спланировать",
+            "emoji": "🏖️",
+            "color": 2,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Отчёт квартальный",
+            "emoji": "📊",
+            "color": 7,
+            "duration_min": null,
+            "uses": 6
+          }
+        ]
+      }
+    },
+    {
+      "name": "title shown as last written; appearance from the last task with an emoji",
+      "input": {
+        "today": "2026-09-26",
+        "query": "ст",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000032",
+            "title": "стирка",
+            "emoji": "🧺",
+            "color": 5,
+            "duration_min": 15,
+            "done_on": "2026-09-01",
+            "deleted": false,
+            "created_on": "2026-09-01"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000033",
+            "title": "Стирка",
+            "emoji": null,
+            "color": 0,
+            "duration_min": 20,
+            "done_on": "2026-09-20",
+            "deleted": false,
+            "created_on": "2026-09-20"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000034",
+            "title": "Стирка!",
+            "emoji": "👕",
+            "color": 8,
+            "duration_min": null,
+            "done_on": "2026-09-10",
+            "deleted": false,
+            "created_on": "2026-09-10"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Стирка",
+            "emoji": "👕",
+            "color": 8,
+            "duration_min": 20,
+            "uses": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "equal weight: the later id is the latest task, ties between titles go alphabetically",
+      "input": {
+        "today": "2026-09-26",
+        "query": "б",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000035",
+            "title": "бег",
+            "emoji": "🏃",
+            "color": 4,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000036",
+            "title": "бассейн",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000037",
+            "title": "Бассейн",
+            "emoji": "🏊",
+            "color": 6,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000038",
+            "title": "Бег",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Бассейн",
+            "emoji": "🏊",
+            "color": 6,
+            "duration_min": null,
+            "uses": 2
+          },
+          {
+            "title": "Бег",
+            "emoji": "🏃",
+            "color": 4,
+            "duration_min": null,
+            "uses": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "no more than the limit",
+      "input": {
+        "today": "2026-09-26",
+        "query": "у",
+        "limit": 2,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000039",
+            "title": "Уборка кухни",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000040",
+            "title": "Урок 5",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-24",
+            "deleted": false,
+            "created_on": "2026-09-24"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000041",
+            "title": "Утренняя прогулка",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-23",
+            "deleted": false,
+            "created_on": "2026-09-23"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000042",
+            "title": "Убрать балкон",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-22",
+            "deleted": false,
+            "created_on": "2026-09-22"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Уборка кухни",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          },
+          {
+            "title": "Урок 5",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "digits are words too",
+      "input": {
+        "today": "2026-09-26",
+        "query": "5",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000043",
+            "title": "Урок 5",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-24",
+            "deleted": false,
+            "created_on": "2026-09-24"
+          },
+          {
+            "id": "00000000-0000-7000-8000-000000000044",
+            "title": "Урок 6",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-25",
+            "deleted": false,
+            "created_on": "2026-09-25"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": [
+          {
+            "title": "Урок 5",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "uses": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty or punctuation-only query suggests nothing",
+      "input": {
+        "today": "2026-09-26",
+        "query": " — ",
+        "limit": 5,
+        "tasks": [
+          {
+            "id": "00000000-0000-7000-8000-000000000045",
+            "title": "Японский",
+            "emoji": null,
+            "color": 0,
+            "duration_min": null,
+            "done_on": "2026-09-23",
+            "deleted": false,
+            "created_on": "2026-09-23"
+          }
+        ]
+      },
+      "expect": {
+        "suggestions": []
+      }
+    }
+  ]
+}

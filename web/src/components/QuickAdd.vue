@@ -1,30 +1,66 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useApp } from '../app/context'
-import { createTask } from '../db/actions'
+import { createTask, type NewTask } from '../db/actions'
+import type { TitleSuggestion } from '../domain/suggest'
+import TitleInput from './TitleInput.vue'
+
+type Look = Pick<NewTask, 'emoji' | 'color' | 'duration_min'>
 
 const props = defineProps<{ date: string | null; placeholder?: string }>()
 const { store, openTask } = useApp()
 const title = ref('')
+/** Look of a suggestion put into the input with ↖, kept while its title is being edited. */
+let look: Look = {}
 
+watch(title, (v) => {
+  if (!v.trim()) look = {}
+})
+
+function lookOf(s: TitleSuggestion): Look {
+  return { emoji: s.emoji, color: s.color, duration_min: s.duration_min }
+}
+
+// The input is cleared before the write, so typing the next task right away loses nothing.
 async function add() {
   const t = title.value.trim()
   if (!t) return
-  await createTask(store, { title: t, date: props.date })
+  const extra = look
   title.value = ''
+  await createTask(store, { title: t, date: props.date, ...extra })
+}
+
+/** A suggestion is added right away, looking like the last time. */
+async function pick(s: TitleSuggestion) {
+  title.value = ''
+  await createTask(store, { title: s.title, date: props.date, ...lookOf(s) })
+}
+
+function fill(s: TitleSuggestion) {
+  title.value = s.title
+  look = lookOf(s)
 }
 </script>
 
 <template>
   <div class="quick">
-    <input
+    <TitleInput
       v-model="title"
-      class="input"
       :placeholder="placeholder ?? 'Добавить задачу и нажать Enter'"
       aria-label="Новая задача"
-      @keydown.enter="add"
+      fill-button
+      @enter="add"
+      @pick="pick"
+      @fill="fill"
     />
-    <button class="btn" type="button" title="Подробнее" @click="openTask(null, { title, date })">＋</button>
+    <button
+      class="btn"
+      type="button"
+      title="Подробнее"
+      @click="openTask(null, { title, date, ...look })"
+    >
+      ＋
+    </button>
   </div>
 </template>
 
@@ -33,7 +69,7 @@ async function add() {
   display: flex;
   gap: 6px;
 }
-.quick .input {
+.quick :deep(.input) {
   padding: 10px 12px;
 }
 </style>

@@ -201,6 +201,19 @@ extension Store {
         }
     }
 
+    /// Every task as history for title suggestions; see Rules.titleHistory.
+    public func loadTitleHistory(today: LocalDate) throws -> [Rules.TitleGroup] {
+        let tasks = try read { db in try Rows.fetch(.task, db).map(TaskRecord.init) }
+        return Rules.titleHistory(tasks.map { t in
+            // Only open tasks are dated by creation, and parsing timestamps is the slow part.
+            let open = t.doneOn == nil && !t.deleted
+            return Rules.HistoryTask(
+                id: t.id, title: t.title, emoji: t.emoji, color: t.color, durationMin: t.durationMin,
+                doneOn: t.doneOn, deleted: t.deleted,
+                createdOn: open ? t.createdAt.flatMap { Dates.localDate(ofISO: $0) } ?? today : today)
+        }, today: today)
+    }
+
     public func loadRoutines(today: LocalDate) throws -> [RoutineListItem] {
         try read { db in
             let s = try Rows.settings(db)

@@ -85,29 +85,72 @@ struct QuickAdd: View {
     var date: LocalDate?
     var placeholder = "Добавить задачу"
     @State private var title = ""
+    @State private var history: [Rules.TitleGroup] = []
+    /// A suggestion put into the field with ↖; its look is kept while the title is being edited.
+    @State private var filled: Rules.TitleSuggestion?
+    @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            TextField(placeholder, text: $title)
-                .submitLabel(.done)
-                .onSubmit(add)
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemGroupedBackground)))
-            Button {
-                model.openTask(nil, draft: TaskDraft(title: title, date: date))
-                title = ""
-            } label: {
-                Image(systemName: "plus").frame(width: 40, height: 40)
+        let suggestions = focused ? Rules.suggestTitles(history, query: title) : []
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                TextField(placeholder, text: $title)
+                    .focused($focused)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemGroupedBackground)))
+                Button {
+                    model.openTask(nil, draft: draft(title))
+                    title = ""
+                } label: {
+                    Image(systemName: "plus").frame(width: 40, height: 40)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Новая задача подробно")
             }
-            .buttonStyle(.bordered)
-            .accessibilityLabel("Новая задача подробно")
+            if !suggestions.isEmpty {
+                TitleSuggestions(items: suggestions, onPick: pick, onFill: { filled = $0; title = $0.title })
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemGroupedBackground)))
+                    .padding(.trailing, 48)
+            }
         }
+        .onChange(of: focused) { if focused { loadHistory() } }
+        .onChange(of: title) { old, new in
+            if new.trimmingCharacters(in: .whitespaces).isEmpty { filled = nil }
+            // A new title starts: re-read, so tasks added a moment ago are suggested too.
+            else if old.trimmingCharacters(in: .whitespaces).isEmpty { loadHistory() }
+        }
+    }
+
+    private func draft(_ title: String) -> TaskDraft {
+        var d = TaskDraft(title: title, date: date)
+        if let filled {
+            d.apply(filled)
+            d.title = title
+        }
+        return d
     }
 
     private func add() {
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
-        model.perform { try $0.createTask(TaskDraft(title: t, date: date)) }
+        let d = draft(t)
+        model.perform { try $0.createTask(d) }
         title = ""
+    }
+
+    /// A suggestion is added right away, looking like the last time.
+    private func pick(_ s: Rules.TitleSuggestion) {
+        var d = TaskDraft(date: date)
+        d.apply(s)
+        model.perform { try $0.createTask(d) }
+        title = ""
+    }
+
+    private func loadHistory() {
+        history = (try? model.store.loadTitleHistory(today: model.today)) ?? []
     }
 }

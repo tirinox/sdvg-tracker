@@ -89,6 +89,19 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
         let days = Rules.heatmapGrid(today: i["today"]!.string!)
         return ["first": .string(days.first!), "last": .string(days.last!), "days": .int(days.count)]
     },
+    "title_suggestions": { i in
+        let tasks = i["tasks"]!.array!.map {
+            Rules.HistoryTask(
+                id: $0["id"]!.string!, title: $0["title"]!.string!, emoji: $0["emoji"]?.string, color: $0["color"]!.int!,
+                durationMin: $0["duration_min"]?.int, doneOn: $0["done_on"]?.string, deleted: $0["deleted"]!.bool!,
+                createdOn: $0["created_on"]!.string!)
+        }
+        let list = Rules.suggestTitles(Rules.titleHistory(tasks, today: i["today"]!.string!), query: i["query"]!.string!, limit: i["limit"]!.int!)
+        return ["suggestions": .array(list.map {
+            ["title": .string($0.title), "emoji": JSONValue($0.emoji), "color": .int($0.color),
+             "duration_min": JSONValue($0.durationMin), "uses": .int($0.uses)]
+        })]
+    },
 ]
 
 final class DomainFixtureTests: XCTestCase {

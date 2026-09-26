@@ -4,6 +4,7 @@ import { logicalDay, partOfDay } from './dates'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routinesForDay } from './routines'
 import { nowScore } from './score'
+import { suggestTitles, titleHistory } from './suggest'
 import { attentionLevel, celebrationLevel, deadlineStatus, planRollover } from './tasks'
 
 type Runner = (input: Json) => Json
@@ -42,6 +43,9 @@ const RUNNERS: Record<string, Runner> = {
     const days = heatmapGrid(i.today)
     return { first: days[0], last: days.at(-1), days: days.length }
   },
+  title_suggestions: (i) => ({
+    suggestions: suggestTitles(titleHistory(i.tasks, i.today), i.query, i.limit),
+  }),
 }
 
 it('every domain fixture file has a runner', () => {

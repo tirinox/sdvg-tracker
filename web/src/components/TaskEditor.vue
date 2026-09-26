@@ -13,9 +13,11 @@ import {
   type NewTask,
 } from '../db/actions'
 import { addDays } from '../domain/dates'
+import type { TitleSuggestion } from '../domain/suggest'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
 import TimingFields from './TimingFields.vue'
+import TitleInput from './TitleInput.vue'
 
 const props = defineProps<{ id: string | null; defaults: Partial<NewTask> }>()
 const emit = defineEmits<{ close: [] }>()
@@ -39,7 +41,7 @@ const moves = ref(0)
 const done = ref(false)
 let originalDate: string | null = null
 const loaded = ref(props.id === null)
-const title = ref<HTMLInputElement>()
+const titleInput = ref<InstanceType<typeof TitleInput>>()
 
 onMounted(async () => {
   if (props.id) {
@@ -52,7 +54,7 @@ onMounted(async () => {
     moves.value = await moveCount(store, props.id)
     loaded.value = true
   }
-  title.value?.focus()
+  titleInput.value?.focus()
 })
 
 function pick(t: Task) {
@@ -65,6 +67,12 @@ const inbox = computed({
   get: () => form.date === null,
   set: (v: boolean) => (form.date = v ? null : today.value),
 })
+/** A task from the history: its title and the look it had last time. */
+function applySuggestion(s: TitleSuggestion) {
+  Object.assign(form, { title: s.title, emoji: s.emoji, color: s.color })
+  if (s.duration_min !== null) form.duration_min = s.duration_min
+}
+
 const valid = computed(() => form.title.trim().length > 0 && (form.time_kind !== 'exact' || !!form.time))
 
 async function persist() {
@@ -109,12 +117,14 @@ async function remove() {
 <template>
   <Modal :title="id ? 'Задача' : 'Новая задача'" @close="emit('close')">
     <template v-if="loaded">
-      <input
-        ref="title"
+      <TitleInput
+        ref="titleInput"
         v-model="form.title"
-        class="input title"
+        class="title"
         placeholder="Что нужно сделать?"
-        @keydown.enter="save"
+        :plain="Boolean(id)"
+        @enter="save"
+        @pick="applySuggestion"
       />
       <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" />
 
@@ -186,7 +196,7 @@ async function remove() {
 </template>
 
 <style scoped>
-.title {
+.title :deep(.input) {
   font-size: 17px;
   font-weight: 600;
   padding: 10px 12px;
