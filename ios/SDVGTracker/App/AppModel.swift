@@ -39,6 +39,10 @@ final class AppModel {
     var celebration: Rules.DayRecord?
     /// Set when a postponed task is marked done: confetti, fireworks or the full show.
     var doneCelebration: DoneCelebration?
+    /// Done marks by row key (see doneKey). The check shows at once; the write waits so a slip can be taken back.
+    var pendingDone: [String: PendingDone] = [:]
+    /// The bar offering to undo the latest done mark.
+    var undoToast: UndoToast?
 
     var today: LocalDate { Dates.logicalDay(now, dayStartHour: settings.dayStartHour) }
 
@@ -48,6 +52,14 @@ final class AppModel {
     @ObservationIgnored private var notifyDebounce: Task<Void, Never>?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private var lastToday: LocalDate?
+    @ObservationIgnored private var doneWrites: [String: () -> Void] = [:]
+    @ObservationIgnored private var undoAction: (() -> Void)?
+    @ObservationIgnored private var undoHide: Task<Void, Never>?
+
+    /// How long a fresh check waits before it is written.
+    static let doneDelay: Duration = .seconds(2)
+    /// How long the undo bar stays after the check.
+    static let undoShown: Duration = .seconds(5)
 
     nonisolated static let baseURLKey = "sync_base_url"
     nonisolated static let onboardingKey = "onboarding_done"
@@ -142,6 +154,91 @@ final class AppModel {
     /// Runs a store action; failures are logged, the UI re-reads from the database anyway.
     func perform(_ action: @escaping (Store) throws -> Void) {
         do { try action(store) } catch { print("action failed:", error) }
+    }
+
+    // MARK: done marks and undo
+
+    enum PendingDone { case waiting, written }
+
+    static func doneKey(_ item: DayItem, _ day: LocalDate) -> String { "\(item.id)@\(day)" }
+
+    /// Checks a row now and writes it after doneDelay, unless it is taken back first.
+    func markDone(_ item: DayItem, on day: LocalDate) {
+        let key = Self.doneKey(item, day)
+        guard pendingDone[key] == nil else { return }
+        let today = today
+        let isTask = item.kind == .task
+        let before: CheckStatus? = item.skipped ? .skipped : nil
+        pendingDone[key] = .waiting
+        doneWrites[key] = { [weak self] in
+            self?.perform {
+                isTask ? try $0.completeTask(item.refID, today: today)
+                    : try $0.setRoutineCheck(item.refID, date: day, status: .done)
+            }
+        }
+        showUndo(UndoToast(key: key, text: item.title)) { [weak self] in
+            guard let self else { return }
+            if pendingDone[key] == .waiting {
+                cancelDone(key)
+            } else {
+                pendingDone[key] = nil
+                perform {
+                    isTask ? try $0.reopenTask(item.refID)
+                        : try $0.setRoutineCheck(item.refID, date: day, status: before)
+                }
+            }
+        }
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.doneDelay)
+            self?.writeDone(key)
+        }
+    }
+
+    /// Drops a check that has not been written yet.
+    func cancelDone(_ key: String) {
+        guard pendingDone[key] == .waiting else { return }
+        pendingDone[key] = nil
+        doneWrites[key] = nil
+        if undoToast?.key == key { hideUndo() }
+    }
+
+    /// Writes every waiting check at once, e.g. when the app goes to the background.
+    func flushPendingDone() {
+        for (key, state) in pendingDone where state == .waiting { writeDone(key) }
+    }
+
+    private func writeDone(_ key: String) {
+        guard pendingDone[key] == .waiting, let write = doneWrites.removeValue(forKey: key) else { return }
+        pendingDone[key] = .written
+        write()
+        // The row keeps its check until the screen has re-read the database.
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            if self?.pendingDone[key] == .written { self?.pendingDone[key] = nil }
+        }
+    }
+
+    func undo() {
+        let action = undoAction
+        hideUndo()
+        action?()
+    }
+
+    func hideUndo() {
+        undoHide?.cancel()
+        undoToast = nil
+        undoAction = nil
+    }
+
+    private func showUndo(_ toast: UndoToast, action: @escaping () -> Void) {
+        undoToast = toast
+        undoAction = action
+        undoHide?.cancel()
+        undoHide = Task { [weak self] in
+            try? await Task.sleep(for: Self.undoShown)
+            guard !Task.isCancelled else { return }
+            self?.hideUndo()
+        }
     }
 
     // MARK: connection

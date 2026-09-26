@@ -41,6 +41,8 @@ struct SDVGTrackerApp: App {
             switch phase {
             case .active: model.syncNow()
             case .background:
+                // A check still waiting for its write must not be lost if the app is suspended.
+                model.flushPendingDone()
                 Self.scheduleRefresh()
                 // Pick up everything done in the app (and pulled by sync) on the home screen.
                 WidgetCenter.shared.reloadAllTimelines()

@@ -25,6 +25,15 @@ struct RootView: View {
             }
         }
         .sheet(isPresented: $model.showWelcome) { WelcomeScreen() }
+        .overlay(alignment: .bottom) {
+            if let toast = model.undoToast {
+                UndoBar(toast: toast)
+                    .id(toast.id)
+                    .padding(.bottom, 62)  // clear of the tab bar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.3), value: model.undoToast?.id)
         .overlay {
             if let record = model.celebration {
                 RecordCelebration(record: record) { model.celebration = nil }

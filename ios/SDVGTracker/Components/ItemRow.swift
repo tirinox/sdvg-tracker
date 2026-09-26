@@ -10,14 +10,14 @@ struct ItemRow: View {
     /// Show the timing hint (Now screen).
     var showHint = false
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Set on tap, before the write: the check fills at once and plays before the row leaves.
-    @State private var checking = false
     @State private var pops = 0
     @State private var checkFrame = CGRect.zero
 
     private var day: LocalDate { date ?? model.today }
     private var isTask: Bool { item.kind == .task }
+    private var doneKey: String { AppModel.doneKey(item, day) }
+    /// Checked on tap, before the write: the row stays for a moment and a second tap takes it back.
+    private var checking: Bool { model.pendingDone[doneKey] != nil }
 
     private var borderColor: Color {
         switch item.done ? 0 : item.attention {
@@ -79,7 +79,7 @@ struct ItemRow: View {
                 .sensoryFeedback(.success, trigger: pops)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { checkFrame = $0 }
                 .disabled(!isTask && day > model.today)
-                .accessibilityLabel(item.done ? "Снять отметку" : "Готово")
+                .accessibilityLabel(item.done || checking ? "Снять отметку" : "Готово")
             }
             if item.attention >= 4 && !item.done && isTask {
                 FlowLayout(spacing: 6) {
@@ -106,6 +106,7 @@ struct ItemRow: View {
         }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
+        .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
     }
 
     @ViewBuilder private var meta: some View {
@@ -137,30 +138,22 @@ struct ItemRow: View {
     }
 
     private func toggleDone() {
+        if model.pendingDone[doneKey] == .waiting {
+            model.cancelDone(doneKey)
+            return
+        }
         guard !checking else { return }
         if item.done {
             isTask ? model.perform { [item] in try $0.reopenTask(item.refID) } : setCheck(nil)
             return
         }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) { checking = true }
         pops += 1
         let level = isTask ? Rules.celebrationLevel(moves: item.moves) : 0
         if level > 0 {
             model.doneCelebration = DoneCelebration(
                 level: level, moves: item.moves, origin: CGPoint(x: checkFrame.midX, y: checkFrame.midY))
         }
-        let today = model.today
-        Task {
-            // Time for the check to play before the row leaves or moves down.
-            if !reduceMotion { try? await Task.sleep(for: .milliseconds(420)) }
-            if isTask {
-                model.perform { [item] in try $0.completeTask(item.refID, today: today) }
-            } else {
-                setCheck(.done)
-            }
-            try? await Task.sleep(for: .milliseconds(400))
-            checking = false
-        }
+        model.markDone(item, on: day)
     }
 
     private func setCheck(_ status: CheckStatus?) {
