@@ -7,6 +7,7 @@ import { claimRecordCelebration, loadRecord } from './app/views'
 import DoneCelebration from './components/DoneCelebration.vue'
 import RecordConfetti from './components/RecordConfetti.vue'
 import RoutineEditor from './components/RoutineEditor.vue'
+import ServerChangeDialog from './components/ServerChangeDialog.vue'
 import TaskEditor from './components/TaskEditor.vue'
 import WelcomeDialog from './components/WelcomeDialog.vue'
 import { loadSyncConfig } from './sync/client'
@@ -36,6 +37,13 @@ const NAV = [
   { to: '/settings', label: 'Настройки', icon: '⚙' },
 ]
 
+// Sync paused on another data set: ask once per server, the header badge asks again.
+const dismissedServer = ref<string | null>(null)
+const serverChange = computed(() => {
+  const change = syncStatus.value.serverChange
+  return change && change.serverId !== dismissedServer.value ? change : null
+})
+
 const sync = computed(() => {
   switch (syncStatus.value.state) {
     case 'idle':
@@ -46,6 +54,8 @@ const sync = computed(() => {
       return { cls: 'warn', text: 'офлайн' }
     case 'unconfigured':
       return { cls: 'off', text: 'только это устройство' }
+    case 'server_changed':
+      return { cls: 'bad', text: 'сервер сменился — нужно решение' }
     default:
       return { cls: 'bad', text: 'ошибка синхронизации' }
   }
@@ -65,7 +75,18 @@ const sync = computed(() => {
           <span class="label">{{ n.label }}</span>
         </RouterLink>
       </nav>
-      <RouterLink to="/settings" class="sync" :class="sync.cls" :title="sync.text">
+      <button
+        v-if="syncStatus.state === 'server_changed'"
+        type="button"
+        class="sync"
+        :class="sync.cls"
+        :title="sync.text"
+        @click="dismissedServer = null"
+      >
+        <span class="dot" />
+        <span class="text">{{ sync.text }}</span>
+      </button>
+      <RouterLink v-else to="/settings" class="sync" :class="sync.cls" :title="sync.text">
         <span class="dot" />
         <span class="text">{{ sync.text }}</span>
       </RouterLink>
@@ -86,6 +107,12 @@ const sync = computed(() => {
     />
     <RoutineEditor v-if="editor?.kind === 'routine'" :id="editor.id" :key="`r${editor.id}`" @close="editor = null" />
     <WelcomeDialog v-if="welcome" @close="welcome = false" />
+    <ServerChangeDialog
+      v-else-if="serverChange"
+      :key="serverChange.serverId"
+      :change="serverChange"
+      @close="dismissedServer = syncStatus.serverChange?.serverId ?? null"
+    />
     <RecordConfetti v-if="celebrate" v-bind="celebrate" @close="celebrate = null" />
     <DoneCelebration
       v-if="celebration"
@@ -153,6 +180,9 @@ const sync = computed(() => {
   font-size: 14px;
 }
 .sync {
+  border: 0;
+  background: none;
+  padding: 0;
   display: flex;
   align-items: center;
   gap: 6px;

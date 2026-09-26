@@ -111,7 +111,7 @@ def test_malformed_requests(client, payload):
     assert client.post("/api/sync", json=payload, headers=AUTH).status_code == 422
 
 
-def test_server_id_survives_restart(settings):
+def test_server_id_survives_restart_with_data(settings):
     with TestClient(create_app(settings)) as c:
         first = sync(c, changes=[task_change()])
     with TestClient(create_app(settings)) as c:
@@ -126,6 +126,71 @@ def test_new_database_gets_new_server_id(settings, tmp_path):
     other = settings.model_copy(update={"database_path": str(tmp_path / "other.db")})
     with TestClient(create_app(other)) as c:
         assert sync(c)["server_id"] != first
+
+
+def test_server_id_and_epoch_survive_restart(settings):
+    with TestClient(create_app(settings)) as c:
+        first = sync(c)
+    with TestClient(create_app(settings)) as c:
+        second = sync(c)
+    assert (second["server_id"], second["epoch"]) == (first["server_id"], first["epoch"])
+
+
+def test_other_server_id_is_refused_and_nothing_applied(client):
+    known = sync(client)["server_id"]
+    resp = client.post(
+        "/api/sync",
+        json={"cursor": 0, "changes": [task_change()], "server_id": "0" * 8 + known[8:]},
+        headers=AUTH,
+    )
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["error"] == "server_changed"
+    assert detail["server_id"] == known
+    assert detail["counts"] == {}
+    assert sync(client)["changes"] == []
+
+
+def test_server_id_is_checked_before_the_changes(client):
+    resp = client.post(
+        "/api/sync",
+        json={"cursor": 0, "changes": [task_change(id_="not-a-uuid")], "server_id": "x"},
+        headers=AUTH,
+    )
+    assert resp.status_code == 409
+
+
+def test_matching_server_id_syncs(client):
+    first = sync(client)
+    body = sync(client, changes=[task_change()], server_id=first["server_id"], epoch=first["epoch"])
+    assert body["cursor"] == 1
+    assert body["rewind"] is False
+
+
+def test_info_counts_rows_per_entity(client):
+    sync(client, changes=[task_change(), task_change(id_="0192f0a0-0000-7000-8000-000000000002")])
+    resp = client.get("/api/sync/info", headers=AUTH)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["counts"] == {"task": 2}
+    assert body["server_id"] == sync(client)["server_id"]
+    assert client.get("/api/sync/info").status_code == 401
+
+
+def test_other_epoch_rewinds_to_the_start(client):
+    first = sync(client, changes=[task_change()])
+    body = sync(client, cursor=first["cursor"], server_id=first["server_id"], epoch="restored")
+    assert body["rewind"] is True
+    assert [c["id"] for c in body["changes"]] == [TASK]
+
+
+def test_cursor_ahead_of_the_server_rewinds(client):
+    sync(client, changes=[task_change()])
+    body = sync(client, cursor=50)
+    assert body["rewind"] is True
+    assert body["cursor"] == 1
+    assert [c["id"] for c in body["changes"]] == [TASK]
+    assert sync(client, cursor=1)["rewind"] is False
 
 
 SYNC_CASES = [

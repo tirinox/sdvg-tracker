@@ -65,6 +65,14 @@
           "minimum": 1,
           "maximum": 5000,
           "default": 1000
+        },
+        "server_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "The database the client last synced with. If the server's differs, it answers 409 server_changed and applies nothing. Omitted before the first sync."
+        },
+        "epoch": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "The epoch from the client's last response. If the server's differs, the database was restored from a backup and the response has rewind = true."
         }
       },
       "required": [
@@ -78,7 +86,11 @@
       "properties": {
         "server_id": {
           "$ref": "common.schema.json#/$defs/uuid",
-          "description": "Identifies the server database. If it differs from the one the client stored, the client must reset its cursor to 0 and push its full state."
+          "description": "Identifies the data set. It changes when the database is emptied or replaced; clients must then ask the user before sending it anything (see server_changed)."
+        },
+        "epoch": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Changes when the database is restored from a backup; server_id stays."
         },
         "cursor": {
           "type": "integer",
@@ -92,13 +104,75 @@
         },
         "has_more": {
           "type": "boolean"
+        },
+        "rewind": {
+          "type": "boolean",
+          "description": "The database is behind the client (restored from a backup, or the request cursor is ahead of it): changes start from the beginning, and the client must push every row it has."
         }
       },
       "required": [
         "server_id",
+        "epoch",
         "cursor",
         "changes",
-        "has_more"
+        "has_more",
+        "rewind"
+      ],
+      "additionalProperties": false
+    },
+    "info": {
+      "type": "object",
+      "description": "GET /api/sync/info: which data set this is, without pushing anything.",
+      "properties": {
+        "server_id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "epoch": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Rows per entity; entities without rows are left out"
+        }
+      },
+      "required": [
+        "server_id",
+        "epoch",
+        "counts"
+      ],
+      "additionalProperties": false
+    },
+    "server_changed": {
+      "type": "object",
+      "description": "detail of the 409 answer to a request whose server_id is not this database's. Nothing was applied.",
+      "properties": {
+        "error": {
+          "const": "server_changed"
+        },
+        "server_id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "epoch": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Rows per entity; entities without rows are left out"
+        }
+      },
+      "required": [
+        "error",
+        "server_id",
+        "epoch",
+        "counts"
       ],
       "additionalProperties": false
     }

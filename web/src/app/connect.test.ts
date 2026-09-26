@@ -27,6 +27,7 @@ describe('connectServer', () => {
     expect(await connectServer(store, sync, ' http://host:8420/ ', ' secret-token ')).toBe('ok')
     expect(await loadSyncConfig(store)).toEqual({ baseUrl: 'http://host:8420', token: 'secret-token' })
     expect(await isOnboardingDone(store)).toBe(true)
+    await sync.sync() // let the sync it started finish before the store closes
   })
 
   it('reports a wrong token and saves nothing', async () => {

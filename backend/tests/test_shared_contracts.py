@@ -125,3 +125,27 @@ def test_auto_rollover_move_ids():
             row_validator("task_move", partial=False).validate(
                 {k: v for k, v in move.items() if k != "id"}
             )
+
+
+def test_server_answers_conform(client):
+    """The protocol schemas describe what the server actually sends."""
+    from tests.conftest import AUTH
+
+    task = "0192f0a0-0000-7000-8000-000000000001"
+    change = {"entity": "task", "id": task, "fields": {"title": "a"}}
+    change["clocks"] = {"title": "1790000000000-0000-aaaaaaaaaaaaaaaa"}
+    request = {"cursor": 0, "changes": [change], "limit": 10}
+    sync_def("request").validate(request)
+    first = client.post("/api/sync", json=request, headers=AUTH).json()
+    sync_def("response").validate(first)
+
+    again = {"cursor": 5, "changes": [], "server_id": first["server_id"], "epoch": first["epoch"]}
+    sync_def("request").validate(again)
+    sync_def("response").validate(client.post("/api/sync", json=again, headers=AUTH).json())
+
+    sync_def("info").validate(client.get("/api/sync/info", headers=AUTH).json())
+
+    other = {**again, "server_id": str(uuid.uuid4())}
+    refused = client.post("/api/sync", json=other, headers=AUTH)
+    assert refused.status_code == 409
+    sync_def("server_changed").validate(refused.json()["detail"])

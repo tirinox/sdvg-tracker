@@ -12,13 +12,38 @@ public struct SyncConfig: Equatable, Sendable {
 }
 
 public enum SyncState: String, Sendable {
-    case idle, syncing, offline, unauthorized, unconfigured, error
+    case idle, syncing, offline, unauthorized, unconfigured, serverChanged, error
+}
+
+/// Tasks and routines, on the server or on this device.
+public struct SyncCounts: Equatable, Sendable {
+    public var task: Int
+    public var routine: Int
+    public var isEmpty: Bool { task + routine == 0 }
+
+    public init(task: Int, routine: Int) {
+        self.task = task
+        self.routine = routine
+    }
+}
+
+/// The server holds data this device has not synced with; sync waits for the user's choice.
+public struct ServerChange: Equatable, Sendable, Identifiable {
+    public enum Kind: Sendable { case changed, first }
+    /// .changed: the server's data set was replaced; .first: first connection, both sides have data.
+    public var kind: Kind
+    public var serverID: String
+    public var server: SyncCounts
+    public var local: SyncCounts
+    public var id: String { serverID }
 }
 
 public struct SyncStatus: Equatable, Sendable {
     public var state: SyncState = .idle
     public var lastSyncAt: Date?
     public var error: String?
+    /// Set while state is .serverChanged.
+    public var serverChange: ServerChange?
     public init() {}
 }
 
@@ -72,9 +97,11 @@ public actor SyncClient {
         running = nil
     }
 
-    private func setStatus(_ state: SyncState, _ error: String? = nil) {
+    private func setStatus(_ state: SyncState, _ error: String? = nil, serverChange: ServerChange? = nil) {
         status.state = state
         status.error = error
+        // A pending question stays up while the next sync checks again, so it does not flicker.
+        if state != .syncing { status.serverChange = serverChange }
         if state == .idle { status.lastSyncAt = Date() }
         onStatus(status)
     }
@@ -86,15 +113,30 @@ public actor SyncClient {
 
     private struct Response: Decodable {
         var server_id: String
+        var epoch: String
         var cursor: Int
         var changes: [Change]
         var has_more: Bool
+        var rewind: Bool
     }
 
     private struct Request: Encodable {
         var cursor: Int
         var changes: [Change]
         var limit: Int
+        /// Omitted before the first sync; a different one is refused with 409.
+        var server_id: String?
+        var epoch: String?
+    }
+
+    /// GET /api/sync/info, and the detail of a 409 server_changed.
+    private struct ServerInfo: Decodable {
+        var server_id: String
+        var counts: [String: Int]
+    }
+
+    private struct Conflict: Decodable {
+        var detail: ServerInfo
     }
 
     private func run() async {
@@ -104,16 +146,19 @@ public actor SyncClient {
         }
         setStatus(.syncing)
         do {
+            if try store.read({ try Meta.get($0, Self.serverKey) }) == nil, !(try await firstContact(cfg)) { return }
             for _ in 0..<Self.maxRounds {
                 let limit = batchSize
-                let (batch, cursor, knownServer) = try store.read { db in
-                    (try Self.outbox(db, limit: limit), try Meta.get(db, "sync_cursor")?.int ?? 0, try Meta.get(db, "sync_server_id")?.string)
+                let (batch, cursor, knownServer, epoch) = try store.read { db in
+                    (try Self.outbox(db, limit: limit), try Meta.get(db, Self.cursorKey)?.int ?? 0,
+                     try Meta.get(db, Self.serverKey)?.string, try Meta.get(db, Self.epochKey)?.string)
                 }
                 var request = URLRequest(url: url, timeoutInterval: 15)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.setValue("Bearer \(cfg.token)", forHTTPHeaderField: "Authorization")
-                request.httpBody = try JSONEncoder().encode(Request(cursor: cursor, changes: batch.map(\.change), limit: batchSize))
+                request.httpBody = try JSONEncoder().encode(Request(
+                    cursor: cursor, changes: batch.map(\.change), limit: batchSize, server_id: knownServer, epoch: epoch))
 
                 let data: Data, code: Int
                 do {
@@ -125,6 +170,11 @@ public actor SyncClient {
 
                 if code == 401 {
                     setStatus(.unauthorized)
+                    return
+                }
+                if code == 409 {
+                    // Another data set: nothing was applied, and nothing is sent until the user decides.
+                    try pause(.changed, JSONDecoder().decode(Conflict.self, from: data).detail)
                     return
                 }
                 if code == 422 {
@@ -143,15 +193,14 @@ public actor SyncClient {
 
                 let body = try JSONDecoder().decode(Response.self, from: data)
                 let pushed = batch.map(\.seq)
-                if let knownServer, knownServer != body.server_id {
-                    try resetForNewServer(body.server_id, pushed: pushed)
-                    continue
-                }
                 let remaining = try await store.writer.write { db -> Int in
                     try Self.deleteOutbox(db, pushed)
                     try store.applyRemote(db, body.changes)
-                    try Meta.set(db, "sync_cursor", .int(body.cursor))
-                    try Meta.set(db, "sync_server_id", .string(body.server_id))
+                    // Restored from a backup: it lacks whatever changed after the backup, so send it all.
+                    if body.rewind { try Self.enqueueAll(db) }
+                    try Meta.set(db, Self.cursorKey, .int(body.cursor))
+                    try Meta.set(db, Self.serverKey, .string(body.server_id))
+                    try Meta.set(db, Self.epochKey, .string(body.epoch))
                     return try Int.fetchOne(db, sql: "SELECT count(*) FROM outbox") ?? 0
                 }
                 if !body.has_more && remaining == 0 {
@@ -189,18 +238,79 @@ public actor SyncClient {
         }
     }
 
-    /// The server database was replaced: start over and hand it every row we have.
-    private func resetForNewServer(_ serverID: String, pushed: [Int64]) throws {
-        try store.writer.write { db in
-            try Self.deleteOutbox(db, pushed)
-            for entity in Entity.allCases {
-                try db.execute(sql: """
-                    INSERT INTO outbox (entity, id, fields, clocks)
-                    SELECT '\(entity.rawValue)', id, fields, clocks FROM \(entity.rawValue)
-                    """)
-            }
-            try Meta.set(db, "sync_cursor", .int(0))
-            try Meta.set(db, "sync_server_id", .string(serverID))
+    private static let cursorKey = "sync_cursor"
+    private static let serverKey = "sync_server_id"
+    private static let epochKey = "sync_epoch"
+
+    /// Answer to .serverChanged: drop this device's data and download the server's.
+    public func takeServerData() async throws {
+        try await store.writer.write { db in
+            for entity in Entity.allCases { try db.execute(sql: "DELETE FROM \(entity.rawValue)") }
+            try db.execute(sql: "DELETE FROM outbox")
+            try db.execute(sql: "DELETE FROM rejected")
+            try db.execute(sql: "DELETE FROM meta WHERE key IN (?, ?, ?)",
+                           arguments: [Self.cursorKey, Self.serverKey, Self.epochKey])
+        }
+        await sync()
+    }
+
+    /// Answer to .serverChanged: send every row of this device into the server's data set.
+    public func mergeWithServer() async throws {
+        guard let change = status.serverChange else { return }
+        try await store.writer.write { db in
+            try Self.enqueueAll(db)
+            try Meta.set(db, Self.cursorKey, .int(0))
+            try Meta.set(db, Self.serverKey, .string(change.serverID))
+            try db.execute(sql: "DELETE FROM meta WHERE key = ?", arguments: [Self.epochKey])
+        }
+        await sync()
+    }
+
+    private func pause(_ kind: ServerChange.Kind, _ info: ServerInfo) throws {
+        let server = SyncCounts(task: info.counts["task"] ?? 0, routine: info.counts["routine"] ?? 0)
+        let change = ServerChange(kind: kind, serverID: info.server_id, server: server, local: try localCounts())
+        setStatus(.serverChanged, serverChange: change)
+    }
+
+    private func localCounts() throws -> SyncCounts {
+        try store.read { db in
+            SyncCounts(task: try Int.fetchOne(db, sql: "SELECT count(*) FROM task") ?? 0,
+                       routine: try Int.fetchOne(db, sql: "SELECT count(*) FROM routine") ?? 0)
+        }
+    }
+
+    /// Before the first sync, a device that already has tasks or routines looks at the server:
+    /// if that has data too, merging is the user's call. False = stop (status is set).
+    private func firstContact(_ cfg: SyncConfig) async throws -> Bool {
+        guard try !localCounts().isEmpty else { return true }
+        guard let url = URL(string: cfg.baseURL + "/api/sync/info") else { return true }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.setValue("Bearer \(cfg.token)", forHTTPHeaderField: "Authorization")
+        let data: Data, code: Int
+        do {
+            (data, code) = try await transport(request)
+        } catch {
+            setStatus(.offline)
+            return false
+        }
+        guard code == 200 else {
+            setStatus(code == 401 ? .unauthorized : code >= 500 ? .offline : .error, "HTTP \(code)")
+            return false
+        }
+        let info = try JSONDecoder().decode(ServerInfo.self, from: data)
+        if (info.counts["task"] ?? 0) + (info.counts["routine"] ?? 0) == 0 { return true }
+        try pause(.first, info)
+        return false
+    }
+
+    /// Replaces the outbox with every row we have, whole: they already hold every local change.
+    private static func enqueueAll(_ db: Database) throws {
+        try db.execute(sql: "DELETE FROM outbox")
+        for entity in Entity.allCases {
+            try db.execute(sql: """
+                INSERT INTO outbox (entity, id, fields, clocks)
+                SELECT '\(entity.rawValue)', id, fields, clocks FROM \(entity.rawValue)
+                """)
         }
     }
 }

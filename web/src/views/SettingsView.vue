@@ -31,6 +31,7 @@ const STATE_TEXT: Record<string, string> = {
   offline: 'сервер недоступен — работаем офлайн',
   unauthorized: 'неверный токен',
   unconfigured: 'сервер не подключён',
+  server_changed: 'на паузе: данные на сервере сменились',
   error: 'ошибка',
 }
 

@@ -25,6 +25,7 @@ struct RootView: View {
             }
         }
         .sheet(isPresented: $model.showWelcome) { WelcomeScreen() }
+        .serverChangeSheet()
         .overlay(alignment: .bottom) {
             if let toast = model.undoToast {
                 UndoBar(toast: toast)

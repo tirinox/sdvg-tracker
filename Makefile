@@ -3,7 +3,7 @@ COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
         test-live test-ios test-ios-live ios-build ios-open seed seed-clear import lint fmt backend-dev web-dev \
-        backup deploy deploy-logs connect-prod
+        backup reset-db restore deploy deploy-logs connect-prod
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -149,3 +149,17 @@ backup: ## Snapshot the database into backups/ (consistent while running; the se
 		> $(BACKUP_DIR)/sdvg-$(STAMP).db || { rm -f $(BACKUP_DIR)/sdvg-$(STAMP).db; exit 1; }
 	gzip $(BACKUP_DIR)/sdvg-$(STAMP).db
 	@echo "Wrote $(BACKUP_DIR)/sdvg-$(STAMP).db.gz"
+
+reset-db: ## Empty the database (after a backup); synced devices ask before merging into it
+	@read -p "Empty the database of $(CURDIR)? Type yes: " a && [ "$$a" = yes ]
+	@$(MAKE) --no-print-directory backup
+	$(COMPOSE) exec -T backend python -m app.admin reset
+
+restore: ## Replace the database with FILE=backups/….db.gz (after a backup); devices push back what it lacks
+	@test -f "$(FILE)" || { echo "usage: make restore FILE=$(BACKUP_DIR)/sdvg-….db.gz"; exit 1; }
+	@read -p "Replace the database of $(CURDIR) with $(FILE)? Type yes: " a && [ "$$a" = yes ]
+	@$(MAKE) --no-print-directory backup
+	@# The backup keeps server_id; restore gives it a new epoch, so devices re-send their rows.
+	case "$(FILE)" in *.gz) gunzip -c "$(FILE)" ;; *) cat "$(FILE)" ;; esac \
+		| $(COMPOSE) exec -T backend python -m app.admin restore
+	$(COMPOSE) restart backend

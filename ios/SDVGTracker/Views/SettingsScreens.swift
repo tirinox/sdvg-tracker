@@ -68,6 +68,7 @@ struct WelcomeScreen: View {
 
 struct SettingsScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(ServerChangePrompt.self) private var prompt: ServerChangePrompt?
 
     var body: some View {
         let _ = model.revision
@@ -87,7 +88,11 @@ struct SettingsScreen: View {
                 LabeledContent("Последняя синхронизация", value: model.syncStatus.lastSyncAt?.formatted(date: .abbreviated, time: .shortened) ?? "—")
                 LabeledContent("Ждут отправки", value: "\(pending ?? 0)")
                 if (rejected ?? 0) > 0 { LabeledContent("Отклонены сервером", value: "\(rejected ?? 0)") }
-                Button("Синхронизировать сейчас") { model.syncNow() }
+                if model.syncStatus.state == .serverChanged, let prompt {
+                    Button("Решить, что делать с данными…") { prompt.ask() }
+                } else {
+                    Button("Синхронизировать сейчас") { model.syncNow() }
+                }
             }
             SwiftUI.Section {
                 Toggle("Показывать «сделано из всего»", isOn: Binding(
@@ -121,6 +126,7 @@ struct SettingsScreen: View {
         case .offline: "сервер недоступен — работаем офлайн"
         case .unauthorized: "неверный токен"
         case .unconfigured: "сервер не подключён"
+        case .serverChanged: "на паузе: данные на сервере сменились"
         case .error: "ошибка: \(model.syncStatus.error ?? "")"
         }
     }

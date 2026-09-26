@@ -147,21 +147,124 @@ describe('SyncClient', () => {
     expect(await snapshot(phone.store)).toEqual(await snapshot(web.store))
   })
 
-  it('re-uploads everything to a replaced server database', async () => {
-    const oldServer = new FakeServer()
-    const web = await device(oldServer)
+  it('pauses on a reset server and sends it nothing', async () => {
+    const server = new FakeServer()
+    const web = await device(server)
+    await createTask(web.store, { title: 'Старая', date: TODAY })
+    await web.client.sync()
+
+    server.reset()
+    await createTask(web.store, { title: 'Новая', date: TODAY })
+    await web.client.sync()
+    expect(web.client.status.state).toBe('server_changed')
+    expect(web.client.status.serverChange).toEqual({
+      kind: 'changed',
+      serverId: server.serverId,
+      server: { task: 0, routine: 0 },
+      local: { task: 2, routine: 0 },
+    })
+    expect(server.size).toBe(0)
+    expect(await web.store.db.outbox.count()).toBe(1)
+
+    const seen: (string | undefined)[] = []
+    web.client.onStatus((st) => seen.push(st.serverChange?.serverId))
+    await web.client.sync() // asks again, still sends nothing; the question never disappears
+    expect(web.client.status.state).toBe('server_changed')
+    expect(seen).toEqual([server.serverId, server.serverId])
+    expect(server.size).toBe(0)
+  })
+
+  it('takes the server data as it is', async () => {
+    const server = new FakeServer()
+    const web = await device(server)
+    await createTask(web.store, { title: 'Тестовая', date: TODAY })
+    await web.client.sync()
+
+    server.reset()
+    const phone = await device(server)
+    const real = await createTask(phone.store, { title: 'Настоящая', date: TODAY })
+    await phone.client.sync()
+    await web.client.sync()
+    expect(web.client.status.state).toBe('server_changed')
+
+    await web.client.takeServerData()
+    expect(web.client.status.state).toBe('idle')
+    expect((await web.store.rows('task')).map((r) => r.id)).toEqual([real])
+    expect(await snapshot(web.store)).toEqual(await snapshot(phone.store))
+    expect(server.size).toBe(1)
+  })
+
+  it('merges this device into the new data set when asked', async () => {
+    const server = new FakeServer()
+    const web = await device(server)
     const id = await createTask(web.store, { title: 'Починить коляску', date: TODAY })
     await postponeTask(web.store, id, TODAY)
     await web.client.sync()
 
-    const newServer = new FakeServer()
-    web.client = new SyncClient(web.store, { fetchFn: (...a) => newServer.fetch(...a) })
+    server.reset()
     await web.client.sync()
-    expect(newServer.size).toBe(2)
+    await web.client.mergeWithServer()
+    expect(web.client.status.state).toBe('idle')
+    expect(server.size).toBe(2)
 
-    const phone = await device(newServer)
+    const phone = await device(server)
     await phone.client.sync()
     expect(await snapshot(phone.store)).toEqual(await snapshot(web.store))
+  })
+
+  it('asks on the first connection when both sides have data', async () => {
+    const server = new FakeServer()
+    const phone = await device(server)
+    await createTask(phone.store, { title: 'С телефона', date: TODAY })
+    await phone.client.sync()
+
+    const web = await device(server)
+    await createTask(web.store, { title: 'Из браузера', date: TODAY })
+    await web.client.sync()
+    expect(web.client.status.state).toBe('server_changed')
+    expect(web.client.status.serverChange).toMatchObject({ kind: 'first', server: { task: 1 }, local: { task: 1 } })
+    expect(server.size).toBe(1)
+
+    await web.client.mergeWithServer()
+    await phone.client.sync()
+    expect(server.size).toBe(2)
+    expect(await snapshot(web.store)).toEqual(await snapshot(phone.store))
+  })
+
+  it('connects to an empty server without asking', async () => {
+    const server = new FakeServer()
+    const web = await device(server)
+    await createTask(web.store, { title: 'Первая', date: TODAY })
+    await web.client.sync()
+    expect(web.client.status.state).toBe('idle')
+    expect(server.size).toBe(1)
+  })
+
+  it('gives a restored server back what its backup lacks', async () => {
+    const server = new FakeServer()
+    const web = await device(server)
+    const phone = await device(server)
+    const id = await createTask(web.store, { title: 'Починить коляску', date: TODAY })
+    await web.client.sync()
+    await phone.client.sync()
+    const backup = server.backup()
+
+    await updateTask(phone.store, id, { title: 'После бэкапа' })
+    const later = await createTask(phone.store, { title: 'Тоже после', date: TODAY })
+    await phone.client.sync()
+    await web.client.sync()
+
+    server.restore(backup)
+    await web.client.sync() // rewind: sends every row it has
+    expect(web.client.status.state).toBe('idle')
+    expect(server.row('task', id)?.fields.title).toBe('После бэкапа')
+    expect(server.row('task', later)).toBeDefined()
+
+    await phone.client.sync()
+    expect(await snapshot(phone.store)).toEqual(await snapshot(web.store))
+    const fresh = await device(server)
+    await fresh.client.sync()
+    expect(await snapshot(fresh.store)).toEqual(await snapshot(web.store))
   })
 
   it('concurrent sync calls share one run plus one follow-up', async () => {

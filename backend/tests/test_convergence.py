@@ -1,13 +1,17 @@
 """Two simulated devices work offline and must converge after syncing."""
 
-from fastapi.testclient import TestClient
+import sqlite3
 
-from app.main import create_app
+import pytest
+
+from app import admin
 from app.sync.validation import deterministic_id
-from tests.sim import FakeTime, SimClient
+from tests.conftest import AUTH
+from tests.sim import FakeTime, ServerChanged, SimClient
 
 T0 = 1790000000000
 TASK = "0192f0a0-0000-7000-8000-000000000001"
+OTHER = "0192f0a0-0000-7000-8000-000000000002"
 LUNCH = "0192f0a0-0000-7000-8000-000000000101"
 NEW_TASK = {
     "title": "Починить коляску",
@@ -118,21 +122,67 @@ def test_many_rows_with_small_pages(client):
     assert fresh.state() == web.state()
 
 
-def test_server_database_replaced(settings, tmp_path):
+def snapshot(path: str) -> bytes:
+    """What make backup takes: a consistent copy of the live database."""
+    src, dst = sqlite3.connect(path), sqlite3.connect(":memory:")
+    src.backup(dst)
+    return dst.serialize()
+
+
+def test_reset_server_asks_before_merging(client, settings):
     (web, _), (phone, _) = devices()
-    with TestClient(create_app(settings)) as old_server:
-        web.write("task", TASK, **NEW_TASK)
-        converge(old_server, web, phone)
+    web.write("task", TASK, **NEW_TASK)
+    converge(client, web, phone)
 
-    new = settings.model_copy(update={"database_path": str(tmp_path / "restored.db")})
-    with TestClient(create_app(new)) as new_server:
-        phone.write("task", TASK, title="Правка после переезда")
-        web.sync(new_server)  # sees a new server_id, re-uploads everything it has
-        phone.sync(new_server)
-        web.sync(new_server)
-        assert web.state() == phone.state()
-        assert web.get("task", TASK)["title"] == "Правка после переезда"
+    admin.reset(settings.database_path)
+    with pytest.raises(ServerChanged) as changed:
+        web.sync(client)
+    info = changed.value.info
+    assert info["counts"] == {}
+    assert client.get("/api/sync/info", headers=AUTH).json()["counts"] == {}
 
-        fresh = SimClient("c" * 16, FakeTime(T0))
-        fresh.sync(new_server)
-        assert fresh.state() == web.state()
+    # One device keeps its data and fills the new data set, the other takes it as it is.
+    phone.merge_into(info["server_id"])
+    phone.sync(client)
+    web.take_server_data()
+    web.sync(client)
+    assert web.state() == phone.state()
+    assert web.get("task", TASK)["title"] == NEW_TASK["title"]
+
+
+def test_reset_server_can_be_taken_as_is(client, settings):
+    (web, _), _ = devices()
+    web.write("task", TASK, **NEW_TASK)
+    web.sync(client)
+
+    admin.reset(settings.database_path)
+    with pytest.raises(ServerChanged):
+        web.sync(client)
+    web.take_server_data()
+    web.sync(client)
+    assert web.state() == {}
+    assert client.get("/api/sync/info", headers=AUTH).json()["counts"] == {}
+
+
+def test_restored_backup_gets_the_lost_rows_back(client, settings):
+    (web, _), (phone, _) = devices()
+    web.write("task", TASK, **NEW_TASK)
+    converge(client, web, phone)
+    backup = snapshot(settings.database_path)
+
+    phone.write("task", TASK, title="Правка после бэкапа")
+    phone.write("task", OTHER, **NEW_TASK)
+    converge(client, web, phone)
+
+    admin.restore(settings.database_path, backup)
+    web.write("task", TASK, color=3)
+    web.sync(client)  # rewind: pushes everything it has, including the phone's lost edits
+    phone.sync(client)
+    web.sync(client)
+    assert web.state() == phone.state()
+    assert web.get("task", TASK)["title"] == "Правка после бэкапа"
+    assert web.get("task", TASK)["color"] == 3
+
+    fresh = SimClient("c" * 16, FakeTime(T0))
+    fresh.sync(client)
+    assert fresh.state() == web.state()

@@ -24,10 +24,23 @@ class SyncRequest(BaseModel):
     cursor: int = Field(ge=0)
     changes: list[Change] = Field(max_length=MAX_CHANGES)
     limit: int = Field(default=1000, ge=1, le=MAX_CHANGES)
+    # The database the client last synced with; a different one is refused with 409.
+    server_id: str | None = None
+    # The epoch the client last saw; a different one means the database was restored.
+    epoch: str | None = None
 
 
 class SyncResponse(BaseModel):
     server_id: str
+    epoch: str
     cursor: int
     changes: list[Change]
     has_more: bool
+    # The database is behind the client (restored from a backup): the client pushes every row.
+    rewind: bool
+
+
+class SyncInfo(BaseModel):
+    server_id: str
+    epoch: str
+    counts: dict[str, int]
