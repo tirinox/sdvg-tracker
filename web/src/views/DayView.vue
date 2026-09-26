@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApp } from '../app/context'
 import { SECTION_TITLES, dayTitle } from '../app/format'
+import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadDay, type DayView } from '../app/views'
 import ItemRow from '../components/ItemRow.vue'
@@ -20,6 +21,8 @@ const isPast = computed(() => date.value < today.value)
 
 const sections = computed(() =>
   SECTIONS.map((s) => ({
+    // Keyed by the loaded day, so switching days swaps the lists instead of animating every row.
+    key: `${day.value?.date}:${s}`,
     id: s,
     title: SECTION_TITLES[s],
     items: day.value?.items.filter((i) => i.section === s) ?? [],
@@ -46,11 +49,11 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
 
     <QuickAdd v-if="!isPast" :date="date" />
 
-    <template v-for="s in sections" :key="s.id">
+    <template v-for="s in sections" :key="s.key">
       <h2 class="section-title">{{ s.title }}</h2>
-      <ul class="list">
+      <TransitionGroup tag="ul" name="row" class="list" :css="false" @enter="rowEnter" @leave="rowLeave">
         <ItemRow v-for="item in s.items" :key="item.key" :item="item" :date="date" />
-      </ul>
+      </TransitionGroup>
     </template>
 
     <p v-if="day && !day.items.length" class="empty">

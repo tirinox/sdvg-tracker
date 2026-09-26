@@ -30,6 +30,11 @@ struct RootView: View {
                 RecordCelebration(record: record) { model.celebration = nil }
             }
         }
+        .overlay {
+            if let done = model.doneCelebration {
+                DoneCelebrationView(celebration: done) { model.doneCelebration = nil }.id(done.id)
+            }
+        }
     }
 }
 
@@ -85,7 +90,7 @@ struct NowScreen: View {
                             .frame(maxWidth: .infinity)
                     }
                 } else {
-                    ForEach(top) { ItemRow(item: $0, showHint: true) }
+                    ForEach(top) { ItemRow(item: $0, showHint: true).transition(.row) }
                 }
                 if let day, day.total - day.done > 0 {
                     Button("Весь день → ещё \(day.total - day.done) \(plural(day.total - day.done, "дело", "дела", "дел"))") {
@@ -99,6 +104,8 @@ struct NowScreen: View {
                 if let stats { Card { HeatmapView(cells: stats.heatmap) } }
             }
             .padding()
+            // A done row slides out and the rest close the gap.
+            .animation(.snappy(duration: 0.45), value: top.map(\.id))
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Сейчас")
@@ -150,7 +157,7 @@ struct DayScreen: View {
                     if !items.isEmpty {
                         Text(Fmt.sectionTitles[section]!.uppercased())
                             .font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
-                        ForEach(items) { ItemRow(item: $0, date: date) }
+                        ForEach(items) { ItemRow(item: $0, date: date).transition(.row) }
                     }
                 }
                 if day?.items.isEmpty == true {
@@ -158,6 +165,9 @@ struct DayScreen: View {
                 }
             }
             .padding()
+            // Another day swaps the list at once; within a day, done rows slide to the end of their section.
+            .transaction(value: date) { $0.animation = nil }
+            .animation(.snappy(duration: 0.45), value: day?.items.map(\.id))
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)

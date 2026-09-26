@@ -51,6 +51,7 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
     "attention_level": { i in
         ["level": .int(Rules.attentionLevel(moves: i["moves"]!.int!, thresholds: i["thresholds"]!.array!.map { $0.int! }))]
     },
+    "celebration_level": { i in ["level": .int(Rules.celebrationLevel(moves: i["moves"]!.int!))] },
     "deadline_status": { i in
         let status = Rules.deadlineStatus(
             now: i["now"]!.string!, dayStartHour: i["day_start_hour"]!.int!, createdOn: i["created_on"]!.string!,

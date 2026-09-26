@@ -1,0 +1,68 @@
+{
+  "description": "How loudly to celebrate a task marked done, by how many times it was postponed before: 0 moves → 0 (just the check), 1-4 → 1 (confetti), 5-9 → 2 (fireworks), 10+ → 3 (big fireworks and applause). Routines are never postponed and stay at 0.",
+  "cases": [
+    {
+      "name": "0 moves",
+      "input": {
+        "moves": 0
+      },
+      "expect": {
+        "level": 0
+      }
+    },
+    {
+      "name": "1 moves",
+      "input": {
+        "moves": 1
+      },
+      "expect": {
+        "level": 1
+      }
+    },
+    {
+      "name": "4 moves",
+      "input": {
+        "moves": 4
+      },
+      "expect": {
+        "level": 1
+      }
+    },
+    {
+      "name": "5 moves",
+      "input": {
+        "moves": 5
+      },
+      "expect": {
+        "level": 2
+      }
+    },
+    {
+      "name": "9 moves",
+      "input": {
+        "moves": 9
+      },
+      "expect": {
+        "level": 2
+      }
+    },
+    {
+      "name": "10 moves",
+      "input": {
+        "moves": 10
+      },
+      "expect": {
+        "level": 3
+      }
+    },
+    {
+      "name": "25 moves",
+      "input": {
+        "moves": 25
+      },
+      "expect": {
+        "level": 3
+      }
+    }
+  ]
+}

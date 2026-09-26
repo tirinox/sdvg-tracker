@@ -1,7 +1,7 @@
 import { computed, createApp, effectScope, ref, watch } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { APP, type AppContext, type EditorState } from './app/context'
+import { APP, type AppContext, type Celebration, type EditorState } from './app/context'
 import { useLive } from './app/useLive'
 import { DEFAULT_SETTINGS } from './core/types'
 import { runRollover } from './db/actions'
@@ -42,6 +42,8 @@ async function bootstrap() {
     watch(today, (d) => void runRollover(store, d), { immediate: true })
 
     const editor = ref<EditorState | null>(null)
+    const celebration = ref<Celebration | null>(null)
+    let celebrations = 0
     const ctx: AppContext = {
       store,
       sync,
@@ -50,8 +52,10 @@ async function bootstrap() {
       settings,
       today,
       editor,
+      celebration,
       openTask: (id = null, defaults = {}) => (editor.value = { kind: 'task', id, defaults }),
       openRoutine: (id = null) => (editor.value = { kind: 'routine', id }),
+      celebrate: (c) => (celebration.value = { ...c, id: ++celebrations }),
     }
     app.provide(APP, ctx)
   })

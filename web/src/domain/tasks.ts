@@ -44,6 +44,14 @@ export function attentionLevel(moves: number, thresholds: readonly number[]): nu
   return thresholds.filter((t) => moves >= t).length
 }
 
+/** 0 just the check, 1 confetti, 2 fireworks, 3 big fireworks with applause. */
+export type CelebrationLevel = 0 | 1 | 2 | 3
+
+/** How loudly to celebrate a task done after `moves` postpones. */
+export function celebrationLevel(moves: number): CelebrationLevel {
+  return moves >= 10 ? 3 : moves >= 5 ? 2 : moves >= 1 ? 1 : 0
+}
+
 export type DeadlineStatus = 'none' | 'ok' | 'soon' | 'today' | 'overdue'
 
 export interface DeadlineInput {

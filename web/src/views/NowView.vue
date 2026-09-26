@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useApp } from '../app/context'
 import { dayTitle, plural, shortDate } from '../app/format'
+import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { loadDay, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
 import Heatmap from '../components/Heatmap.vue'
@@ -71,9 +72,9 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
     </div>
 
     <h2 class="section-title">Главное сейчас</h2>
-    <ul v-if="top.length" class="list">
+    <TransitionGroup v-if="top.length" tag="ul" name="row" class="list" :css="false" @enter="rowEnter" @leave="rowLeave">
       <ItemRow v-for="item in top" :key="item.key" :item="item" reasons />
-    </ul>
+    </TransitionGroup>
     <p v-else-if="day && day.total" class="empty card">
       Всё на сегодня сделано 🎉<br />
       <span class="muted">Можно отдохнуть или заглянуть во входящие.</span>

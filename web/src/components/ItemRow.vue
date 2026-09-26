@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useApp } from '../app/context'
 import { deadlineLabel, movesLabel, reasonLabels, shortDate, timingLabel } from '../app/format'
 import type { DayItem } from '../app/views'
@@ -10,6 +10,7 @@ import {
   setRoutineCheck,
   updateTask,
 } from '../db/actions'
+import { celebrationLevel } from '../domain/tasks'
 import EmojiCircle from './EmojiCircle.vue'
 
 const props = defineProps<{
@@ -22,7 +23,7 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
-const { store, today, now, openTask, openRoutine } = useApp()
+const { store, today, now, openTask, openRoutine, celebrate } = useApp()
 
 const isTask = computed(() => props.item.kind === 'task')
 const day = computed(() => props.date ?? today.value)
@@ -34,12 +35,34 @@ const hints = computed(() =>
 )
 const future = computed(() => day.value > today.value)
 
-async function toggleDone() {
+/** Time for the check to play before the row is marked done and leaves or moves down. */
+const CHECK_MS = 420
+
+// Set on tap, before the write: the check fills at once and plays its animation.
+const checking = ref(false)
+const checked = computed(() => props.item.done || checking.value)
+
+async function toggleDone(e: MouseEvent) {
   const i = props.item
-  if (i.kind === 'task') {
-    await (i.done ? reopenTask(store, i.id) : completeTask(store, i.id, today.value))
-  } else {
-    await setRoutineCheck(store, i.id, day.value, i.done ? null : 'done')
+  if (checking.value) return
+  if (i.done) {
+    await (i.kind === 'task' ? reopenTask(store, i.id) : setRoutineCheck(store, i.id, day.value, null))
+    return
+  }
+  checking.value = true
+  const level = i.kind === 'task' ? celebrationLevel(i.moves) : 0
+  if (level) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    celebrate({ level, moves: i.moves, x: r.left + r.width / 2, y: r.top + r.height / 2 })
+  }
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    await new Promise((resolve) => setTimeout(resolve, CHECK_MS))
+  }
+  try {
+    await (i.kind === 'task' ? completeTask(store, i.id, today.value) : setRoutineCheck(store, i.id, day.value, 'done'))
+  } finally {
+    // The check stays filled from the data now; keeping the flag a bit longer lets its animation finish.
+    setTimeout(() => (checking.value = false), 400)
   }
 }
 
@@ -55,7 +78,11 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 <template>
   <li
     class="row"
-    :class="[`att-${item.attention}`, `dl-${item.deadline}`, { done: item.done, skipped: item.skipped }]"
+    :class="[
+      `att-${item.attention}`,
+      `dl-${item.deadline}`,
+      { done: item.done, skipped: item.skipped, checking },
+    ]"
   >
     <button class="main" type="button" @click="edit">
       <EmojiCircle :emoji="item.emoji" :color="item.color" />
@@ -91,13 +118,14 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
       </button>
       <button
         class="check"
+        :class="{ pop: checking }"
         type="button"
-        :aria-pressed="item.done"
+        :aria-pressed="checked"
         :disabled="!isTask && future"
         :title="item.done ? 'Снять отметку' : 'Готово'"
         @click="toggleDone"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
       </button>
     </div>
 
@@ -235,6 +263,74 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 .check[aria-pressed='true'] svg {
   stroke: #fff;
   opacity: 1;
+}
+
+/* Tap to done: the circle fills with a bounce, the tick draws itself and a ring ripples out. */
+.check.pop {
+  position: relative;
+  animation: check-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.check.pop svg path {
+  stroke-dasharray: 1;
+  animation: check-draw 0.3s 0.08s ease-out both;
+}
+.check.pop::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--ok);
+  animation: check-ring 0.55s ease-out forwards;
+  pointer-events: none;
+}
+.row.checking {
+  animation: row-flash 0.6s ease-out;
+}
+@keyframes check-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.82);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes check-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes row-flash {
+  30% {
+    background: color-mix(in srgb, var(--ok) 14%, var(--surface));
+    border-color: color-mix(in srgb, var(--ok) 50%, var(--line));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check.pop,
+  .check.pop svg path,
+  .check.pop::after,
+  .row.checking {
+    animation: none;
+  }
+  .check.pop::after {
+    display: none;
+  }
 }
 
 .done,

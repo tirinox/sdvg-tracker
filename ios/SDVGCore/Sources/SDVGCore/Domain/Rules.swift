@@ -69,6 +69,12 @@ public enum Rules {
         thresholds.filter { moves >= $0 }.count
     }
 
+    /// How loudly to celebrate a task done after `moves` postpones:
+    /// 0 just the check, 1 confetti, 2 fireworks, 3 big fireworks with applause.
+    public static func celebrationLevel(moves: Int) -> Int {
+        moves >= 10 ? 3 : moves >= 5 ? 2 : moves >= 1 ? 1 : 0
+    }
+
     public enum DeadlineStatus: String, Sendable { case none, ok, soon, today, overdue }
 
     public static func deadlineStatus(

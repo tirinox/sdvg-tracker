@@ -37,6 +37,8 @@ final class AppModel {
     var dayDate: LocalDate?
     /// Set when today's record was just broken; shows the confetti once a day.
     var celebration: Rules.DayRecord?
+    /// Set when a postponed task is marked done: confetti, fireworks or the full show.
+    var doneCelebration: DoneCelebration?
 
     var today: LocalDate { Dates.logicalDay(now, dayStartHour: settings.dayStartHour) }
 

@@ -10,6 +10,12 @@ struct ItemRow: View {
     /// Show the timing hint (Now screen).
     var showHint = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Set on tap, before the write: the check fills at once and plays before the row leaves.
+    @State private var checking = false
+    @State private var pops = 0
+    @State private var checkFrame = CGRect.zero
+
     private var day: LocalDate { date ?? model.today }
     private var isTask: Bool { item.kind == .task }
 
@@ -52,11 +58,26 @@ struct ItemRow: View {
                     .accessibilityLabel(item.skipped ? "Вернуть" : "Пропустить сегодня")
                 }
                 Button(action: toggleDone) {
-                    Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
+                    let checked = item.done || checking
+                    Image(systemName: checked ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 30))
-                        .foregroundStyle(item.done ? Palette.ok : Color(.tertiaryLabel))
+                        .foregroundStyle(checked ? Palette.ok : Color(.tertiaryLabel))
+                        .contentTransition(.symbolEffect(.replace))
+                        .symbolEffect(.bounce, value: pops)
+                        // A ring ripples out of the check.
+                        .keyframeAnimator(initialValue: 0.0, trigger: pops) { content, t in
+                            content.background {
+                                Circle().stroke(Palette.ok, lineWidth: 2)
+                                    .scaleEffect(1 + t * 0.9)
+                                    .opacity(t > 0 && t < 1 ? (1 - t) * 0.8 : 0)
+                            }
+                        } keyframes: { _ in
+                            LinearKeyframe(1, duration: 0.55, timingCurve: .easeOut)
+                        }
                 }
                 .buttonStyle(.plain)
+                .sensoryFeedback(.success, trigger: pops)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { checkFrame = $0 }
                 .disabled(!isTask && day > model.today)
                 .accessibilityLabel(item.done ? "Снять отметку" : "Готово")
             }
@@ -76,7 +97,13 @@ struct ItemRow: View {
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground)))
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground))
+                // A green flash while the check plays.
+                RoundedRectangle(cornerRadius: 14).fill(Palette.ok.opacity(checking ? 0.14 : 0))
+            }
+        }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
     }
@@ -110,11 +137,29 @@ struct ItemRow: View {
     }
 
     private func toggleDone() {
+        guard !checking else { return }
+        if item.done {
+            isTask ? model.perform { [item] in try $0.reopenTask(item.refID) } : setCheck(nil)
+            return
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) { checking = true }
+        pops += 1
+        let level = isTask ? Rules.celebrationLevel(moves: item.moves) : 0
+        if level > 0 {
+            model.doneCelebration = DoneCelebration(
+                level: level, moves: item.moves, origin: CGPoint(x: checkFrame.midX, y: checkFrame.midY))
+        }
         let today = model.today
-        if isTask {
-            model.perform { [item] in try item.done ? $0.reopenTask(item.refID) : $0.completeTask(item.refID, today: today) }
-        } else {
-            setCheck(item.done ? nil : .done)
+        Task {
+            // Time for the check to play before the row leaves or moves down.
+            if !reduceMotion { try? await Task.sleep(for: .milliseconds(420)) }
+            if isTask {
+                model.perform { [item] in try $0.completeTask(item.refID, today: today) }
+            } else {
+                setCheck(.done)
+            }
+            try? await Task.sleep(for: .milliseconds(400))
+            checking = false
         }
     }
 

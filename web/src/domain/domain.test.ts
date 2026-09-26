@@ -4,7 +4,7 @@ import { logicalDay, partOfDay } from './dates'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routinesForDay } from './routines'
 import { nowScore } from './score'
-import { attentionLevel, deadlineStatus, planRollover } from './tasks'
+import { attentionLevel, celebrationLevel, deadlineStatus, planRollover } from './tasks'
 
 type Runner = (input: Json) => Json
 
@@ -22,6 +22,7 @@ const RUNNERS: Record<string, Runner> = {
     return { new_moves: moves, task_dates: dates }
   },
   attention_level: (i) => ({ level: attentionLevel(i.moves, i.thresholds) }),
+  celebration_level: (i) => ({ level: celebrationLevel(i.moves) }),
   deadline_status: (i) => ({
     status: deadlineStatus({
       now: i.now,

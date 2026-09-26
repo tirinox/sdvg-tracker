@@ -4,13 +4,14 @@ import { isOnboardingDone } from './app/connect'
 import { useApp } from './app/context'
 import { useLive } from './app/useLive'
 import { claimRecordCelebration, loadRecord } from './app/views'
+import DoneCelebration from './components/DoneCelebration.vue'
 import RecordConfetti from './components/RecordConfetti.vue'
 import RoutineEditor from './components/RoutineEditor.vue'
 import TaskEditor from './components/TaskEditor.vue'
 import WelcomeDialog from './components/WelcomeDialog.vue'
 import { loadSyncConfig } from './sync/client'
 
-const { store, editor, syncStatus, openTask, today } = useApp()
+const { store, editor, celebration, syncStatus, openTask, today } = useApp()
 
 // First run without a server: suggest connecting before showing an empty, device-only list.
 const welcome = ref(false)
@@ -86,6 +87,12 @@ const sync = computed(() => {
     <RoutineEditor v-if="editor?.kind === 'routine'" :id="editor.id" :key="`r${editor.id}`" @close="editor = null" />
     <WelcomeDialog v-if="welcome" @close="welcome = false" />
     <RecordConfetti v-if="celebrate" v-bind="celebrate" @close="celebrate = null" />
+    <DoneCelebration
+      v-if="celebration"
+      :key="celebration.id"
+      :celebration="celebration"
+      @close="celebration = null"
+    />
   </div>
 </template>
 
