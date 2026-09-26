@@ -15,8 +15,9 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
       },
       manifest: {
-        name: 'СДВГ-трекер',
-        short_name: 'Трекер',
+        name: 'SDVG',
+        short_name: 'SDVG',
+        description: 'Трекер задач и рутин · Tasks and routines tracker',
         lang: 'ru',
         start_url: '/',
         display: 'standalone',

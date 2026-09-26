@@ -1,4 +1,6 @@
+import AppIntents
 import BackgroundTasks
+import CoreSpotlight
 import SDVGCore
 import SwiftUI
 import WidgetKit
@@ -19,6 +21,8 @@ struct SDVGTrackerApp: App {
         }
         let model = AppModel(store: store)
         _model = State(initialValue: model)
+        // App Shortcuts (Shortcuts.swift) act on the same model.
+        AppDependencyManager.shared.add(dependency: model)
 
         // Periodic background sync; iOS decides the actual timing.
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshTaskID, using: nil) { task in
@@ -36,6 +40,11 @@ struct SDVGTrackerApp: App {
             RootView()
                 .environment(model)
                 .onAppear { model.start() }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+                        model.open(spotlightID: id)
+                    }
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

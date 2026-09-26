@@ -2,6 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Other names Siri and App Shortcuts answer to; the home screen name is SDVG. -->
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>СДВГ</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Трекер</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Tracker</string>
+		</dict>
+	</array>
 	<!-- Self-hosted sync server: plain http on the local network or a VPN address. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>

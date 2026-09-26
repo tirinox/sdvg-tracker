@@ -50,6 +50,8 @@ final class AppModel {
     @ObservationIgnored private var timers: [Timer] = []
     @ObservationIgnored private var debounce: Task<Void, Never>?
     @ObservationIgnored private var notifyDebounce: Task<Void, Never>?
+    @ObservationIgnored private var spotlightDebounce: Task<Void, Never>?
+    @ObservationIgnored private var spotlightIndexed: [Spotlight.Entry]?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private var lastToday: LocalDate?
     @ObservationIgnored private var doneWrites: [String: () -> Void] = [:]
@@ -109,6 +111,7 @@ final class AppModel {
         let onboarded = (try? store.meta(Self.onboardingKey))?.bool ?? false
         showWelcome = !configured && !onboarded
         syncNow()
+        scheduleSpotlight()
     }
 
     private func tick() {
@@ -129,6 +132,24 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(1))
             guard let self, !Task.isCancelled else { return }
             await Notifications.reschedule(store: self.store, now: self.now)
+        }
+        scheduleSpotlight()
+    }
+
+    /// Keeps Spotlight in step with the database, a few seconds after the last change.
+    private func scheduleSpotlight() {
+        spotlightDebounce?.cancel()
+        spotlightDebounce = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, !Task.isCancelled,
+                  let entries = try? Spotlight.entries(self.store, today: self.today),
+                  entries != self.spotlightIndexed else { return }
+            do {
+                try await Spotlight.reindex(entries)
+                self.spotlightIndexed = entries
+            } catch {
+                print("spotlight failed:", error)
+            }
         }
     }
 
@@ -296,4 +317,17 @@ final class AppModel {
     }
 
     func openRoutine(_ id: String?) { editor = .routine(id: id) }
+
+    /// A tap on a Spotlight result; one that no longer exists just opens the app.
+    func open(spotlightID id: String) {
+        switch Spotlight.target(id) {
+        case .task(let taskID)? where (try? store.get(.task, taskID)) != nil:
+            openTask(taskID)
+        case .routine(let routineID)? where (try? store.get(.routine, routineID)) != nil:
+            tab = .routines
+            openRoutine(routineID)
+        default:
+            break
+        }
+    }
 }
