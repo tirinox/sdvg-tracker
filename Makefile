@@ -2,7 +2,8 @@
 COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
-        test-live test-ios test-ios-live ios-build ios-open seed seed-clear lint fmt backend-dev web-dev
+        test-live test-ios test-ios-live ios-build ios-open seed seed-clear lint fmt backend-dev web-dev \
+        backup deploy deploy-logs connect-prod
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -112,3 +113,34 @@ backend-dev: env ## Run backend locally with reload on :8421
 
 web-dev: ## Run Vite dev server on :5173 (proxies /api to :8421)
 	cd web && npm run dev
+
+# Production: /srv/sdvg on the server, behind the host's shared ingress (see README).
+DEPLOY_HOST := exleader
+DEPLOY_DIR  := /srv/sdvg
+DEPLOY_URL  := https://sdvg.thornode.org
+BACKUP_DIR  := backups
+STAMP       := $(shell date +%Y%m%d-%H%M%S)
+
+deploy: ## Roll the server forward to origin/main (push first)
+	ssh $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && git pull --ff-only && docker compose up -d --build --wait'
+	@curl -fsS -m 10 $(DEPLOY_URL)/api/health && echo
+
+deploy-logs: ## Tail the server's logs
+	ssh -t $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && docker compose logs -f --tail=100'
+
+connect-prod: ## Server address and token for the clients (token goes to clipboard)
+	@token=$$(ssh $(DEPLOY_HOST) "grep -E '^API_TOKEN=' $(DEPLOY_DIR)/.env | cut -d= -f2"); \
+	echo "Address: $(DEPLOY_URL)"; \
+	if command -v pbcopy >/dev/null; then printf %s "$$token" | pbcopy && echo "Token copied to clipboard"; \
+	else echo "Token:   $$token"; fi
+
+backup: ## Snapshot the database into backups/ (consistent while running; the server's cron runs this)
+	@mkdir -p $(BACKUP_DIR)
+	@# Streamed out rather than written to a mount, which works whatever user the container
+	@# runs as. SQLite's backup API gives a consistent copy even mid-sync.
+	$(COMPOSE) exec -T backend python -c "import os, sqlite3, sys; \
+		src = sqlite3.connect(os.environ['DATABASE_PATH']); dst = sqlite3.connect(':memory:'); \
+		src.backup(dst); sys.stdout.buffer.write(dst.serialize())" \
+		> $(BACKUP_DIR)/sdvg-$(STAMP).db || { rm -f $(BACKUP_DIR)/sdvg-$(STAMP).db; exit 1; }
+	gzip $(BACKUP_DIR)/sdvg-$(STAMP).db
+	@echo "Wrote $(BACKUP_DIR)/sdvg-$(STAMP).db.gz"

@@ -6,10 +6,16 @@ services:
     env_file: .env
     environment:
       DATABASE_PATH: /data/sdvg.db
+      # Uvicorn only believes X-Forwarded-For/-Proto from these addresses. Safe as "*":
+      # only nginx in the web container can reach the backend.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - data:/data
     expose:
       - "8000"
+    networks:
+      default:
+        aliases: [sdvg-backend]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s

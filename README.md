@@ -35,6 +35,24 @@ make test-ios      # тесты ядра SDVGCore на общих фикстур
 - Если в глобальном git-конфиге стоит `safe.bareRepository=explicit`, SwiftPM не может скачать GRDB.
   `make ios-open` и цели Makefile переопределяют это только для своих команд.
 
+## Сервер
+
+Прод — https://sdvg.thornode.org: `/srv/sdvg` на `exleader`, git clone этого репозитория, разворачивается
+`origin/main`. Порты наружу не публикуются: контейнер `web` подключён к общей сети `edge` с алиасом
+`sdvg-web`, а общий Caddy хоста (`/srv/ingress`, сайт `caddy/sites/sdvg.thornode.org.caddy`) держит 80/443,
+сертификат и редирект на HTTPS. В серверном `.env` (`chmod 600`) — свой `API_TOKEN` и
+`COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml`, так что `docker compose` и `make` там всегда
+в прод-режиме.
+
+```bash
+make deploy        # после push в main: git pull на сервере, пересборка, проверка /api/health
+make deploy-logs   # логи сервера
+make connect-prod  # адрес и токен для клиентов (токен — в буфер обмена)
+```
+
+Бэкап — `/etc/cron.d/sdvg-backup`: `make backup` в 04:10 UTC, снимок SQLite в `/srv/sdvg/backups`,
+хранится 14 дней. Данные живут в томе `sdvg_data`.
+
 ## Разработка
 
 ```bash

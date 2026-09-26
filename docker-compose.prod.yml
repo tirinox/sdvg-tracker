@@ -1,0 +1,41 @@
+# Production overlay, layered over docker-compose.yml. Not auto-loaded: the
+# server's .env names it,
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#
+# so plain `docker compose` and every make target run in production mode there.
+#
+# Nothing here is published to the internet. The web container (nginx: the
+# client and /api) joins the host's shared `edge` network, and the ingress on
+# it — a separate project that holds 80/443 and the certificates for every
+# site on the host — proxies sdvg.thornode.org to it by alias.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+services:
+  backend:
+    mem_limit: 336m
+    logging: *logging
+
+  web:
+    ports: !reset []
+    mem_limit: 84m
+    healthcheck:
+      # The whole path a client takes: nginx, then the backend behind it.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+      start_interval: 2s
+    networks:
+      default:
+      edge:
+        aliases: [sdvg-web]
+    logging: *logging
+
+networks:
+  edge:
+    external: true
