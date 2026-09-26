@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
-        test-live test-ios test-ios-live ios-build ios-open seed seed-clear lint fmt backend-dev web-dev \
+        test-live test-ios test-ios-live ios-build ios-open seed seed-clear import lint fmt backend-dev web-dev \
         backup deploy deploy-logs connect-prod
 
 help: ## Show available targets
@@ -107,6 +107,11 @@ seed: ## Fill the running server (make up) with demo data: routines, tasks, 4 mo
 
 seed-clear: ## Remove the demo data from the server and, after sync, from every device
 	cd web && SDVG_TOKEN=$(SEED_TOKEN) npx tsx scripts/seed.ts --url $(SEED_URL) --clear
+
+IMPORT_FILE ?= private/tasks.json
+
+import: ## Load routines and tasks from IMPORT_FILE (default private/tasks.json) into an empty server
+	cd web && SDVG_TOKEN=$(SEED_TOKEN) npx tsx scripts/import.ts --url $(SEED_URL) --file $(CURDIR)/$(IMPORT_FILE)
 
 backend-dev: env ## Run backend locally with reload on :8421
 	cd backend && uv run uvicorn --factory app.main:create_app --reload --port 8421
