@@ -18,7 +18,12 @@ def load_shared(rel: str) -> dict:
 
 @pytest.fixture
 def settings(tmp_path) -> Settings:
-    return Settings(api_token=TEST_TOKEN, database_path=str(tmp_path / "test.db"))
+    # No emoji model: tests that need it load it themselves (test_emoji.py).
+    return Settings(
+        api_token=TEST_TOKEN,
+        database_path=str(tmp_path / "test.db"),
+        emoji_model_dir=tmp_path / "no-emoji-model",
+    )
 
 
 @pytest.fixture

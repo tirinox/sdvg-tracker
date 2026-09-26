@@ -8,3 +8,4 @@
 .env
 .git
 backups
+backend/models

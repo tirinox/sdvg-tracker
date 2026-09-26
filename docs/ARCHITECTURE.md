@@ -1,7 +1,7 @@
 # Архитектура СДВГ-трекера
 
 Аналог Tiimo для людей с СДВГ. Один пользователь, клиенты iOS и Web, backend на Python.
-Без ИИ и трекера настроения в MVP (автоподбор эмодзи — отдельный этап).
+Без трекера настроения в MVP; из ИИ — только подбор эмодзи небольшой моделью на сервере (3.4).
 
 ## 1. Принципы
 
@@ -94,6 +94,25 @@
 
 `emoji` — строка; `color` — индекс в палитре (~12 цветов), одинаковой на iOS и Web и адаптированной
 под тёмную тему. Отображение: цветной кружок с эмодзи.
+
+Эмодзи к названию подбирает сервер (токен тот же, что у sync):
+
+```
+POST /api/suggest-emoji
+{ "text": "Записаться к стоматологу", "limit": 5 }
+→ { "suggestions": [ { "emoji": "🦷", "score": 0.96 }, { "emoji": "📝", "score": 0.89 }, … ] }
+```
+
+- Модель — `multilingual-e5-small` (int8 ONNX, ~120 МБ, onnxruntime на CPU, единицы мс на запрос).
+  Название и описания эмодзи — векторы; балл эмодзи — косинус до ближайшего из его описаний.
+- Описания: имя и ключевые слова из Unicode CLDR (`backend/app/emoji/catalog.tsv`, ~1200 эмодзи;
+  без оттенков кожи и мужских/женских копий, а цифры-кнопки, циферблаты и большинство флагов
+  совпадают со словами задач случайно) и фразы задач (`aliases.txt`: CLDR знает «зуб», задача —
+  «записаться к стоматологу»). На 50 новых названиях (`backend/tests/emoji_titles.txt`) фразы
+  подняли долю подходящего первого эмодзи с 48 до 74 %, подходящего в первой тройке — с 64 до 90 %.
+- Модель грузится в фоне при старте, векторы описаний кешируются рядом с БД. Пока она грузится
+  или если её нет — `503`: клиент просто не показывает подсказки. Название — в теле запроса,
+  не в URL: URL попадают в логи.
 
 ## 4. Производные данные
 
@@ -215,7 +234,7 @@ Authorization: Bearer <token>
 
 | часть | технологии |
 |---|---|
-| Backend | Python 3.12, uv, FastAPI, SQLAlchemy 2, Alembic, SQLite (WAL), pytest |
+| Backend | Python 3.12, uv, FastAPI, SQLAlchemy 2, Alembic, SQLite (WAL), onnxruntime, pytest |
 | Web | Vue 3, Vue Router, Vite, TypeScript, Dexie (IndexedDB), vite-plugin-pwa, Vitest |
 | iOS | SwiftUI, GRDB, BGAppRefreshTask, локальные уведомления, WidgetKit, ActivityKit, App Intents, App Group |
 | Инфра | docker compose, Makefile |
@@ -226,7 +245,7 @@ Authorization: Bearer <token>
 ## 9. Структура репозитория
 
 ```
-backend/    app/{api,models,sync,domain}, alembic/, tests/
+backend/    app/{api,models,sync,domain,emoji}, alembic/, tests/, models/ (модель эмодзи, не в git)
 web/        src/{core,domain,db,sync,app,demo,views,components}
 ios/        SDVGCore/{DB,Sync,Domain}, SDVGTracker/Features, SDVGWidgets/{Widgets,LiveActivity}
 shared/     sync-fixtures/, domain-fixtures/
@@ -236,7 +255,7 @@ docker-compose.yml  Makefile  .env.example
 
 ## 10. Вне MVP
 
-- Автоподбор эмодзи: многоязычные эмбеддинги (например, `multilingual-e5-small`) + ближайшее
-  описание эмодзи; сервер `/api/suggest-emoji`, transformers.js в вебе, Core ML на iOS; офлайн-фолбэк — словарь.
+- Подбор эмодзи без сервера: та же модель через transformers.js в вебе и Core ML на iOS;
+  офлайн-фолбэк — словарь.
 - Подзадачи, заморозка стрика.
 - Push-обновления Live Activity и push-to-start через APNs с backend.

@@ -3,6 +3,7 @@ COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
         test-live test-ios test-ios-live ios-build ios-open seed seed-clear import lint fmt backend-dev web-dev \
+        emoji-model emoji-catalog \
         backup reset-db restore deploy deploy-logs connect-prod
 
 help: ## Show available targets
@@ -31,6 +32,13 @@ connect: ## Server address on the local network and token for the iOS app (token
 install: ## Install local dev dependencies
 	cd backend && uv sync
 	cd web && npm install
+	@$(MAKE) --no-print-directory emoji-model
+
+emoji-model: ## Download the emoji suggestion model (~120 MB) into backend/models
+	cd backend && uv run python scripts/fetch_emoji_model.py models/multilingual-e5-small
+
+emoji-catalog: ## Regenerate the emoji catalog (backend/app/emoji/catalog.tsv) from Unicode CLDR
+	cd backend && uv run python scripts/emoji_catalog.py
 
 up: env ## Build and start backend + web in docker
 	$(COMPOSE) up -d --build

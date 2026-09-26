@@ -50,13 +50,16 @@ make deploy-logs   # логи сервера
 make connect-prod  # адрес и токен для клиентов (токен — в буфер обмена)
 ```
 
+Backend держит в памяти модель подбора эмодзи (`POST /api/suggest-emoji`, ~370 МБ; лимит контейнера
+640 МБ). Модель скачивается при сборке образа, векторы описаний эмодзи кешируются в томе рядом с БД.
+
 Бэкап — `/etc/cron.d/sdvg-backup`: `make backup` в 04:10 UTC, снимок SQLite в `/srv/sdvg/backups`,
 хранится 14 дней. Данные живут в томе `sdvg_data`.
 
 ## Разработка
 
 ```bash
-make install       # зависимости backend и web
+make install       # зависимости backend и web, модель подбора эмодзи (~120 МБ, make emoji-model)
 make backend-dev   # backend с перезагрузкой на :8421
 make web-dev       # Vite на :5173, /api проксируется на :8421
 make test          # тесты backend (включая проверку контрактов shared/) и web

@@ -16,7 +16,9 @@ x-logging: &logging
 
 services:
   backend:
-    mem_limit: 336m
+    # ~60 MB for sync, ~370 MB for the emoji model (onnxruntime keeps the weights twice);
+    # loading peaks at ~550 MB with page cache.
+    mem_limit: 640m
     logging: *logging
 
   web:
