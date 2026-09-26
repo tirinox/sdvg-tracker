@@ -93,14 +93,16 @@ struct TimingPicker: View {
     }
 }
 
+/// Midnight of a local date in the current calendar.
+private func calendarDate(_ d: LocalDate) -> Date {
+    var c = DateComponents()
+    (c.year, c.month, c.day) = (Int(d.prefix(4)), Int(d.dropFirst(5).prefix(2)), Int(d.dropFirst(8).prefix(2)))
+    return Calendar.current.date(from: c) ?? Date()
+}
+
 private func dateBinding(_ value: Binding<LocalDate?>, default fallback: LocalDate) -> Binding<Date> {
     Binding(
-        get: {
-            let d = value.wrappedValue ?? fallback
-            var c = DateComponents()
-            (c.year, c.month, c.day) = (Int(d.prefix(4)), Int(d.dropFirst(5).prefix(2)), Int(d.dropFirst(8).prefix(2)))
-            return Calendar.current.date(from: c) ?? Date()
-        },
+        get: { calendarDate(value.wrappedValue ?? fallback) },
         set: { value.wrappedValue = String(Dates.localNow($0).prefix(10)) })
 }
 
@@ -112,7 +114,15 @@ struct TaskEditor: View {
     @State private var moves = 0
     @State private var done = false
     @State private var history: [Rules.TitleGroup] = []
+    /// Day for a copy; nil = tomorrow.
+    @State private var copyDate: LocalDate?
+    @State private var copied: Copied?
     @FocusState private var titleFocused: Bool
+
+    private struct Copied {
+        let id: String
+        let date: LocalDate
+    }
 
     var body: some View {
         let today = model.today
@@ -167,6 +177,21 @@ struct TaskEditor: View {
                     }
                 }
                 if let id {
+                    SwiftUI.Section("Копия задачи") {
+                        let target = copyDate ?? Dates.addDays(today, 1)
+                        DatePicker("День", selection: dateBinding($copyDate, default: Dates.addDays(today, 1)),
+                                   in: calendarDate(today)..., displayedComponents: .date)
+                        Button("⧉ Копировать на \(dayLabel(target))") { copy(to: target) }
+                            .disabled(!valid || target < today)
+                        if let copied {
+                            HStack {
+                                Label("Копия на \(dayLabel(copied.date)) готова", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(Palette.ok)
+                                Spacer()
+                                Button("Отменить") { undoCopy() }.buttonStyle(.borderless)
+                            }
+                        }
+                    }
                     SwiftUI.Section {
                         if !done {
                             Button("↷ Перенести на завтра") { save(); model.perform { try $0.postponeTask(id, today: today) }; dismiss() }
@@ -195,14 +220,39 @@ struct TaskEditor: View {
 
     private var valid: Bool { !draft.title.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    private func save() {
-        guard valid else { return }
+    private var trimmed: TaskDraft {
         var d = draft
         d.title = d.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return d
+    }
+
+    private func save() {
+        guard valid else { return }
+        let d = trimmed
         let today = model.today
         model.perform { [id] in
             if let id { try $0.saveTask(id, d, today: today) } else { try $0.createTask(d) }
         }
+    }
+
+    private func dayLabel(_ d: LocalDate) -> String {
+        d == model.today ? "сегодня" : d == Dates.addDays(model.today, 1) ? "завтра" : Fmt.shortDate(d)
+    }
+
+    /// Copies the form as it is now; the task itself changes only on "Сохранить".
+    private func copy(to date: LocalDate) {
+        guard valid else { return }
+        do {
+            copied = Copied(id: try model.store.copyTask(trimmed, to: date), date: date)
+        } catch {
+            print("copy failed:", error)
+        }
+    }
+
+    private func undoCopy() {
+        guard let copied else { return }
+        model.perform { try $0.deleteTask(copied.id) }
+        self.copied = nil
     }
 }
 

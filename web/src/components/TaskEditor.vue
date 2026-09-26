@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
-import { plural } from '../app/format'
+import { plural, relativeDay, shortDate } from '../app/format'
 import type { Task } from '../core/types'
 import {
+  copyTask,
   createTask,
   deleteTask,
   moveCount,
@@ -75,14 +76,19 @@ function applySuggestion(s: TitleSuggestion) {
 
 const valid = computed(() => form.title.trim().length > 0 && (form.time_kind !== 'exact' || !!form.time))
 
-async function persist() {
-  const data = {
+/** The form as a task: fields that the chosen timing and deadline do not use are cleared. */
+function content() {
+  return {
     ...form,
     title: form.title.trim(),
     part_of_day: form.time_kind === 'part' ? form.part_of_day : null,
     time: form.time_kind === 'exact' ? form.time : null,
     deadline_time: form.deadline_date ? form.deadline_time || null : null,
   }
+}
+
+async function persist() {
+  const data = content()
   if (props.id) {
     const { date, ...rest } = data
     await updateTask(store, props.id, rest)
@@ -104,6 +110,27 @@ async function postpone() {
   await persist()
   await postponeTask(store, props.id, today.value)
   emit('close')
+}
+
+const copyDate = ref(addDays(today.value, 1))
+const copied = ref<{ id: string; date: string } | null>(null)
+const canCopy = computed(() => valid.value && copyDate.value >= today.value)
+
+function dayLabel(d: string): string {
+  return relativeDay(d, today.value)?.toLowerCase() ?? shortDate(d)
+}
+
+/** Copies the form as it is now; the task itself changes only on "Сохранить". */
+async function copy() {
+  if (!canCopy.value) return
+  const date = copyDate.value
+  copied.value = { id: await copyTask(store, content(), date), date }
+}
+
+async function undoCopy() {
+  if (!copied.value) return
+  await deleteTask(store, copied.value.id)
+  copied.value = null
 }
 
 async function remove() {
@@ -174,6 +201,20 @@ async function remove() {
         ↻ Задачу переносили уже {{ moves }} {{ plural(moves, 'раз', 'раза', 'раз') }}. Может, разбить её на
         шаги поменьше?
       </p>
+
+      <div v-if="id" class="field">
+        <span>Копия задачи</span>
+        <div class="chips">
+          <input v-model="copyDate" class="input date" type="date" :min="today" aria-label="День для копии" />
+          <button type="button" class="btn" :disabled="!canCopy" @click="copy">
+            ⧉ Копировать на {{ copyDate ? dayLabel(copyDate) : '…' }}
+          </button>
+        </div>
+        <p v-if="copied" class="copied" role="status">
+          ✓ Копия на {{ dayLabel(copied.date) }} готова
+          <button type="button" class="btn ghost" @click="undoCopy">Отменить</button>
+        </p>
+      </div>
     </template>
 
     <template #footer>
@@ -209,6 +250,18 @@ async function remove() {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
+}
+.copied {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--ok);
+}
+.copied .btn {
+  padding: 2px 8px;
+  color: var(--accent);
 }
 .moves {
   margin: 0;

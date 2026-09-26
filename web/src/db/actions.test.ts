@@ -3,6 +3,7 @@ import { routineCheckId, taskMoveId } from '../core/ids'
 import {
   archiveRoutine,
   completeTask,
+  copyTask,
   createRoutine,
   createTask,
   deleteTask,
@@ -129,6 +130,41 @@ describe('tasks', () => {
     await postponeTask(store, id, TODAY)
     expect((await store.get('task', id))!.date).toBe('2026-09-23')
     expect(await moveCount(store, id)).toBe(0)
+  })
+
+  it('a copy is a fresh task on its own day; a deadline passed by then stays behind', async () => {
+    const store = await openStore()
+    const source = {
+      title: 'Полить цветы',
+      notes: 'и фикус',
+      emoji: '🪴',
+      color: 4,
+      date: TODAY,
+      time_kind: 'part' as const,
+      part_of_day: 'morning' as const,
+      duration_min: 10,
+      deadline_date: '2026-09-24',
+      deadline_time: '12:00',
+    }
+    const id = await createTask(store, source)
+    await postponeTask(store, id, TODAY)
+    await completeTask(store, id, '2026-09-23')
+
+    const copy = await copyTask(store, source, '2026-09-24')
+    expect(copy).not.toBe(id)
+    expect(await store.get('task', copy)).toMatchObject({
+      ...source,
+      date: '2026-09-24',
+      first_date: '2026-09-24',
+      done_on: null,
+      deleted: false,
+    })
+    expect(await moveCount(store, copy)).toBe(0)
+    expect((await store.get('task', copy))!.sort_key > (await store.get('task', id))!.sort_key).toBe(true)
+
+    const late = await copyTask(store, source, '2026-09-25')
+    expect(await store.get('task', late)).toMatchObject({ deadline_date: null, deadline_time: null })
+    expect(await store.get('task', id)).toMatchObject({ date: '2026-09-23', done_on: '2026-09-23' })
   })
 
   it('rollover counts every missed day and is idempotent', async () => {

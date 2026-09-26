@@ -138,6 +138,20 @@ export async function rescheduleTask(
   ])
 }
 
+/**
+ * A new task with the same content, planned for `date`: not done and with no moves of its own.
+ * A deadline that passes before that day stays behind, or the copy would be born overdue.
+ */
+export async function copyTask(store: Store, source: NewTask, date: LocalDate): Promise<string> {
+  const deadline = source.deadline_date && source.deadline_date >= date ? source.deadline_date : null
+  return createTask(store, {
+    ...source,
+    date,
+    deadline_date: deadline,
+    deadline_time: deadline ? (source.deadline_time ?? null) : null,
+  })
+}
+
 /** Moves every open task planned before today to today. Safe to call repeatedly. */
 export async function runRollover(store: Store, today: LocalDate): Promise<number> {
   const overdue = await store.db.task.where('fields.date').below(today).toArray()

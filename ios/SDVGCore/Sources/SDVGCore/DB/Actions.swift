@@ -157,6 +157,19 @@ extension Store {
         ])
     }
 
+    /// A new task with the same content, planned for `date`: not done and with no moves of its own.
+    /// A deadline that passes before that day stays behind, or the copy would be born overdue.
+    @discardableResult
+    public func copyTask(_ d: TaskDraft, to date: LocalDate, now: Date = Date()) throws -> String {
+        var copy = d
+        copy.date = date
+        if let deadline = d.deadlineDate, deadline < date {
+            copy.deadlineDate = nil
+            copy.deadlineTime = nil
+        }
+        return try createTask(copy, now: now)
+    }
+
     /// Moves every open task planned before today to today. Safe to call repeatedly.
     @discardableResult
     public func runRollover(today: LocalDate) throws -> Int {

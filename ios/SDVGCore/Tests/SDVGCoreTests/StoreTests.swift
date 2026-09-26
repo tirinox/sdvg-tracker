@@ -47,6 +47,40 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(try s.get(.task, inbox).map(TaskRecord.init)?.firstDate, "2026-09-23")
     }
 
+    func testCopyIsAFreshTaskOnItsOwnDay() throws {
+        let s = try store()
+        var source = TaskDraft(title: "Полить цветы", date: today)
+        source.notes = "и фикус"
+        source.emoji = "🪴"
+        source.color = 4
+        source.timing = Timing(kind: .part, part: .morning)
+        source.durationMin = 10
+        source.deadlineDate = "2026-09-24"
+        source.deadlineTime = "12:00"
+        let id = try s.createTask(source)
+        try s.postponeTask(id, today: today)
+        try s.completeTask(id, today: "2026-09-23")
+
+        let copy = try s.copyTask(source, to: "2026-09-24")
+        XCTAssertNotEqual(copy, id)
+        let t = try XCTUnwrap(try s.get(.task, copy).map(TaskRecord.init))
+        var expected = source
+        expected.date = "2026-09-24"
+        XCTAssertEqual(TaskDraft(t), expected)
+        XCTAssertEqual(t.firstDate, "2026-09-24")
+        XCTAssertNil(t.doneOn)
+        XCTAssertFalse(t.deleted)
+        XCTAssertEqual(try s.moveCount(copy), 0)
+        XCTAssertGreaterThan(t.sortKey, try XCTUnwrap(try s.get(.task, id).map(TaskRecord.init)).sortKey)
+
+        let late = try XCTUnwrap(try s.get(.task, try s.copyTask(source, to: "2026-09-25")).map(TaskRecord.init))
+        XCTAssertNil(late.deadlineDate)
+        XCTAssertNil(late.deadlineTime)
+        let original = try XCTUnwrap(try s.get(.task, id).map(TaskRecord.init))
+        XCTAssertEqual(original.date, "2026-09-23")
+        XCTAssertEqual(original.doneOn, "2026-09-23")
+    }
+
     func testRolloverCountsMissedDaysAndIsIdempotent() throws {
         let s = try store()
         let open = try s.createTask(TaskDraft(title: "Висит", date: "2026-09-19"))
