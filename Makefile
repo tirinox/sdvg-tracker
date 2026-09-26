@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
 
-.PHONY: help env token install up down build logs ps test test-backend test-web \
+.PHONY: help env token connect install up down build logs ps test test-backend test-web \
         test-live test-ios test-ios-live ios-build ios-open seed seed-clear lint fmt backend-dev web-dev
 
 help: ## Show available targets
@@ -13,6 +13,19 @@ env: ## Create .env with a random token (if missing)
 
 token: ## Print a new random token
 	@openssl rand -hex 24
+
+connect: ## Server address on the local network and token for the iOS app (token goes to clipboard)
+	@test -f .env || { echo "No .env: run make up first"; exit 1; }
+	@iface=$$(route -n get default 2>/dev/null | awk '/interface:/ {print $$2}'); \
+	ip=$$(ipconfig getifaddr $${iface:-en0} 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}'); \
+	port=$$(grep -E '^PORT=' .env | cut -d= -f2); port=$${port:-8420}; \
+	token=$$(grep -E '^API_TOKEN=' .env | cut -d= -f2); \
+	url="http://$$ip:$$port"; \
+	echo "Address: $$url"; \
+	echo "Token:   $$token"; \
+	if curl -sf -m 3 "$$url/api/health" >/dev/null; then echo "Server:  reachable"; \
+	else echo "Server:  not responding at $$url (make up?)"; fi; \
+	if command -v pbcopy >/dev/null; then printf %s "$$token" | pbcopy && echo "Token copied to clipboard"; fi
 
 install: ## Install local dev dependencies
 	cd backend && uv sync

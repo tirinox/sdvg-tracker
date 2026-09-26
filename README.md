@@ -30,6 +30,8 @@ make test-ios      # тесты ядра SDVGCore на общих фикстур
   bundle id `com.tirinox.sdvgtracker` и App Group `group.com.tirinox.sdvgtracker` на свои.
 - Адрес сервера в приложении — IP компьютера в той же сети: `http://192.168.x.x:8420`
   (в симуляторе работает `http://localhost:8420`). Токен хранится в Keychain.
+  `make connect` печатает адрес и токен, проверяет, что сервер отвечает по этому адресу, и кладёт токен
+  в буфер обмена (через Universal Clipboard его можно вставить на iPhone).
 - Если в глобальном git-конфиге стоит `safe.bareRepository=explicit`, SwiftPM не может скачать GRDB.
   `make ios-open` и цели Makefile переопределяют это только для своих команд.
 
