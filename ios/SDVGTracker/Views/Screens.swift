@@ -162,15 +162,16 @@ struct DayScreen: View {
                         .accessibilityLabel("Следующий день")
                 }
                 HStack {
-                    if date != model.today {
-                        Button("К сегодняшнему дню") { go(model.today) }.buttonStyle(.bordered)
-                    } else {
-                        DayCountdown()
-                    }
+                    if date == model.today { DayCountdown() }
                     Spacer()
                     if let day { Text("Сделано \(day.done) из \(day.total)").font(.subheadline).foregroundStyle(.secondary) }
                 }
-                if date >= model.today { QuickAdd(date: date) }
+                if date == model.today {
+                    QuickAdd(date: date)
+                } else if date > model.today {
+                    let when = date == Dates.addDays(model.today, 1) ? "завтра" : Fmt.shortDate(date)
+                    QuickAdd(date: date, placeholder: "Добавить задачу на \(when)")
+                }
                 ForEach(rows) { row in
                     switch row {
                     case .header(let group):
@@ -191,7 +192,15 @@ struct DayScreen: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncBadge() } }
+        .toolbar {
+            // In the bar it stays in view while scrolling, so nothing is added or checked on another day by mistake.
+            ToolbarItem(placement: .principal) {
+                if date != model.today {
+                    NotTodayBadge(distance: Fmt.dayDistance(date, today: model.today)) { go(model.today) }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) { SyncBadge() }
+        }
         .refreshable { await model.sync.sync() }
     }
 
@@ -214,6 +223,38 @@ private enum DayListRow: Identifiable {
 
     static func rows(_ day: DayView) -> [DayListRow] {
         day.groups.flatMap { [.header($0.group)] + $0.items.map(DayListRow.item) }
+    }
+}
+
+/// The Day screen shows another day than today; a tap anywhere on it goes back to today.
+private struct NotTodayBadge: View {
+    var distance: String
+    var back: () -> Void
+
+    var body: some View {
+        Button(action: back) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.exclamationmark")
+                Text("Не сегодня — \(distance)")
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text("К сегодня")
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Palette.warn.opacity(0.18)))
+            }
+            .font(.subheadline)
+            .foregroundStyle(Palette.warn)
+            .padding(.leading, 10)
+            .padding(.trailing, 4)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Palette.warn.opacity(0.14)))
+            .overlay(Capsule().strokeBorder(Palette.warn.opacity(0.4)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Не сегодня — \(distance)")
+        .accessibilityHint("Вернуться к сегодняшнему дню")
     }
 }
 

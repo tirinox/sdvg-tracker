@@ -45,6 +45,21 @@ public enum Fmt {
         return rel.map { ($0, "\(wd), \(dm)") } ?? (wd.prefix(1).uppercased() + wd.dropFirst(), dm)
     }
 
+    /// How far a day is from today: "завтра", "через 3 дня", "5 дней назад".
+    public static func dayDistance(_ d: LocalDate, today: LocalDate) -> String {
+        let n = Dates.daysBetween(today, d)
+        switch n {
+        case 0: return "сегодня"
+        case 1: return "завтра"
+        case 2: return "послезавтра"
+        case -1: return "вчера"
+        case -2: return "позавчера"
+        default:
+            let days = "\(abs(n)) \(plural(abs(n), "день", "дня", "дней"))"
+            return n > 0 ? "через \(days)" : "\(days) назад"
+        }
+    }
+
     public static let sectionTitles: [DaySection: String] = [.anytime: "В любое время", .morning: "Утро", .day: "День", .evening: "Вечер"]
 
     public static func groupTitle(_ g: DayGroup) -> String {

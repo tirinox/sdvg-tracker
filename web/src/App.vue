@@ -14,6 +14,15 @@ import { loadSyncConfig } from './sync/client'
 
 const { store, editor, celebration, syncStatus, openTask, today } = useApp()
 
+// Sticky bars on the screens sit right under the header: its height goes to --top-h.
+const topBar = ref<HTMLElement | null>(null)
+onMounted(() => {
+  const header = topBar.value!
+  new ResizeObserver(() =>
+    document.documentElement.style.setProperty('--top-h', `${header.offsetHeight}px`),
+  ).observe(header)
+})
+
 // First run without a server: suggest connecting before showing an empty, device-only list.
 const welcome = ref(false)
 onMounted(async () => {
@@ -64,7 +73,7 @@ const sync = computed(() => {
 
 <template>
   <div class="shell">
-    <header class="top">
+    <header ref="topBar" class="top">
       <RouterLink to="/" class="brand">
         <span class="logo">✓</span>
         СДВГ-трекер

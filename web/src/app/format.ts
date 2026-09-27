@@ -34,6 +34,18 @@ export function relativeDay(d: LocalDate, today: LocalDate): string | null {
   return null
 }
 
+/** How far a day is from today: 'завтра', 'через 3 дня', '5 дней назад'. */
+export function dayDistance(d: LocalDate, today: LocalDate): string {
+  const n = daysBetween(today, d)
+  if (n === 0) return 'сегодня'
+  if (n === 1) return 'завтра'
+  if (n === 2) return 'послезавтра'
+  if (n === -1) return 'вчера'
+  if (n === -2) return 'позавчера'
+  const days = `${Math.abs(n)} ${plural(Math.abs(n), 'день', 'дня', 'дней')}`
+  return n > 0 ? `через ${days}` : `${days} назад`
+}
+
 export function dayTitle(d: LocalDate, today: LocalDate): { title: string; subtitle: string } {
   const wd = weekday.format(utc(d))
   const dm = dayMonth.format(utc(d))

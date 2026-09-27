@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApp } from '../app/context'
-import { GROUP_TITLES, dayTitle } from '../app/format'
+import { GROUP_TITLES, dayDistance, dayTitle, shortDate } from '../app/format'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { dayGroups, loadDay, type DayView } from '../app/views'
@@ -18,7 +18,13 @@ const { store, now, today, openRoutine } = useApp()
 const date = computed(() => (route.params.date as string | undefined) || today.value)
 const day = useLive<DayView | null>(() => loadDay(store, date.value, now.value), null, [date, now])
 const title = computed(() => dayTitle(date.value, today.value))
+const isToday = computed(() => date.value === today.value)
 const isPast = computed(() => date.value < today.value)
+const addPlaceholder = computed(() => {
+  if (isToday.value) return undefined
+  const day = date.value === addDays(today.value, 1) ? 'завтра' : shortDate(date.value)
+  return `Добавить задачу на ${day}`
+})
 
 // One flat list of headers and rows: a row that gets done slides down into "Сделано", and a part
 // of the day left empty folds its header away, instead of rows jumping between separate lists.
@@ -34,6 +40,11 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
 
 <template>
   <section>
+    <!-- Stays in view while scrolling, so nothing is added or checked on another day by mistake. -->
+    <div v-if="!isToday" class="not-today" role="status">
+      <span><span class="icon" aria-hidden="true">📅</span>Не сегодня — {{ dayDistance(date, today) }}</span>
+      <button class="btn" type="button" @click="go(today)">К сегодня</button>
+    </div>
     <header class="head">
       <button class="btn ghost nav" type="button" aria-label="Предыдущий день" @click="go(addDays(date, -1))">‹</button>
       <div class="titles">
@@ -43,12 +54,11 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
       <button class="btn ghost nav" type="button" aria-label="Следующий день" @click="go(addDays(date, 1))">›</button>
     </header>
     <div class="sub">
-      <button v-if="date !== today" class="btn" type="button" @click="go(today)">К сегодняшнему дню</button>
-      <DayCountdown v-else />
+      <DayCountdown v-if="isToday" />
       <span v-if="day" class="muted">Сделано {{ day.done }} из {{ day.total }}</span>
     </div>
 
-    <QuickAdd v-if="!isPast" :date="date" />
+    <QuickAdd v-if="!isPast" :date="date" :placeholder="addPlaceholder" />
 
     <!-- Keyed by the loaded day, so switching days swaps the list instead of animating every row. -->
     <TransitionGroup
@@ -75,6 +85,31 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
 </template>
 
 <style scoped>
+.not-today {
+  position: sticky;
+  top: calc(var(--top-h, 0px) + 8px);
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+  border-radius: 12px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.not-today .icon {
+  margin-right: 6px;
+}
+.not-today .btn {
+  flex-shrink: 0;
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+  color: var(--warn);
+}
 .head {
   display: grid;
   grid-template-columns: auto 1fr auto;
