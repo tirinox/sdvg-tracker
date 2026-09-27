@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { completeTask, createRoutine, createTask, postponeTask, setRoutineCheck } from '../db/actions'
 import { Store } from '../db/store'
 import { DEMO_OPEN_TASK_COUNT, DEMO_ROUTINE_COUNT, clearDemo, generateDemo } from '../demo/demo'
-import { claimRecordCelebration, loadDay, loadInbox, loadRecord, loadRoutines, loadStats, pickNow } from './views'
+import {
+  claimRecordCelebration,
+  dayGroups,
+  loadDay,
+  loadInbox,
+  loadRecord,
+  loadRoutines,
+  loadStats,
+  pickNow,
+} from './views'
 
 const TODAY = '2026-09-22' // Tuesday
 const NOW = `${TODAY}T14:40`
@@ -30,13 +39,32 @@ describe('loadDay', () => {
 
     const day = await loadDay(store, TODAY, NOW)
     expect(day.items.map((i) => [i.title, i.section, i.done])).toEqual([
-      ['Лампочка', 'anytime', true],
       ['Душ', 'morning', false],
       ['Пообедать', 'day', false],
       ['Созвон', 'day', false],
+      ['Лампочка', 'anytime', true],
     ])
     expect(day).toMatchObject({ done: 1, total: 4 })
     expect(day.items.find((i) => i.id === late)).toMatchObject({ score: 100, reasons: ['now'] })
+  })
+
+  it('groups done and skipped at the end, whatever part of the day they were for', async () => {
+    const store = await openStore()
+    const shower = await createRoutine(store, { title: 'Душ', time_kind: 'part', part_of_day: 'morning' }, TODAY)
+    const gym = await createRoutine(store, { title: 'Спортзал', time_kind: 'part', part_of_day: 'evening' }, TODAY)
+    await createRoutine(store, { title: 'Пообедать', time_kind: 'exact', time: '13:00' }, TODAY)
+    const call = await createTask(store, { title: 'Созвон', date: TODAY, time_kind: 'exact', time: '08:30' })
+    await createTask(store, { title: 'Лампочка', date: TODAY })
+    await setRoutineCheck(store, gym, TODAY, 'skipped')
+    await setRoutineCheck(store, shower, TODAY, 'done')
+    await completeTask(store, call, TODAY)
+
+    const groups = dayGroups((await loadDay(store, TODAY, NOW)).items)
+    expect(groups.map((g) => [g.id, g.items.map((i) => i.title)])).toEqual([
+      ['anytime', ['Лампочка']],
+      ['day', ['Пообедать']],
+      ['done', ['Душ', 'Созвон', 'Спортзал']],
+    ])
   })
 
   it('shows move counts and attention', async () => {

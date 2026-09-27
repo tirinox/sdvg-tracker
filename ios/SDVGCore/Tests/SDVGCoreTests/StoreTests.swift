@@ -125,12 +125,30 @@ final class StoreTests: XCTestCase {
         _ = try s.createTask(TaskDraft(title: "Завтра", date: "2026-09-23"))
 
         let day = try s.loadDay(today, now: nowLocal)
-        XCTAssertEqual(day.items.map(\.title), ["Лампочка", "Душ", "Пообедать", "Созвон"])
-        XCTAssertEqual(day.items.map(\.section), [.anytime, .morning, .day, .day])
+        XCTAssertEqual(day.items.map(\.title), ["Душ", "Пообедать", "Созвон", "Лампочка"])
+        XCTAssertEqual(day.items.map(\.section), [.morning, .day, .day, .anytime])
         XCTAssertEqual(day.done, 1)
         XCTAssertEqual(day.total, 4)
         XCTAssertEqual(day.items.first { $0.refID == callID }?.score, 100)
         XCTAssertEqual(pickNow(day).first?.refID, callID)
+    }
+
+    func testDayGroupsCloseAtTheEnd() throws {
+        let s = try store()
+        let shower = try s.createRoutine(RoutineDraft(title: "Душ").with { $0.timing = Timing(kind: .part, part: .morning) }, today: today)
+        let gym = try s.createRoutine(RoutineDraft(title: "Спортзал").with { $0.timing = Timing(kind: .part, part: .evening) }, today: today)
+        _ = try s.createRoutine(RoutineDraft(title: "Пообедать").with { $0.timing = Timing(kind: .exact, time: "13:00") }, today: today)
+        var call = TaskDraft(title: "Созвон", date: today)
+        call.timing = Timing(kind: .exact, time: "08:30")
+        let callID = try s.createTask(call)
+        _ = try s.createTask(TaskDraft(title: "Лампочка", date: today))
+        try s.setRoutineCheck(gym, date: today, status: .skipped)
+        try s.setRoutineCheck(shower, date: today, status: .done)
+        try s.completeTask(callID, today: today)
+
+        let groups = try s.loadDay(today, now: nowLocal).groups
+        XCTAssertEqual(groups.map(\.group), [.section(.anytime), .section(.day), .done])
+        XCTAssertEqual(groups.map { $0.items.map(\.title) }, [["Лампочка"], ["Пообедать"], ["Душ", "Созвон", "Спортзал"]])
     }
 
     func testStats() throws {

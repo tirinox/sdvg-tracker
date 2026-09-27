@@ -46,6 +46,13 @@ public enum Fmt {
     }
 
     public static let sectionTitles: [DaySection: String] = [.anytime: "В любое время", .morning: "Утро", .day: "День", .evening: "Вечер"]
+
+    public static func groupTitle(_ g: DayGroup) -> String {
+        switch g {
+        case .section(let s): sectionTitles[s]!
+        case .done: "Сделано"
+        }
+    }
     public static let partTitles: [PartOfDay: String] = [.morning: "Утро", .day: "День", .evening: "Вечер"]
 
     public static func duration(_ min: Int?) -> String {

@@ -145,6 +145,7 @@ struct DayScreen: View {
         let _ = model.revision
         let date = model.dayDate ?? model.today
         let day = try? model.store.loadDay(date, now: model.now)
+        let rows = day.map(DayListRow.rows) ?? []
         let title = Fmt.dayTitle(date, today: model.today)
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
@@ -170,12 +171,13 @@ struct DayScreen: View {
                     if let day { Text("Сделано \(day.done) из \(day.total)").font(.subheadline).foregroundStyle(.secondary) }
                 }
                 if date >= model.today { QuickAdd(date: date) }
-                ForEach(DaySection.allCases, id: \.self) { section in
-                    let items = day?.items(in: section) ?? []
-                    if !items.isEmpty {
-                        Text(Fmt.sectionTitles[section]!.uppercased())
+                ForEach(rows) { row in
+                    switch row {
+                    case .header(let group):
+                        Text(Fmt.groupTitle(group).uppercased())
                             .font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
-                        ForEach(items) { ItemRow(item: $0, date: date).transition(.row) }
+                    case .item(let item):
+                        ItemRow(item: item, date: date).transition(.row)
                     }
                 }
                 if day?.items.isEmpty == true {
@@ -183,9 +185,9 @@ struct DayScreen: View {
                 }
             }
             .padding()
-            // Another day swaps the list at once; within a day, done rows slide to the end of their section.
+            // Another day swaps the list at once; within a day, done rows slide down into "Сделано".
             .transaction(value: date) { $0.animation = nil }
-            .animation(.snappy(duration: 0.45), value: day?.items.map(\.id))
+            .animation(.snappy(duration: 0.45), value: rows.map(\.id))
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
@@ -194,6 +196,25 @@ struct DayScreen: View {
     }
 
     private func go(_ d: LocalDate) { model.dayDate = d == model.today ? nil : d }
+}
+
+/// Headers and rows of the Day screen in one flat list, so a row that gets done moves down into
+/// "Сделано" instead of leaving one list and appearing in another.
+private enum DayListRow: Identifiable {
+    case header(DayGroup)
+    case item(DayItem)
+
+    var id: String {
+        switch self {
+        case .header(.section(let s)): "head:\(s.rawValue)"
+        case .header(.done): "head:done"
+        case .item(let item): item.id
+        }
+    }
+
+    static func rows(_ day: DayView) -> [DayListRow] {
+        day.groups.flatMap { [.header($0.group)] + $0.items.map(DayListRow.item) }
+    }
 }
 
 struct InboxScreen: View {

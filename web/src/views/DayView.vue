@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApp } from '../app/context'
-import { SECTION_TITLES, dayTitle } from '../app/format'
+import { GROUP_TITLES, dayTitle } from '../app/format'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
-import { SECTIONS, loadDay, type DayView } from '../app/views'
+import { dayGroups, loadDay, type DayView } from '../app/views'
 import DayCountdown from '../components/DayCountdown.vue'
 import ItemRow from '../components/ItemRow.vue'
 import QuickAdd from '../components/QuickAdd.vue'
@@ -20,14 +20,13 @@ const day = useLive<DayView | null>(() => loadDay(store, date.value, now.value),
 const title = computed(() => dayTitle(date.value, today.value))
 const isPast = computed(() => date.value < today.value)
 
-const sections = computed(() =>
-  SECTIONS.map((s) => ({
-    // Keyed by the loaded day, so switching days swaps the lists instead of animating every row.
-    key: `${day.value?.date}:${s}`,
-    id: s,
-    title: SECTION_TITLES[s],
-    items: day.value?.items.filter((i) => i.section === s) ?? [],
-  })).filter((s) => s.items.length),
+// One flat list of headers and rows: a row that gets done slides down into "Сделано", and a part
+// of the day left empty folds its header away, instead of rows jumping between separate lists.
+const rows = computed(() =>
+  dayGroups(day.value?.items ?? []).flatMap((g) => [
+    { key: `head:${g.id}`, title: GROUP_TITLES[g.id], item: null },
+    ...g.items.map((item) => ({ key: item.key, title: null, item })),
+  ]),
 )
 
 const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
@@ -51,12 +50,22 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
 
     <QuickAdd v-if="!isPast" :date="date" />
 
-    <template v-for="s in sections" :key="s.key">
-      <h2 class="section-title">{{ s.title }}</h2>
-      <TransitionGroup tag="ul" name="row" class="list" :css="false" @enter="rowEnter" @leave="rowLeave">
-        <ItemRow v-for="item in s.items" :key="item.key" :item="item" :date="date" />
-      </TransitionGroup>
-    </template>
+    <!-- Keyed by the loaded day, so switching days swaps the list instead of animating every row. -->
+    <TransitionGroup
+      v-if="rows.length"
+      :key="day?.date"
+      tag="ul"
+      name="row"
+      class="list"
+      :css="false"
+      @enter="rowEnter"
+      @leave="rowLeave"
+    >
+      <template v-for="r in rows" :key="r.key">
+        <ItemRow v-if="r.item" :item="r.item" :date="date" />
+        <li v-else class="group"><h2 class="section-title">{{ r.title }}</h2></li>
+      </template>
+    </TransitionGroup>
 
     <p v-if="day && !day.items.length" class="empty">
       На этот день ничего нет.
@@ -102,6 +111,15 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
   display: grid;
   gap: 8px;
   padding: 0;
-  margin: 0;
+  margin: 8px 0 0;
+}
+/* The gap above plus this padding keep the old section spacing; padding, not margin, so the
+   header folds away completely when it leaves. */
+.group {
+  list-style: none;
+  padding-top: 10px;
+}
+.group .section-title {
+  margin: 0 4px;
 }
 </style>

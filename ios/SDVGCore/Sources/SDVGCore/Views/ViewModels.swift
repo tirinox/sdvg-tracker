@@ -7,6 +7,12 @@ public enum DaySection: String, CaseIterable, Sendable {
     case anytime, morning, day, evening
 }
 
+/// A group on the Day screen: open items by part of the day, then everything done or skipped.
+public enum DayGroup: Hashable, Sendable {
+    case section(DaySection)
+    case done
+}
+
 public struct DayItem: Identifiable, Hashable, Sendable {
     public enum Kind: String, Sendable { case task, routine }
 
@@ -29,6 +35,8 @@ public struct DayItem: Identifiable, Hashable, Sendable {
     public var score: Int
     public var reasons: [Rules.ScoreReason]
     public var sortKey: String
+
+    var closed: Bool { done || skipped }
 }
 
 public func sectionOf(_ t: Timing, _ s: Settings) -> DaySection {
@@ -55,7 +63,13 @@ public struct DayView: Sendable {
     public var done: Int { items.filter(\.done).count }
     public var total: Int { items.filter { !$0.skipped }.count }
 
-    public func items(in section: DaySection) -> [DayItem] { items.filter { $0.section == section } }
+    /// Non-empty groups in screen order; the items keep the day's order.
+    public var groups: [(group: DayGroup, items: [DayItem])] {
+        let open = items.filter { !$0.closed }
+        let all = DaySection.allCases.map { s in (DayGroup.section(s), open.filter { $0.section == s }) }
+            + [(DayGroup.done, items.filter(\.closed))]
+        return all.filter { !$0.1.isEmpty }.map { (group: $0.0, items: $0.1) }
+    }
 }
 
 public struct StatsView: Sendable {
@@ -133,8 +147,10 @@ extension Store {
                 if t.deleted || (t.doneOn != nil && t.doneOn != date) { continue }
                 items.append(taskItem(t, moves: moves[t.id] ?? 0, now: now, s, today: today))
             }
+            // Done and skipped go after every open item, whatever part of the day they were planned for.
             let order = DaySection.allCases
             items.sort {
+                if $0.closed != $1.closed { return !$0.closed }
                 let a = order.firstIndex(of: $0.section)!, b = order.firstIndex(of: $1.section)!
                 return a != b ? a < b : compareItems($0, $1)
             }

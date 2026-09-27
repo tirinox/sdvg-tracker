@@ -23,6 +23,9 @@ export type Section = 'anytime' | PartOfDay
 
 export const SECTIONS: Section[] = ['anytime', 'morning', 'day', 'evening']
 
+/** A group on the Day screen: open items by part of the day, then everything done or skipped. */
+export type DayGroupId = Section | 'done'
+
 export interface DayItem {
   key: string
   kind: 'task' | 'routine'
@@ -66,6 +69,8 @@ export function compareItems(a: DayItem, b: DayItem): number {
   if (Boolean(a.time) !== Boolean(b.time)) return a.time ? 1 : -1
   return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0
 }
+
+const isClosed = (i: DayItem) => i.done || i.skipped
 
 /** created_at is UTC; deadlines are measured in local days. */
 function localDateOf(isoUtc: string): LocalDate {
@@ -193,13 +198,28 @@ export async function loadDay(store: Store, date: LocalDate, now: LocalDateTime)
     seen.add(row.id)
     items.push(taskItem(row, moves.get(row.id) ?? 0, now, s, today))
   }
-  items.sort((a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) || compareItems(a, b))
+  // Done and skipped go after every open item, whatever part of the day they were planned for.
+  items.sort(
+    (a, b) =>
+      Number(isClosed(a)) - Number(isClosed(b)) ||
+      SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) ||
+      compareItems(a, b),
+  )
   return {
     date,
     items,
     done: items.filter((i) => i.done).length,
     total: items.filter((i) => !i.skipped).length,
   }
+}
+
+/** Non-empty groups of a loaded day in screen order; the items keep the day's order. */
+export function dayGroups(items: DayItem[]): { id: DayGroupId; items: DayItem[] }[] {
+  const open = items.filter((i) => !isClosed(i))
+  return [
+    ...SECTIONS.map((id) => ({ id, items: open.filter((i) => i.section === id) })),
+    { id: 'done' as const, items: items.filter(isClosed) },
+  ].filter((g) => g.items.length)
 }
 
 /** Top items for the "Now" screen: highest score first, topped up with the next open items. */

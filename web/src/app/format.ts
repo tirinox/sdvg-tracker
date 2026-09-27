@@ -1,7 +1,7 @@
 // Russian labels for dates, timing, deadlines and reasons.
 import type { LocalDate, LocalDateTime, PartOfDay } from '../core/types'
 import { addDays, daysBetween, minutesBetween } from '../domain/dates'
-import type { DayItem, Section } from './views'
+import type { DayGroupId, DayItem, Section } from './views'
 
 export function plural(n: number, one: string, few: string, many: string): string {
   const m10 = n % 10
@@ -49,6 +49,8 @@ export const SECTION_TITLES: Record<Section, string> = {
   day: 'День',
   evening: 'Вечер',
 }
+
+export const GROUP_TITLES: Record<DayGroupId, string> = { ...SECTION_TITLES, done: 'Сделано' }
 
 export const PART_TITLES: Record<PartOfDay, string> = {
   morning: 'Утро',
