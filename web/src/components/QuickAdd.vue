@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useApp } from '../app/context'
 import { createTask, type NewTask } from '../db/actions'
 import type { TitleSuggestion } from '../domain/suggest'
+import { autoEmoji } from '../sync/emoji'
 import TitleInput from './TitleInput.vue'
 
 type Look = Pick<NewTask, 'emoji' | 'color' | 'duration_min'>
@@ -27,13 +28,15 @@ async function add() {
   if (!t) return
   const extra = look
   title.value = ''
-  await createTask(store, { title: t, date: props.date, ...extra })
+  const id = await createTask(store, { title: t, date: props.date, ...extra })
+  if (!extra.emoji) void autoEmoji(store, id, t)
 }
 
 /** A suggestion is added right away, looking like the last time. */
 async function pick(s: TitleSuggestion) {
   title.value = ''
-  await createTask(store, { title: s.title, date: props.date, ...lookOf(s) })
+  const id = await createTask(store, { title: s.title, date: props.date, ...lookOf(s) })
+  if (!s.emoji) void autoEmoji(store, id, s.title)
 }
 
 function fill(s: TitleSuggestion) {

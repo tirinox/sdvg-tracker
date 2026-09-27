@@ -15,6 +15,7 @@ import {
 } from '../db/actions'
 import { addDays } from '../domain/dates'
 import type { TitleSuggestion } from '../domain/suggest'
+import { autoEmoji } from '../sync/emoji'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
 import TimingFields from './TimingFields.vue'
@@ -94,7 +95,8 @@ async function persist() {
     await updateTask(store, props.id, rest)
     if (date !== originalDate) await rescheduleTask(store, props.id, date, today.value)
   } else {
-    await createTask(store, data)
+    const id = await createTask(store, data)
+    if (!data.emoji) void autoEmoji(store, id, data.title)
   }
 }
 
@@ -153,7 +155,7 @@ async function remove() {
         @enter="save"
         @pick="applySuggestion"
       />
-      <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" />
+      <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" :title="form.title" :auto="!id" />
 
       <div class="field">
         <span>День</span>

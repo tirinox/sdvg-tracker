@@ -45,12 +45,13 @@ class FakeSuggester:
     ready = True
     failed = False
 
-    def __init__(self):
+    def __init__(self, first=0.95):
         self.calls = []
+        self.first = first
 
     def suggest(self, text, limit):
         self.calls.append((text, limit))
-        return [Suggestion("🐕", 0.95), Suggestion("🚶", 0.9)][:limit]
+        return [Suggestion("🐕", self.first), Suggestion("🚶", 0.8)][:limit]
 
 
 def suggest(client, **body):
@@ -81,11 +82,19 @@ def test_suggests(client):
     resp = suggest(client, text="  Выгулять собаку ", limit=2)
     assert resp.status_code == 200
     assert resp.json() == {
-        "suggestions": [{"emoji": "🐕", "score": 0.95}, {"emoji": "🚶", "score": 0.9}]
+        "suggestions": [{"emoji": "🐕", "score": 0.95}, {"emoji": "🚶", "score": 0.8}],
+        "pick": "🐕",
     }
     assert fake.calls == [("Выгулять собаку", 2)]
     suggest(client, text="Выгулять собаку")
     assert fake.calls[-1] == ("Выгулять собаку", 5)
+
+
+def test_no_pick_when_unsure(client):
+    client.app.state.emoji = FakeSuggester(first=0.85)
+    body = suggest(client, text="Кружки клеить на стулья").json()
+    assert body["pick"] is None
+    assert body["suggestions"][0] == {"emoji": "🐕", "score": 0.85}
 
 
 @pytest.mark.parametrize(
@@ -227,3 +236,5 @@ def test_api_with_the_model(suggester, cache_dir, tmp_path):
             time.sleep(0.1)
         assert resp.status_code == 200
         assert resp.json()["suggestions"][0]["emoji"] == "🐕"
+        assert resp.json()["pick"] == "🐕"
+        assert suggest(client, text="Кружки клеить на стулья").json()["pick"] is None

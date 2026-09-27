@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.auth import require_token
+from app.emoji.suggest import CONFIDENT
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
@@ -24,6 +25,9 @@ class EmojiSuggestion(BaseModel):
 
 class SuggestEmojiResponse(BaseModel):
     suggestions: list[EmojiSuggestion]
+    # The emoji a client may set without asking (the first suggestion, if the model is sure
+    # enough), or null: then it only offers the suggestions.
+    pick: str | None
 
 
 @router.post("/suggest-emoji")
@@ -37,9 +41,9 @@ def suggest_emoji(req: SuggestEmojiRequest, request: Request) -> SuggestEmojiRes
             detail={"error": f"emoji_{reason}"},
             headers={"Retry-After": "10"} if reason == "loading" else None,
         )
+    suggestions = suggester.suggest(req.text, req.limit)
+    first = suggestions[0] if suggestions else None
     return SuggestEmojiResponse(
-        suggestions=[
-            EmojiSuggestion(emoji=s.emoji, score=s.score)
-            for s in suggester.suggest(req.text, req.limit)
-        ]
+        suggestions=[EmojiSuggestion(emoji=s.emoji, score=s.score) for s in suggestions],
+        pick=first.emoji if first and first.score >= CONFIDENT else None,
     )

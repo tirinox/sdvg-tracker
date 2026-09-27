@@ -137,8 +137,7 @@ struct QuickAdd: View {
     private func add() {
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
-        let d = draft(t)
-        model.perform { try $0.createTask(d) }
+        model.createTask(draft(t))
         title = ""
     }
 
@@ -146,7 +145,7 @@ struct QuickAdd: View {
     private func pick(_ s: Rules.TitleSuggestion) {
         var d = TaskDraft(date: date)
         d.apply(s)
-        model.perform { try $0.createTask(d) }
+        model.createTask(d)
         title = ""
     }
 

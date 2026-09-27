@@ -77,7 +77,7 @@ async function archive() {
   <Modal :title="id ? 'Регулярная задача' : 'Новая регулярная задача'" @close="emit('close')">
     <template v-if="loaded">
       <input v-model="form.title" class="input title" placeholder="Например, «Пообедать»" @keydown.enter="save" />
-      <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" />
+      <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" :title="form.title" :auto="!id" />
       <TimingFields
         v-model:kind="form.time_kind"
         v-model:part="form.part_of_day"

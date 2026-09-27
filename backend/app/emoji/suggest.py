@@ -22,6 +22,10 @@ HERE = Path(__file__).parent
 PREFIX = "query: "
 # Bump when the vectors of the same texts would change (prefix, pooling, model).
 INDEX_VERSION = 1
+# A first suggestion this close is set without asking. On emoji_titles.txt 0.9 lets through
+# 32 of 50 titles, 27 of them with a fitting emoji; misses like "Кружки клеить на стулья" → 🛏️
+# score below 0.88. Model-specific, which is why clients get the decision, not the number.
+CONFIDENT = 0.9
 
 # uvicorn's logger: the one that reaches the container log.
 log = logging.getLogger("uvicorn.error")

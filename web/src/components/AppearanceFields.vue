@@ -1,9 +1,52 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
+import { useApp } from '../app/context'
+import { suggestEmoji } from '../sync/emoji'
 import EmojiCircle from './EmojiCircle.vue'
 
+/**
+ * `title`: the server suggests emoji for it. `auto`: a new item without an emoji takes the
+ * server's pick as the title is typed, until the user chooses one.
+ */
+const props = defineProps<{ title?: string; auto?: boolean }>()
 const emoji = defineModel<string | null>('emoji', { required: true })
 const color = defineModel<number>('color', { required: true })
+const { store } = useApp()
+
+const suggested = ref<string[]>([])
+/** The emoji this component set by itself; any other value is the user's choice. */
+let autoValue: string | null = null
+let chosen = !props.auto || emoji.value !== null
+watch(emoji, (v) => {
+  if (v !== autoValue) chosen = true
+})
+
+function choose(e: string | null) {
+  chosen = true
+  emoji.value = e
+}
+
+let timer: ReturnType<typeof setTimeout> | undefined
+let asked = 0
+watch(
+  () => props.title?.trim() ?? '',
+  (title) => {
+    clearTimeout(timer)
+    if (!title) {
+      suggested.value = []
+      return
+    }
+    timer = setTimeout(async () => {
+      const n = ++asked
+      const s = await suggestEmoji(store, title)
+      if (n !== asked) return // the title changed while the server was answering
+      suggested.value = s.emoji
+      if (!chosen && s.pick !== emoji.value) emoji.value = autoValue = s.pick
+    }, 400)
+  },
+  { immediate: true },
+)
+onUnmounted(() => clearTimeout(timer))
 
 const EMOJIS = [
   '✅', '📞', '💬', '📧', '🛒', '💳', '🧾', '📦', '🛠️', '💡', '🧹', '🧺',
@@ -32,13 +75,26 @@ const open = ref(false)
       />
     </div>
   </div>
+  <div v-if="suggested.length" class="suggested" role="group" aria-label="Подходят к названию">
+    <span class="hint">Подходят</span>
+    <button
+      v-for="e in suggested"
+      :key="e"
+      type="button"
+      class="emoji"
+      :aria-pressed="emoji === e"
+      @click="choose(e)"
+    >
+      {{ e }}
+    </button>
+  </div>
   <div v-if="open" class="emojis">
     <input
       class="input custom"
       :value="emoji ?? ''"
       placeholder="Своё эмодзи"
       maxlength="8"
-      @input="emoji = ($event.target as HTMLInputElement).value || null"
+      @input="choose(($event.target as HTMLInputElement).value || null)"
     />
     <button
       v-for="e in EMOJIS"
@@ -46,7 +102,7 @@ const open = ref(false)
       type="button"
       class="emoji"
       :aria-pressed="emoji === e"
-      @click="((emoji = e), (open = false))"
+      @click="(choose(e), (open = false))"
     >
       {{ e }}
     </button>
@@ -90,6 +146,20 @@ const open = ref(false)
 }
 .custom {
   grid-column: 1 / -1;
+}
+.suggested {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin-right: 6px;
+}
+.suggested .emoji {
+  width: 38px;
 }
 .emoji {
   font-size: 22px;

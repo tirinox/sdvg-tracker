@@ -68,14 +68,16 @@ final class AppModel {
 
     init(store: Store) {
         self.store = store
-        let keychain = Keychain.shared
-        sync = SyncClient(store: store, config: { [store] in
-            let url = (try? store.meta(AppModel.baseURLKey))?.string ?? ""
-            guard !url.isEmpty, let token = keychain.token() else { return nil }
-            return SyncConfig(baseURL: url, token: token)
-        }, onStatus: { status in
+        sync = SyncClient(store: store, config: { [store] in AppModel.serverConfig(store) }, onStatus: { status in
             Task { @MainActor [weak self] in self?.syncStatus = status }
         })
+    }
+
+    /// The server address and token, or nil until the user connects one.
+    nonisolated static func serverConfig(_ store: Store) -> SyncConfig? {
+        let url = (try? store.meta(baseURLKey))?.string ?? ""
+        guard !url.isEmpty, let token = Keychain.shared.token() else { return nil }
+        return SyncConfig(baseURL: url, token: token)
     }
 
     static func openStore() throws -> Store {
@@ -175,6 +177,27 @@ final class AppModel {
     /// Runs a store action; failures are logged, the UI re-reads from the database anyway.
     func perform(_ action: @escaping (Store) throws -> Void) {
         do { try action(store) } catch { print("action failed:", error) }
+    }
+
+    // MARK: emoji
+
+    func suggestEmoji(for title: String, limit: Int = 5) async -> EmojiSuggestions {
+        await EmojiSuggestions.fetch(title, config: Self.serverConfig(store), limit: limit)
+    }
+
+    /// Adds a task; one without an emoji gets the server's pick once it answers, if the
+    /// model is sure enough.
+    func createTask(_ d: TaskDraft) {
+        do {
+            let id = try store.createTask(d)
+            guard d.emoji == nil else { return }
+            Task {
+                guard let pick = await suggestEmoji(for: d.title, limit: 1).pick else { return }
+                perform { try $0.applyEmojiPick(pick, toTask: id) }
+            }
+        } catch {
+            print("action failed:", error)
+        }
     }
 
     // MARK: done marks and undo

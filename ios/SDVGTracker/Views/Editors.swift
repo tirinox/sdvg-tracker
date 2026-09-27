@@ -1,10 +1,19 @@
 import SDVGCore
 import SwiftUI
 
+/// `title`: the server suggests emoji for it. `auto`: a new item without an emoji takes the
+/// server's pick as the title is typed, until the user chooses one.
 struct AppearancePicker: View {
+    @Environment(AppModel.self) private var model
     @Binding var emoji: String?
     @Binding var color: Int
+    var title = ""
+    var auto = false
     @State private var showEmojis = false
+    @State private var suggested: [String] = []
+    /// The emoji this view set by itself; any other value is the user's choice.
+    @State private var autoValue: String?
+    @State private var chosen: Bool?
 
     static let emojis = [
         "✅", "📞", "💬", "📧", "🛒", "💳", "🧾", "📦", "🛠️", "💡", "🧹", "🧺", "🍲", "🥣", "☕", "💊",
@@ -27,16 +36,54 @@ struct AppearancePicker: View {
                 }
             }
         }
-        if showEmojis {
-            TextField("Своё эмодзи", text: Binding(get: { emoji ?? "" }, set: { emoji = $0.isEmpty ? nil : String($0.prefix(8)) }))
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 6) {
-                ForEach(Self.emojis, id: \.self) { e in
-                    Text(e).font(.title2)
-                        .padding(3)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(emoji == e ? Color(.tertiarySystemFill) : .clear))
-                        .onTapGesture { emoji = e; showEmojis = false }
+        .onChange(of: emoji) { if emoji != autoValue { chosen = true } }
+        .task(id: title.trimmingCharacters(in: .whitespacesAndNewlines)) { await suggest() }
+        if !suggested.isEmpty {
+            HStack(spacing: 2) {
+                Text("Подходят").font(.footnote).foregroundStyle(.secondary).padding(.trailing, 6)
+                ForEach(suggested, id: \.self) { e in
+                    Button { choose(e) } label: { emojiCell(e) }
+                        .buttonStyle(.plain)
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Подходят к названию")
+        }
+        if showEmojis {
+            TextField("Своё эмодзи", text: Binding(get: { emoji ?? "" }, set: { choose($0.isEmpty ? nil : String($0.prefix(8))) }))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 6) {
+                ForEach(Self.emojis, id: \.self) { e in
+                    emojiCell(e).onTapGesture { choose(e); showEmojis = false }
+                }
+            }
+        }
+    }
+
+    private func emojiCell(_ e: String) -> some View {
+        Text(e).font(.title2)
+            .padding(3)
+            .background(RoundedRectangle(cornerRadius: 8).fill(emoji == e ? Color(.tertiarySystemFill) : .clear))
+            .accessibilityAddTraits(emoji == e ? .isSelected : [])
+    }
+
+    private func choose(_ e: String?) {
+        chosen = true
+        emoji = e
+    }
+
+    /// Runs as the title settles: a new title cancels the previous run, sleep included.
+    private func suggest() async {
+        if chosen == nil { chosen = !auto || emoji != nil }
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return suggested = [] }
+        try? await Task.sleep(for: .milliseconds(400))
+        guard !Task.isCancelled else { return }
+        let s = await model.suggestEmoji(for: title)
+        guard !Task.isCancelled else { return }
+        suggested = s.emoji
+        if chosen == false, s.pick != emoji {
+            autoValue = s.pick
+            emoji = s.pick
         }
     }
 }
@@ -139,7 +186,7 @@ struct TaskEditor: View {
                             titleFocused = false
                         }
                     }
-                    AppearancePicker(emoji: $draft.emoji, color: $draft.color)
+                    AppearancePicker(emoji: $draft.emoji, color: $draft.color, title: draft.title, auto: id == nil)
                 }
                 SwiftUI.Section("День") {
                     FlowLayout {
@@ -230,8 +277,10 @@ struct TaskEditor: View {
         guard valid else { return }
         let d = trimmed
         let today = model.today
-        model.perform { [id] in
-            if let id { try $0.saveTask(id, d, today: today) } else { try $0.createTask(d) }
+        if let id {
+            model.perform { try $0.saveTask(id, d, today: today) }
+        } else {
+            model.createTask(d)
         }
     }
 
@@ -267,7 +316,7 @@ struct RoutineEditor: View {
             Form {
                 SwiftUI.Section {
                     TextField("Например, «Пообедать»", text: $draft.title).font(.title3.weight(.semibold))
-                    AppearancePicker(emoji: $draft.emoji, color: $draft.color)
+                    AppearancePicker(emoji: $draft.emoji, color: $draft.color, title: draft.title, auto: id == nil)
                 }
                 SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
                 SwiftUI.Section {
