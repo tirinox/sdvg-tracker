@@ -86,6 +86,31 @@ public enum Dates {
         return hour(of: now) < dayStartHour ? addDays(date, -1) : date
     }
 
+    /// The logical day `date` ends at day_start_hour on the next calendar date, not at midnight.
+    public static func dayEnd(_ date: LocalDate, dayStartHour: Int) -> LocalDateTime {
+        String(format: "%@T%02d:00", addDays(date, 1), dayStartHour)
+    }
+
+    public enum DayEndLevel: String { case calm, soon, urgent }
+
+    /// How close the end of the day is: the last hour is soon, the last half hour urgent.
+    public static func dayEndLevel(secondsLeft: Int) -> DayEndLevel {
+        if secondsLeft <= 30 * 60 { return .urgent }
+        if secondsLeft <= 60 * 60 { return .soon }
+        return .calm
+    }
+
+    /// The real moment of a local wall-clock time, in the calendar's time zone.
+    public static func instant(of moment: LocalDateTime, calendar: Calendar = .current) -> Date? {
+        var c = DateComponents()
+        c.year = Int(moment.prefix(4))
+        c.month = Int(moment.dropFirst(5).prefix(2))
+        c.day = Int(moment.dropFirst(8).prefix(2))
+        c.hour = Int(moment.dropFirst(11).prefix(2))
+        c.minute = Int(moment.dropFirst(14).prefix(2))
+        return calendar.date(from: c)
+    }
+
     /// Evening lasts until day_start_hour; from day_start_hour until part_day_from it is morning.
     public static func partOfDay(_ now: LocalDateTime, _ s: Settings) -> PartOfDay {
         let h = hour(of: now)

@@ -23,7 +23,7 @@ export interface AppContext {
   store: Store
   sync: SyncClient
   syncStatus: Ref<SyncStatus>
-  /** Local wall clock, refreshed every 30 s. */
+  /** Local wall clock, refreshed at the start of every minute. */
   now: Ref<LocalDateTime>
   settings: Ref<Settings>
   today: ComputedRef<LocalDate>

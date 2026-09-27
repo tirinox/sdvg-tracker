@@ -98,9 +98,13 @@ final class AppModel {
         store.onLocalWrite { [weak self] in
             Task { @MainActor in self?.scheduleSync(after: 2) }
         }
-        timers.append(Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        // The clock moves on the minute, so the day turns right when its countdown runs out.
+        let nextMinute = Date(timeIntervalSinceReferenceDate: (Date.timeIntervalSinceReferenceDate / 60).rounded(.down) * 60 + 60)
+        let clock = Timer(fire: nextMinute, interval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
-        })
+        }
+        RunLoop.main.add(clock, forMode: .common)
+        timers.append(clock)
         timers.append(Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.syncNow() }
         })

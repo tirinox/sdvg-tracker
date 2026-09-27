@@ -6,6 +6,7 @@ import { SECTION_TITLES, dayTitle } from '../app/format'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadDay, type DayView } from '../app/views'
+import DayCountdown from '../components/DayCountdown.vue'
 import ItemRow from '../components/ItemRow.vue'
 import QuickAdd from '../components/QuickAdd.vue'
 import { addDays } from '../domain/dates'
@@ -44,6 +45,7 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
     </header>
     <div class="sub">
       <button v-if="date !== today" class="btn" type="button" @click="go(today)">К сегодняшнему дню</button>
+      <DayCountdown v-else />
       <span v-if="day" class="muted">Сделано {{ day.done }} из {{ day.total }}</span>
     </div>
 

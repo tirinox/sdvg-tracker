@@ -76,7 +76,11 @@ struct NowScreen: View {
         let top = day.map { pickNow($0) } ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text(Fmt.dayTitle(model.today, today: model.today).subtitle).foregroundStyle(.secondary)
+                HStack {
+                    Text(Fmt.dayTitle(model.today, today: model.today).subtitle).foregroundStyle(.secondary)
+                    Spacer()
+                    DayCountdown()
+                }
                 if model.syncStatus.state == .unconfigured {
                     Card {
                         Text("Данные пока хранятся только на этом телефоне. ")
@@ -157,7 +161,11 @@ struct DayScreen: View {
                         .accessibilityLabel("Следующий день")
                 }
                 HStack {
-                    if date != model.today { Button("К сегодняшнему дню") { go(model.today) }.buttonStyle(.bordered) }
+                    if date != model.today {
+                        Button("К сегодняшнему дню") { go(model.today) }.buttonStyle(.bordered)
+                    } else {
+                        DayCountdown()
+                    }
                     Spacer()
                     if let day { Text("Сделано \(day.done) из \(day.total)").font(.subheadline).foregroundStyle(.secondary) }
                 }

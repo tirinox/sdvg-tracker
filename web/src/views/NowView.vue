@@ -5,6 +5,7 @@ import { dayTitle, plural, shortDate } from '../app/format'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { loadDay, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
+import DayCountdown from '../components/DayCountdown.vue'
 import Heatmap from '../components/Heatmap.vue'
 import ItemRow from '../components/ItemRow.vue'
 import QuickAdd from '../components/QuickAdd.vue'
@@ -29,6 +30,7 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
         <h1>Сейчас</h1>
         <p class="muted">{{ title.subtitle }}</p>
       </div>
+      <DayCountdown />
     </header>
 
     <p v-if="syncStatus.state === 'unconfigured'" class="banner">
@@ -98,6 +100,12 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
 </template>
 
 <style scoped>
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 .head h1 {
   font-size: 26px;
 }

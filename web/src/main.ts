@@ -33,8 +33,13 @@ async function bootstrap() {
     const syncStatus = ref<SyncStatus>(sync.status)
     sync.onStatus((s) => (syncStatus.value = s))
 
+    // The clock moves on the minute, so the day turns right when its countdown runs out.
     const now = ref(localNow())
-    setInterval(() => (now.value = localNow()), 30_000)
+    const tick = () => {
+      now.value = localNow()
+      setTimeout(tick, 60_000 - (Date.now() % 60_000))
+    }
+    tick()
 
     const settings = useLive(() => store.settings(), DEFAULT_SETTINGS)
     const today = computed(() => logicalDay(now.value, settings.value.day_start_hour))

@@ -64,6 +64,15 @@ export function durationLabel(min: number | null): string {
   return m ? `${h} ч ${m} мин` : `${h} ч`
 }
 
+/** A running countdown, like a timer: '7:48:12', under an hour '47:12'. */
+export function countdownLabel(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}
+
 export function timingLabel(i: Pick<DayItem, 'time_kind' | 'part_of_day' | 'time' | 'duration_min'>): string {
   const dur = durationLabel(i.duration_min)
   if (i.time_kind === 'exact' && i.time) return dur ? `${i.time} · ${dur}` : i.time

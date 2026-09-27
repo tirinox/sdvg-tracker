@@ -118,6 +118,9 @@ public enum Palette {
     public static let ok = Color(light: 0x2F9E6A, dark: 0x5FD39A)
     public static let warn = Color(light: 0xC7771A, dark: 0xF0A94B)
     public static let danger = Color(light: 0xD4483B, dark: 0xFF7B6E)
+    /// Yellow: text, and the fill behind it.
+    public static let caution = Color(light: 0x7A5A00, dark: 0xF5D04A)
+    public static let cautionFill = Color(light: 0xFCF0BF, dark: 0x3A3113)
 }
 
 extension Color {

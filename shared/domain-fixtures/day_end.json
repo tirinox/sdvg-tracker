@@ -1,0 +1,125 @@
+{
+  "description": "The logical day ends at day_start_hour on the next calendar date, not at midnight. The countdown to it is 'soon' in the last hour (<= 60 min left) and 'urgent' in the last half hour (<= 30 min).",
+  "cases": [
+    {
+      "name": "evening, day start 4:00",
+      "input": {
+        "now": "2026-09-27T21:15",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 405,
+        "level": "calm"
+      }
+    },
+    {
+      "name": "after midnight the day is not over yet",
+      "input": {
+        "now": "2026-09-28T00:30",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 210,
+        "level": "calm"
+      }
+    },
+    {
+      "name": "61 minutes left is calm",
+      "input": {
+        "now": "2026-09-28T02:59",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 61,
+        "level": "calm"
+      }
+    },
+    {
+      "name": "the last hour is soon",
+      "input": {
+        "now": "2026-09-28T03:00",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 60,
+        "level": "soon"
+      }
+    },
+    {
+      "name": "31 minutes left is soon",
+      "input": {
+        "now": "2026-09-28T03:29",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 31,
+        "level": "soon"
+      }
+    },
+    {
+      "name": "the last half hour is urgent",
+      "input": {
+        "now": "2026-09-28T03:30",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 30,
+        "level": "urgent"
+      }
+    },
+    {
+      "name": "the last minute",
+      "input": {
+        "now": "2026-09-28T03:59",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-28T04:00",
+        "minutes_left": 1,
+        "level": "urgent"
+      }
+    },
+    {
+      "name": "a new day starts with a full day ahead",
+      "input": {
+        "now": "2026-09-28T04:00",
+        "day_start_hour": 4
+      },
+      "expect": {
+        "ends_at": "2026-09-29T04:00",
+        "minutes_left": 1440,
+        "level": "calm"
+      }
+    },
+    {
+      "name": "day start 0:00 ends at midnight",
+      "input": {
+        "now": "2026-09-27T23:45",
+        "day_start_hour": 0
+      },
+      "expect": {
+        "ends_at": "2026-09-28T00:00",
+        "minutes_left": 15,
+        "level": "urgent"
+      }
+    },
+    {
+      "name": "the year ends too",
+      "input": {
+        "now": "2026-12-31T23:10",
+        "day_start_hour": 0
+      },
+      "expect": {
+        "ends_at": "2027-01-01T00:00",
+        "minutes_left": 50,
+        "level": "soon"
+      }
+    }
+  ]
+}

@@ -50,6 +50,27 @@ export function logicalDay(now: LocalDateTime, dayStartHour: number): LocalDate 
   return hourOf(now) < dayStartHour ? addDays(date, -1) : date
 }
 
+/** The logical day `date` ends at day_start_hour on the next calendar date, not at midnight. */
+export function dayEnd(date: LocalDate, dayStartHour: number): LocalDateTime {
+  return `${addDays(date, 1)}T${pad(dayStartHour)}:00`
+}
+
+export type DayEndLevel = 'calm' | 'soon' | 'urgent'
+
+/** How close the end of the day is: the last hour is 'soon', the last half hour 'urgent'. */
+export function dayEndLevel(secondsLeft: number): DayEndLevel {
+  if (secondsLeft <= 30 * 60) return 'urgent'
+  if (secondsLeft <= 60 * 60) return 'soon'
+  return 'calm'
+}
+
+/** The real moment of a local wall-clock time, in this device's time zone. */
+export function instantOf(v: LocalDateTime): Date {
+  const [y, m, d] = v.slice(0, 10).split('-').map(Number) as [number, number, number]
+  const [hh, mm] = v.slice(11, 16).split(':').map(Number) as [number, number]
+  return new Date(y, m - 1, d, hh, mm)
+}
+
 /** Evening lasts until day_start_hour; from day_start_hour until part_day_from it is morning. */
 export function partOfDay(now: LocalDateTime, s: Settings): PartOfDay {
   const h = hourOf(now)

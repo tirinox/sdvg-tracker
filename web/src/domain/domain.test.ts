@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { domainCases, sharedFiles, type Case, type Json } from '../test/shared'
-import { logicalDay, partOfDay } from './dates'
+import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './dates'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routinesForDay } from './routines'
 import { nowScore } from './score'
@@ -13,6 +13,11 @@ type Runner = (input: Json) => Json
 const RUNNERS: Record<string, Runner> = {
   logical_day: (i) => ({ date: logicalDay(i.now, i.day_start_hour) }),
   part_of_day: (i) => ({ part: partOfDay(i.now, i.settings) }),
+  day_end: (i) => {
+    const endsAt = dayEnd(logicalDay(i.now, i.day_start_hour), i.day_start_hour)
+    const minutesLeft = minutesBetween(i.now, endsAt)
+    return { ends_at: endsAt, minutes_left: minutesLeft, level: dayEndLevel(minutesLeft * 60) }
+  },
   routines_for_day: (i) => ({
     versions: Object.fromEntries(
       [...routinesForDay(i.date, i.versions)].map(([rid, v]) => [rid, v.id]).sort(),

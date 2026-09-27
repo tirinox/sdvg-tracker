@@ -28,6 +28,13 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
     "part_of_day": { i in
         ["part": .string(Dates.partOfDay(i["now"]!.string!, settings(i["settings"])).rawValue)]
     },
+    "day_end": { i in
+        let now = i["now"]!.string!, start = i["day_start_hour"]!.int!
+        let endsAt = Dates.dayEnd(Dates.logicalDay(now, dayStartHour: start), dayStartHour: start)
+        let left = Dates.minutesBetween(now, endsAt)
+        return ["ends_at": .string(endsAt), "minutes_left": .int(left),
+                "level": .string(Dates.dayEndLevel(secondsLeft: left * 60).rawValue)]
+    },
     "routines_for_day": { i in
         let versions = i["versions"]!.array!.map {
             FixtureVersion(

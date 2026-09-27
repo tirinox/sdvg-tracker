@@ -137,7 +137,7 @@ extension Store {
                 moments.append("\(date)T\(String(format: "%02d", hour)):00")
             }
         }
-        return moments.filter { $0 > nowLocal }.sorted().prefix(40).compactMap { date(from: $0, calendar: calendar) }
+        return moments.filter { $0 > nowLocal }.sorted().prefix(40).compactMap { Dates.instant(of: $0, calendar: calendar) }
     }
 
     private func shift(_ moment: LocalDateTime, by minutes: Int) -> LocalDateTime {
@@ -145,15 +145,5 @@ extension Store {
         let day = Dates.fromEpochDay(Int(floor(Double(total) / 1440)))
         let inDay = ((total % 1440) + 1440) % 1440
         return String(format: "%@T%02d:%02d", day, inDay / 60, inDay % 60)
-    }
-
-    private func date(from moment: LocalDateTime, calendar: Calendar) -> Date? {
-        var c = DateComponents()
-        c.year = Int(moment.prefix(4))
-        c.month = Int(moment.dropFirst(5).prefix(2))
-        c.day = Int(moment.dropFirst(8).prefix(2))
-        c.hour = Int(moment.dropFirst(11).prefix(2))
-        c.minute = Int(moment.dropFirst(14).prefix(2))
-        return calendar.date(from: c)
     }
 }

@@ -13,6 +13,8 @@
   --warn-soft: #fdf1df;
   --danger: #d4483b;
   --danger-soft: #fde6e3;
+  --caution: #7a5a00;
+  --caution-soft: #fcf0bf;
   --shadow: 0 1px 2px rgb(31 29 43 / 6%), 0 4px 16px rgb(31 29 43 / 5%);
   --radius: 14px;
 
@@ -64,6 +66,8 @@
     --warn-soft: #3a2c17;
     --danger: #ff7b6e;
     --danger-soft: #3d1f1c;
+    --caution: #f5d04a;
+    --caution-soft: #3a3113;
     --shadow: none;
     --heat0: #24222e;
     --heat1: #1d4630;
