@@ -26,6 +26,55 @@ public enum Rules {
         return current.filter { !$0.value.archived && $0.value.weekdays & bit != 0 }
     }
 
+    /// Adherence looks back this many days, today included.
+    public static let adherenceDays = 30
+
+    public struct Adherence: Hashable, Sendable {
+        /// First day counted: the first scheduled day it was done, at most adherenceDays back; nil while it never was.
+        public var from: LocalDate?
+        public var done = 0
+        /// Scheduled days since `from`: skipped ones are left out, today counts once it is done.
+        public var total = 0
+        /// Below the routine_warn_below setting: the routine is being skipped.
+        public var warning = false
+        /// done / total in whole percent, half up; nil while it was never done.
+        public var percent: Int? { total > 0 ? (200 * done + total) / (2 * total) : nil }
+    }
+
+    public typealias CheckRef = (routineID: String, date: LocalDate, status: CheckStatus?)
+
+    /// How regularly each routine is done over the last adherenceDays, but not before the first day it was done.
+    public static func routineAdherence<V: VersionRef>(
+        today: LocalDate, versions: [V], checks: [CheckRef], warnBelow: Int
+    ) -> [String: Adherence] {
+        // A cleared mark (nil status) is the same as no mark.
+        var marks: [String: [LocalDate: CheckStatus]] = [:]
+        for c in checks { marks[c.routineID, default: [:]][c.date] = c.status }
+
+        let windowStart = Dates.addDays(today, 1 - adherenceDays)
+        var result: [String: Adherence] = [:]
+        for (rid, own) in Dictionary(grouping: versions, by: \.routineID) {
+            let status = marks[rid] ?? [:]
+            let scheduled = { (d: LocalDate) in routinesForDay(d, own)[rid] != nil }
+            let first = status.filter { $0.value == .done && $0.key <= today }.keys.sorted().first(where: scheduled)
+            var a = Adherence(from: first.map { max($0, windowStart) })
+            var d = a.from
+            while let day = d, day <= today {
+                if scheduled(day) {
+                    switch status[day] {
+                    case .done: a.done += 1; a.total += 1
+                    case .skipped: break
+                    case nil: if day < today { a.total += 1 }
+                    }
+                }
+                d = Dates.addDays(day, 1)
+            }
+            a.warning = a.percent.map { $0 < warnBelow } ?? false
+            result[rid] = a
+        }
+        return result
+    }
+
     public struct PlannedMove: Hashable, Sendable {
         public var id: String
         public var taskID: String

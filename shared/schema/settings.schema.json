@@ -55,6 +55,13 @@
       "type": "boolean",
       "default": true,
       "description": "Show today's progress as 'done/total'; false shows only the done count"
+    },
+    "routine_warn_below": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 50,
+      "description": "Warn that a routine is being skipped when it is done on fewer percent of its days; 0 turns the warning off"
     }
   },
   "required": [
@@ -64,7 +71,8 @@
     "part_evening_from",
     "attention_thresholds",
     "streak_min_done",
-    "show_day_total"
+    "show_day_total",
+    "routine_warn_below"
   ],
   "additionalProperties": false
 }

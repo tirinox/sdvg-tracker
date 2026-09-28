@@ -129,6 +129,10 @@ struct ItemRow: View {
                 default: Tag(text: "↻ \(item.moves)", fg: .secondary, bg: Color(.tertiarySystemFill))
                 }
             }
+            if let a = item.adherence, a.warning, let percent = a.percent, !item.done, !item.skipped {
+                Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
+                    .accessibilityLabel("Рутина пропускается: \(Fmt.adherence(a))")
+            }
             if item.skipped { Text("пропущено").font(.footnote).foregroundStyle(.secondary) }
         }
     }

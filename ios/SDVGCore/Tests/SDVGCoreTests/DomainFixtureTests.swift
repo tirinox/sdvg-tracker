@@ -14,6 +14,14 @@ private struct FixtureVersion: VersionRef {
 
 private func settings(_ v: JSONValue?) -> Settings { Settings(v?.object ?? [:]) }
 
+private func versions(_ i: JSONValue) -> [FixtureVersion] {
+    i["versions"]!.array!.map {
+        FixtureVersion(
+            id: $0["id"]!.string!, routineID: $0["routine_id"]!.string!, effectiveFrom: $0["effective_from"]!.string!,
+            weekdays: $0["weekdays"]!.int!, archived: $0["archived"]!.bool!, hlc: $0["hlc"]!.string!)
+    }
+}
+
 private func timing(_ i: JSONValue) -> Timing {
     Timing([
         "time_kind": i["time_kind"] ?? "none", "part_of_day": i["part_of_day"] ?? nil, "time": i["time"] ?? nil,
@@ -36,13 +44,19 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
                 "level": .string(Dates.dayEndLevel(secondsLeft: left * 60).rawValue)]
     },
     "routines_for_day": { i in
-        let versions = i["versions"]!.array!.map {
-            FixtureVersion(
-                id: $0["id"]!.string!, routineID: $0["routine_id"]!.string!, effectiveFrom: $0["effective_from"]!.string!,
-                weekdays: $0["weekdays"]!.int!, archived: $0["archived"]!.bool!, hlc: $0["hlc"]!.string!)
-        }
-        let picked = Rules.routinesForDay(i["date"]!.string!, versions)
+        let picked = Rules.routinesForDay(i["date"]!.string!, versions(i))
         return ["versions": .object(picked.mapValues { .string($0.id) })]
+    },
+    "routine_adherence": { i in
+        let checks = i["checks"]!.array!.map {
+            (routineID: $0["routine_id"]!.string!, date: $0["date"]!.string!, status: $0["status"]?.string.flatMap(CheckStatus.init))
+        }
+        let result = Rules.routineAdherence(
+            today: i["today"]!.string!, versions: versions(i), checks: checks, warnBelow: i["warn_below"]!.int!)
+        return ["routines": .object(result.mapValues { a in
+            ["from": a.from.map(JSONValue.string) ?? .null, "done": .int(a.done), "total": .int(a.total),
+             "percent": a.percent.map(JSONValue.int) ?? .null, "warning": .bool(a.warning)]
+        })]
     },
     "auto_rollover": { i in
         let tasks = i["tasks"]!.array!.map {

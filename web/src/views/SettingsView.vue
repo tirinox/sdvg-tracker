@@ -40,6 +40,11 @@ async function setNumber(key: keyof typeof settings.value, value: string) {
   if (Number.isInteger(n)) await updateSettings(store, { [key]: n })
 }
 
+async function setPercent(key: keyof typeof settings.value, value: string) {
+  const n = Number(value)
+  if (Number.isInteger(n)) await updateSettings(store, { [key]: Math.min(100, Math.max(0, n)) })
+}
+
 async function run(label: string, fn: () => Promise<unknown>) {
   busy.value = label
   try {
@@ -160,6 +165,27 @@ const removeDemo = () =>
     </div>
 
     <div class="card block">
+      <h2>Рутины</h2>
+      <label class="field narrow">
+        <span>Предупреждать, если сделано меньше (%)</span>
+        <input
+          class="input"
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          :value="settings.routine_warn_below"
+          @change="setPercent('routine_warn_below', ($event.target as HTMLInputElement).value)"
+        />
+      </label>
+      <p class="muted">
+        Выполняемость рутины — какая доля её дней за последние 30 выполнена (у новой — с первого выполнения).
+        Дни, пропущенные кнопкой «Пропуск», не в счёт, сегодняшний — только когда сделан. Ниже порога рутина
+        помечается как пропускаемая. 0 — не предупреждать.
+      </p>
+    </div>
+
+    <div class="card block">
       <h2>Демо-данные</h2>
       <p class="muted">
         Чтобы посмотреть приложение в деле. Демо-данные отмечены особыми ID и удаляются одной кнопкой на
@@ -202,6 +228,9 @@ h1 {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+.narrow {
+  max-width: 300px;
 }
 .grid {
   display: grid;

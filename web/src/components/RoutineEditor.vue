@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
-import { WEEKDAYS } from '../app/format'
+import { WEEKDAYS, adherenceLabel } from '../app/format'
+import { loadRoutineAdherence } from '../app/views'
 import type { RoutineVersion } from '../core/types'
+import type { Adherence } from '../domain/routines'
 import { archiveRoutine, createRoutine, editRoutine, routineVersions, type RoutineContent } from '../db/actions'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
@@ -10,7 +12,7 @@ import TimingFields from './TimingFields.vue'
 
 const props = defineProps<{ id: string | null }>()
 const emit = defineEmits<{ close: [] }>()
-const { store, today } = useApp()
+const { store, today, settings } = useApp()
 
 const form = reactive<Required<RoutineContent>>({
   title: '',
@@ -24,6 +26,7 @@ const form = reactive<Required<RoutineContent>>({
 })
 let original: Required<RoutineContent> | null = null
 const loaded = ref(props.id === null)
+const adherence = ref<Adherence | null>(null)
 
 onMounted(async () => {
   if (!props.id) return
@@ -35,6 +38,7 @@ onMounted(async () => {
     original = { title, emoji, color, time_kind, part_of_day, time, duration_min, weekdays }
     Object.assign(form, original)
   }
+  adherence.value = await loadRoutineAdherence(store, props.id, today.value)
   loaded.value = true
 })
 
@@ -99,6 +103,16 @@ async function archive() {
           </button>
         </div>
       </div>
+      <p v-if="adherence?.percent != null" class="rate" :class="{ warn: adherence.warning }">
+        <strong>
+          {{ adherence.warning ? '⚠︎ Пропускается' : 'Выполняется' }}: {{ adherence.percent }}&nbsp;%
+        </strong>
+        — {{ adherenceLabel(adherence) }}.
+        <span class="muted">
+          Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт.
+          <template v-if="adherence.warning">Порог — {{ settings.routine_warn_below }}&nbsp;%, меняется в настройках.</template>
+        </span>
+      </p>
       <p class="muted note">
         Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего,
         если сегодня уже отмечено) — прошлые дни остаются как были.
@@ -121,6 +135,24 @@ async function archive() {
 }
 .note {
   margin: 0;
+  font-size: 13px;
+}
+.rate {
+  margin: 0;
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.rate.warn {
+  background: var(--warn-soft);
+}
+.rate.warn strong {
+  color: var(--warn);
+}
+.rate .muted {
+  display: block;
+  margin-top: 2px;
   font-size: 13px;
 }
 </style>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { completeTask, createRoutine, createTask, postponeTask, setRoutineCheck } from '../db/actions'
+import { completeTask, createRoutine, createTask, postponeTask, setRoutineCheck, updateSettings } from '../db/actions'
 import { Store } from '../db/store'
 import { DEMO_OPEN_TASK_COUNT, DEMO_ROUTINE_COUNT, clearDemo, generateDemo } from '../demo/demo'
 import {
@@ -8,6 +8,7 @@ import {
   loadDay,
   loadInbox,
   loadRecord,
+  loadRoutineAdherence,
   loadRoutines,
   loadStats,
   pickNow,
@@ -80,6 +81,31 @@ describe('loadDay', () => {
     const r = await createRoutine(store, { title: 'Спортзал' }, TODAY)
     await setRoutineCheck(store, r, TODAY, 'skipped')
     expect(await loadDay(store, TODAY, NOW)).toMatchObject({ done: 0, total: 0 })
+  })
+})
+
+describe('routine adherence', () => {
+  it('shows on the routines list, the day and the editor, below the threshold as a warning', async () => {
+    const store = await openStore()
+    const r = await createRoutine(store, { title: 'Зарядка' }, '2026-09-16')
+    await setRoutineCheck(store, r, '2026-09-18', 'done')
+    await setRoutineCheck(store, r, '2026-09-21', 'skipped')
+    await createTask(store, { title: 'Лампочка', date: TODAY })
+
+    // 18 done, 19 and 20 missed, 21 skipped, today not marked yet.
+    const [listed] = await loadRoutines(store, TODAY)
+    expect(listed!.adherence).toEqual({ from: '2026-09-18', done: 1, total: 3, percent: 33, warning: true })
+    const day = await loadDay(store, TODAY, NOW)
+    expect(day.items.map((i) => [i.title, i.adherence?.percent ?? null])).toEqual([
+      ['Зарядка', 33],
+      ['Лампочка', null],
+    ])
+    expect(await loadRoutineAdherence(store, r, TODAY)).toEqual(listed!.adherence)
+
+    await updateSettings(store, { routine_warn_below: 30 })
+    expect((await loadRoutines(store, TODAY))[0]!.adherence.warning).toBe(false)
+    await setRoutineCheck(store, r, TODAY, 'done')
+    expect((await loadRoutines(store, TODAY))[0]!.adherence).toMatchObject({ done: 2, total: 4, percent: 50 })
   })
 })
 

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { SECTION_TITLES, plural, shortDate, timingLabel, weekdaysLabel } from '../app/format'
+import { SECTION_TITLES, adherenceLabel, plural, shortDate, timingLabel, weekdaysLabel } from '../app/format'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadRoutines, type RoutineListItem } from '../app/views'
 import EmojiCircle from '../components/EmojiCircle.vue'
 
-const { store, today, openRoutine } = useApp()
+const { store, today, settings, openRoutine } = useApp()
 const routines = useLive<RoutineListItem[]>(() => loadRoutines(store, today.value), [], [today])
 
 const sections = computed(() =>
@@ -16,6 +16,7 @@ const sections = computed(() =>
     items: routines.value.filter((r) => r.section === s),
   })).filter((s) => s.items.length),
 )
+const lagging = computed(() => routines.value.filter((r) => r.adherence.warning).length)
 </script>
 
 <template>
@@ -27,6 +28,10 @@ const sections = computed(() =>
     <p class="muted intro">
       {{ routines.length }} {{ plural(routines.length, 'регулярная задача', 'регулярные задачи', 'регулярных задач') }}.
       Они повторяются по расписанию и не переносятся.
+    </p>
+    <p v-if="lagging" class="lagging-note">
+      ⚠︎ {{ lagging }} {{ plural(lagging, 'рутина пропускается', 'рутины пропускаются', 'рутин пропускаются') }}:
+      за последние 30 дней сделано меньше {{ settings.routine_warn_below }}&nbsp;%.
     </p>
 
     <template v-for="s in sections" :key="s.id">
@@ -41,6 +46,14 @@ const sections = computed(() =>
                 {{ [timingLabel(r.version), weekdaysLabel(r.version.weekdays)].filter(Boolean).join(' · ') }}
                 <span v-if="r.pendingFrom" class="pending">изменения с {{ shortDate(r.pendingFrom) }}</span>
               </span>
+            </span>
+            <span
+              v-if="r.adherence.percent !== null"
+              class="rate"
+              :class="{ warn: r.adherence.warning }"
+              :title="adherenceLabel(r.adherence)"
+            >
+              <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}&nbsp;%
             </span>
           </button>
         </li>
@@ -81,6 +94,7 @@ h1 {
   background: var(--surface-2);
 }
 .text {
+  flex: 1;
   display: grid;
   gap: 1px;
 }
@@ -94,5 +108,25 @@ h1 {
   margin-left: 6px;
   color: var(--accent);
   font-weight: 600;
+}
+.rate {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rate.warn {
+  border-radius: 6px;
+  padding: 0 6px;
+  line-height: 20px;
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.lagging-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--warn);
 }
 </style>

@@ -35,6 +35,8 @@ public struct DayItem: Identifiable, Hashable, Sendable {
     public var score: Int
     public var reasons: [Rules.ScoreReason]
     public var sortKey: String
+    /// Routines only: how regularly it is done as of today.
+    public var adherence: Rules.Adherence? = nil
 
     var closed: Bool { done || skipped }
 }
@@ -93,9 +95,22 @@ public struct RoutineListItem: Identifiable, Sendable {
     public var pendingFrom: LocalDate?
     public var section: DaySection
     public var sortKey: String
+    public var adherence: Rules.Adherence
 }
 
 extension Store {
+    /// Adherence of every routine as of today, or of one; see Rules.routineAdherence.
+    func adherenceByRoutine(_ db: Database, _ versions: [RoutineVersionRecord], today: LocalDate, _ s: Settings, routineID: String? = nil) throws -> [String: Rules.Adherence] {
+        let sql = "SELECT routine_id, date, json_extract(fields, '$.status') AS status FROM routine_check"
+        let rows = try routineID.map { try GRDB.Row.fetchAll(db, sql: sql + " WHERE routine_id = ?", arguments: [$0]) }
+            ?? GRDB.Row.fetchAll(db, sql: sql)
+        let checks: [Rules.CheckRef] = rows.compactMap { r in
+            guard let rid: String = r["routine_id"], let d: String = r["date"] else { return nil }
+            return (rid, d, (r["status"] as String?).flatMap(CheckStatus.init))
+        }
+        return Rules.routineAdherence(today: today, versions: versions, checks: checks, warnBelow: s.routineWarnBelow)
+    }
+
     func moveCounts(_ db: Database) throws -> [String: Int] {
         let rows = try GRDB.Row.fetchAll(db, sql: "SELECT task_id, count(*) AS n FROM task_move GROUP BY task_id")
         return Dictionary(uniqueKeysWithValues: rows.compactMap { r in (r["task_id"] as String?).map { ($0, r["n"] as Int) } })
@@ -129,8 +144,10 @@ extension Store {
             let sortKeys = Dictionary(
                 try Rows.fetch(.routine, db).map { ($0.id, $0.fields["sort_key"]?.string ?? "") }, uniquingKeysWith: { $1 })
 
+            let versions = try routineVersions(db)
+            let adherence = try adherenceByRoutine(db, versions, today: today, s)
             var items: [DayItem] = []
-            for v in Rules.routinesForDay(date, try routineVersions(db)).values {
+            for v in Rules.routinesForDay(date, versions).values {
                 let st = status[v.routineID] ?? nil
                 let (score, reasons) = date == today && st == nil
                     ? Rules.nowScore(now: now, settings: s, timing: v.timing, deadline: .none, moves: 0)
@@ -139,7 +156,7 @@ extension Store {
                     kind: .routine, refID: v.routineID, title: v.title, emoji: v.emoji, color: v.color, timing: v.timing,
                     durationMin: v.durationMin, section: sectionOf(v.timing, s), done: st == .done, skipped: st == .skipped,
                     moves: 0, attention: 0, deadline: .none, deadlineDate: nil, deadlineTime: nil,
-                    score: score, reasons: reasons, sortKey: sortKeys[v.routineID] ?? ""))
+                    score: score, reasons: reasons, sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID]))
             }
             let moves = try moveCounts(db)
             for t in try Rows.fetch(.task, db, where: "date = ? OR done_on = ?", [date, date]).map(TaskRecord.init) {
@@ -217,6 +234,14 @@ extension Store {
         }
     }
 
+    /// Adherence of one routine, for its editor; nil for a routine without versions.
+    public func loadRoutineAdherence(_ routineID: String, today: LocalDate) throws -> Rules.Adherence? {
+        try read { db in
+            let versions = try routineVersions(db, routineID: routineID)
+            return try adherenceByRoutine(db, versions, today: today, try Rows.settings(db), routineID: routineID)[routineID]
+        }
+    }
+
     /// Every task as history for title suggestions; see Rules.titleHistory.
     public func loadTitleHistory(today: LocalDate) throws -> [Rules.TitleGroup] {
         let tasks = try read { db in try Rows.fetch(.task, db).map(TaskRecord.init) }
@@ -233,8 +258,10 @@ extension Store {
     public func loadRoutines(today: LocalDate) throws -> [RoutineListItem] {
         try read { db in
             let s = try Rows.settings(db)
+            let versions = try routineVersions(db)
+            let adherence = try adherenceByRoutine(db, versions, today: today, s)
             var latest: [String: RoutineVersionRecord] = [:]
-            for v in try routineVersions(db) {
+            for v in versions {
                 if let cur = latest[v.routineID], (cur.effectiveFrom, cur.hlc) >= (v.effectiveFrom, v.hlc) { continue }
                 latest[v.routineID] = v
             }
@@ -244,7 +271,8 @@ extension Store {
             return latest.values.filter { !$0.archived }.map {
                 RoutineListItem(
                     version: $0, pendingFrom: $0.effectiveFrom > today ? $0.effectiveFrom : nil,
-                    section: sectionOf($0.timing, s), sortKey: sortKeys[$0.routineID] ?? "")
+                    section: sectionOf($0.timing, s), sortKey: sortKeys[$0.routineID] ?? "",
+                    adherence: adherence[$0.routineID] ?? .init())
             }.sorted {
                 let a = order.firstIndex(of: $0.section)!, b = order.firstIndex(of: $1.section)!
                 if a != b { return a < b }

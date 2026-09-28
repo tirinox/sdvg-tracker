@@ -82,6 +82,8 @@ export interface Settings {
   streak_min_done: number
   /** Show today's progress as "done/total"; false shows only the done count. */
   show_day_total: boolean
+  /** Warn that a routine is being skipped when its percent done is below this; 0 turns it off. */
+  routine_warn_below: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -92,6 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   attention_thresholds: [1, 3, 6, 10],
   streak_min_done: 1,
   show_day_total: true,
+  routine_warn_below: 50,
 }
 
 export interface EntityFields {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useApp } from '../app/context'
-import { deadlineLabel, movesLabel, reasonLabels, shortDate, timingLabel } from '../app/format'
+import { adherenceLabel, deadlineLabel, movesLabel, reasonLabels, shortDate, timingLabel } from '../app/format'
 import type { DayItem } from '../app/views'
 import {
   completeTask,
@@ -94,6 +94,13 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
           <span v-if="deadline && !item.done" class="tag deadline">{{ deadline }}</span>
           <span v-if="item.moves && !item.done" class="tag moves" :title="movesLabel(item.moves)">
             ↻ {{ item.moves }}
+          </span>
+          <span
+            v-if="item.adherence?.warning && !item.done && !item.skipped"
+            class="tag lagging"
+            :title="`Рутина пропускается: ${adherenceLabel(item.adherence)}`"
+          >
+            ⚠︎ {{ item.adherence.percent }}&nbsp;%
           </span>
           <span v-if="item.skipped">пропущено</span>
           <span v-if="compact && item.deadline_date" class="muted">
@@ -188,6 +195,10 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 .tag.routine {
   padding: 0;
   color: var(--faint);
+}
+.tag.lagging {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 .hints {
   display: flex;

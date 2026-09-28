@@ -14,7 +14,7 @@ import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
 import { localNow, logicalDay, partOfDay } from '../domain/dates'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
-import { routinesForDay } from '../domain/routines'
+import { routineAdherence, routinesForDay, type Adherence } from '../domain/routines'
 import { nowScore, type ScoreReason } from '../domain/score'
 import { titleHistory, type TitleHistory } from '../domain/suggest'
 import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
@@ -48,6 +48,8 @@ export interface DayItem {
   score: number
   reasons: ScoreReason[]
   sort_key: string
+  /** Routines only: how regularly it is done as of today. */
+  adherence: Adherence | null
 }
 
 /** Section a timed item belongs to: exact times fall into the part of day they are in. */
@@ -75,6 +77,21 @@ const isClosed = (i: DayItem) => i.done || i.skipped
 /** created_at is UTC; deadlines are measured in local days. */
 function localDateOf(isoUtc: string): LocalDate {
   return localNow(new Date(isoUtc)).slice(0, 10)
+}
+
+/** Adherence of every routine as of today; see domain/routines. */
+async function adherenceByRoutine(
+  store: Store,
+  versions: VersionWithMeta[],
+  today: LocalDate,
+  s: Settings,
+): Promise<Map<string, Adherence>> {
+  const checks = (await store.rows('routine_check')).map((c) => ({
+    routine_id: c.fields.routine_id!,
+    date: c.fields.date!,
+    status: c.fields.status ?? null,
+  }))
+  return routineAdherence(today, versions, checks, s.routine_warn_below)
 }
 
 async function moveCounts(store: Store): Promise<Map<string, number>> {
@@ -126,7 +143,7 @@ export function taskItem(
     t.date === today && !base.done
       ? nowScore(now, s, { ...base, deadline_status: deadline })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons }
+  return { ...base, section: sectionOf(base, s), score, reasons, adherence: null }
 }
 
 function routineItem(
@@ -136,6 +153,7 @@ function routineItem(
   now: LocalDateTime,
   s: Settings,
   isToday: boolean,
+  adherence: Adherence | null,
 ): DayItem {
   const base = {
     key: `routine:${v.routine_id}`,
@@ -161,7 +179,7 @@ function routineItem(
     isToday && !status
       ? nowScore(now, s, { ...base, deadline_status: 'none' })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons }
+  return { ...base, section: sectionOf(base, s), score, reasons, adherence }
 }
 
 export interface DayView {
@@ -184,11 +202,13 @@ export async function loadDay(store: Store, date: LocalDate, now: LocalDateTime)
   ])
   const status = new Map(checks.map((c) => [c.fields.routine_id, c.fields.status ?? null]))
   const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
+  const adherence = await adherenceByRoutine(store, versions, today, s)
 
   const items: DayItem[] = []
   for (const v of routinesForDay(date, versions).values()) {
     const st = status.get(v.routine_id) ?? null
-    items.push(routineItem(v, st, sortKeys.get(v.routine_id) ?? '', now, s, date === today))
+    const a = adherence.get(v.routine_id) ?? null
+    items.push(routineItem(v, st, sortKeys.get(v.routine_id) ?? '', now, s, date === today, a))
   }
   const seen = new Set<string>()
   for (const row of [...planned, ...doneThatDay]) {
@@ -334,6 +354,7 @@ export interface RoutineListItem {
   pendingFrom: LocalDate | null
   section: Section
   sort_key: string
+  adherence: Adherence
 }
 
 export async function loadRoutines(store: Store, today: LocalDate): Promise<RoutineListItem[]> {
@@ -351,6 +372,7 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
     }
   }
   const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
+  const adherence = await adherenceByRoutine(store, versions, today, s)
   return [...latest.values()]
     .filter((v) => !v.archived)
     .map((v) => ({
@@ -359,10 +381,22 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
       pendingFrom: v.effective_from > today ? v.effective_from : null,
       section: sectionOf(v as RoutineVersion, s),
       sort_key: sortKeys.get(v.routine_id) ?? '',
+      adherence: adherence.get(v.routine_id)!,
     }))
     .sort((a, b) =>
       SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) ||
       (a.version.time ?? '').localeCompare(b.version.time ?? '') ||
       a.sort_key.localeCompare(b.sort_key),
     )
+}
+
+/** Adherence of one routine, for its editor; null for a routine without versions. */
+export async function loadRoutineAdherence(store: Store, routineId: string, today: LocalDate): Promise<Adherence | null> {
+  const s = await store.settings()
+  const [versions, checks] = await Promise.all([
+    routineVersions(store, routineId),
+    store.db.routine_check.where('fields.routine_id').equals(routineId).toArray(),
+  ])
+  const marks = checks.map((c) => ({ routine_id: routineId, date: c.fields.date!, status: c.fields.status ?? null }))
+  return routineAdherence(today, versions, marks, s.routine_warn_below).get(routineId) ?? null
 }

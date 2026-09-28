@@ -103,6 +103,12 @@ public enum Fmt {
 
     public static func moves(_ n: Int) -> String { "\(n) \(plural(n, "перенос", "переноса", "переносов"))" }
 
+    /// Where a routine's percent comes from: «сделано 5 из 8 дней с 5 сент».
+    public static func adherence(_ a: Rules.Adherence) -> String {
+        let since = a.from.map { " с \(shortDate($0))" } ?? ""
+        return "сделано \(a.done) из \(a.total) \(plural(a.total, "дня", "дней", "дней"))\(since)"
+    }
+
     /// Timing hint for the Now screen (deadline and moves already have tags on the row).
     public static func nowHint(_ i: DayItem, now: LocalDateTime, today: LocalDate) -> String? {
         guard i.reasons.contains(.now) else { return nil }

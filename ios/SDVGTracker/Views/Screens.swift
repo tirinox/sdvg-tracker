@@ -304,10 +304,17 @@ struct RoutinesScreen: View {
     var body: some View {
         let _ = model.revision
         let routines = (try? model.store.loadRoutines(today: model.today)) ?? []
+        let lagging = routines.filter(\.adherence.warning).count
         List {
             SwiftUI.Section {
                 Text("\(routines.count) \(plural(routines.count, "регулярная задача", "регулярные задачи", "регулярных задач")). Они повторяются по расписанию и не переносятся.")
                     .font(.subheadline).foregroundStyle(.secondary)
+                if lagging > 0 {
+                    Label(
+                        "\(lagging) \(plural(lagging, "рутина пропускается", "рутины пропускаются", "рутин пропускаются")): за последние 30 дней сделано меньше \(model.settings.routineWarnBelow)\u{00A0}%.",
+                        systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.warn)
+                }
             }
             ForEach(DaySection.allCases, id: \.self) { section in
                 let items = routines.filter { $0.section == section }
@@ -327,6 +334,17 @@ struct RoutinesScreen: View {
                                         }
                                     }
                                     Spacer(minLength: 0)
+                                    if let percent = r.adherence.percent {
+                                        Group {
+                                            if r.adherence.warning {
+                                                Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
+                                            } else {
+                                                Text("\(percent)\u{00A0}%").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        .monospacedDigit()
+                                        .accessibilityLabel("\(r.adherence.warning ? "Пропускается" : "Выполняется"): \(percent)\u{00A0}%, \(Fmt.adherence(r.adherence))")
+                                    }
                                 }
                                 .contentShape(Rectangle())
                             }

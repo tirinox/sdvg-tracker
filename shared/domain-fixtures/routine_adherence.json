@@ -1,0 +1,173 @@
+{
+  "description": "How regularly each routine that has versions is done. A day counts only if the routine is scheduled on it (routines_for_day with that day's version). first = earliest scheduled day <= today with status done, over all history; none: from null, done 0, total 0, percent null, warning false. Otherwise only the last 30 days count, today included: from = max(first, today - 29 days), so a routine done long ago and not since is at 0. Over scheduled days D from `from` to today: done -> done + 1 and total + 1; skipped -> not counted; no mark or status null (cleared) -> total + 1 if D < today, today is not counted until it is done. percent = floor((200 * done + total) / (2 * total)), i.e. 100 * done / total rounded half up. warning = percent < warn_below (0 turns warnings off). checks hold {routine_id, date, status}; 'hlc' stands for the version's clock. expect.routines maps routine_id -> result.",
+  "cases": [
+    {
+      "name": "never done: no percent, skips and future marks do not start it",
+      "input": {
+        "today": "2026-09-22",
+        "warn_below": 50,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-20", "status": "skipped" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-23", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": null, "done": 0, "total": 0, "percent": null, "warning": false }
+        }
+      }
+    },
+    {
+      "name": "days before the first done do not count, today counts once done",
+      "input": {
+        "today": "2026-09-22",
+        "warn_below": 50,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000302", "routine_id": "0192f0a0-0000-7000-8000-000000000102", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000303", "routine_id": "0192f0a0-0000-7000-8000-000000000103", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-20", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-21", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-22", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-20", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000103", "date": "2026-09-22", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-09-20", "done": 3, "total": 3, "percent": 100, "warning": false },
+          "0192f0a0-0000-7000-8000-000000000102": { "from": "2026-09-20", "done": 1, "total": 2, "percent": 50, "warning": false },
+          "0192f0a0-0000-7000-8000-000000000103": { "from": "2026-09-22", "done": 1, "total": 1, "percent": 100, "warning": false }
+        }
+      }
+    },
+    {
+      "name": "skipped days are left out, a cleared mark is a miss",
+      "input": {
+        "today": "2026-09-22",
+        "warn_below": 50,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-15", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-16", "status": "skipped" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-17", "status": "skipped" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-18", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-19", "status": null },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-21", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-22", "status": "skipped" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-09-15", "done": 3, "total": 5, "percent": 60, "warning": false }
+        }
+      }
+    },
+    {
+      "name": "only scheduled weekdays count, from is the first scheduled done day",
+      "input": {
+        "today": "2026-09-21",
+        "warn_below": 60,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 21, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-06", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-07", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-08", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-09", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-14", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-09-07", "done": 3, "total": 6, "percent": 50, "warning": true }
+        }
+      }
+    },
+    {
+      "name": "each day uses its own version, archived days do not count, half rounds up",
+      "input": {
+        "today": "2026-09-15",
+        "warn_below": 70,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000302", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-10", "weekdays": 31, "archived": false, "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000303", "routine_id": "0192f0a0-0000-7000-8000-000000000102", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000304", "routine_id": "0192f0a0-0000-7000-8000-000000000102", "effective_from": "2026-09-05", "weekdays": 127, "archived": true, "hlc": "1790000000010-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000305", "routine_id": "0192f0a0-0000-7000-8000-000000000102", "effective_from": "2026-09-10", "weekdays": 127, "archived": false, "hlc": "1790000000020-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-05", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-07", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-09", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-11", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-13", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-14", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-02", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-03", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-06", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-10", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-11", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-12", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-09-14", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-09-05", "done": 5, "total": 8, "percent": 63, "warning": true },
+          "0192f0a0-0000-7000-8000-000000000102": { "from": "2026-09-02", "done": 6, "total": 8, "percent": 75, "warning": false }
+        }
+      }
+    },
+    {
+      "name": "only the last 30 days count, a routine abandoned long ago is at 0",
+      "input": {
+        "today": "2026-09-22",
+        "warn_below": 50,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-07-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" },
+          { "id": "0192f0a0-0000-7000-8000-000000000302", "routine_id": "0192f0a0-0000-7000-8000-000000000102", "effective_from": "2026-07-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-07-01", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-08-23", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-08-24", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-20", "status": "done" },
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000102", "date": "2026-07-05", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-08-24", "done": 2, "total": 29, "percent": 7, "warning": true },
+          "0192f0a0-0000-7000-8000-000000000102": { "from": "2026-08-24", "done": 0, "total": 29, "percent": 0, "warning": true }
+        }
+      }
+    },
+    {
+      "name": "warn_below 0 turns warnings off",
+      "input": {
+        "today": "2026-09-22",
+        "warn_below": 0,
+        "versions": [
+          { "id": "0192f0a0-0000-7000-8000-000000000301", "routine_id": "0192f0a0-0000-7000-8000-000000000101", "effective_from": "2026-09-01", "weekdays": 127, "archived": false, "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa" }
+        ],
+        "checks": [
+          { "routine_id": "0192f0a0-0000-7000-8000-000000000101", "date": "2026-09-01", "status": "done" }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": { "from": "2026-09-01", "done": 1, "total": 21, "percent": 5, "warning": false }
+        }
+      }
+    }
+  ]
+}

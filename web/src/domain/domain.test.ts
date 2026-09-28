@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { domainCases, sharedFiles, type Case, type Json } from '../test/shared'
 import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './dates'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
-import { routinesForDay } from './routines'
+import { routineAdherence, routinesForDay } from './routines'
 import { nowScore } from './score'
 import { suggestTitles, titleHistory } from './suggest'
 import { attentionLevel, celebrationLevel, deadlineStatus, planRollover } from './tasks'
@@ -22,6 +22,9 @@ const RUNNERS: Record<string, Runner> = {
     versions: Object.fromEntries(
       [...routinesForDay(i.date, i.versions)].map(([rid, v]) => [rid, v.id]).sort(),
     ),
+  }),
+  routine_adherence: (i) => ({
+    routines: Object.fromEntries(routineAdherence(i.today, i.versions, i.checks, i.warn_below)),
   }),
   auto_rollover: (i) => {
     const { moves, dates } = planRollover(i.today, i.tasks)

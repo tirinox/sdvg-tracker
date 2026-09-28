@@ -310,6 +310,7 @@ struct RoutineEditor: View {
     @Environment(\.dismiss) private var dismiss
     let id: String?
     @State private var draft = RoutineDraft()
+    @State private var adherence: Rules.Adherence?
 
     var body: some View {
         NavigationStack {
@@ -329,6 +330,21 @@ struct RoutineEditor: View {
                     Text("Дни недели")
                 } footer: {
                     Text("Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего, если сегодня уже отмечено) — прошлые дни остаются как были.")
+                }
+                if let a = adherence, let percent = a.percent {
+                    SwiftUI.Section {
+                        LabeledContent {
+                            Text("\(percent)\u{00A0}%").monospacedDigit().fontWeight(.semibold)
+                                .foregroundStyle(a.warning ? Palette.warn : .secondary)
+                        } label: {
+                            Text(a.warning ? "⚠︎ Пропускается" : "Выполняется")
+                                .foregroundStyle(a.warning ? Palette.warn : .primary)
+                            Text(Fmt.adherence(a))
+                        }
+                    } footer: {
+                        Text("Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт."
+                            + (a.warning ? " Порог — \(model.settings.routineWarnBelow)\u{00A0}%, меняется в настройках." : ""))
+                    }
                 }
                 if let id {
                     SwiftUI.Section {
@@ -351,6 +367,7 @@ struct RoutineEditor: View {
             }
             .onAppear {
                 if let id, let v = try? model.store.latestVersion(id) { draft = RoutineDraft(v) }
+                if let id { adherence = try? model.store.loadRoutineAdherence(id, today: model.today) }
             }
         }
     }

@@ -144,6 +144,8 @@ public struct Settings: Hashable, Sendable {
     public var streakMinDone = 1
     /// Show today's progress as "done/total"; false shows only the done count.
     public var showDayTotal = true
+    /// Warn that a routine is being skipped when its percent done is below this; 0 turns it off.
+    public var routineWarnBelow = 50
 
     public init() {}
 
@@ -155,5 +157,6 @@ public struct Settings: Hashable, Sendable {
         if let v = f["attention_thresholds"]?.array?.compactMap(\.int), v.count == 4 { attentionThresholds = v }
         if let v = f["streak_min_done"]?.int { streakMinDone = v }
         if let v = f["show_day_total"]?.bool { showDayTotal = v }
+        if let v = f["routine_warn_below"]?.int { routineWarnBelow = v }
     }
 }

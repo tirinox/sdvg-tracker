@@ -115,6 +115,15 @@ struct SettingsScreen: View {
             } footer: {
                 Text("После полуночи и до начала дня всё ещё считается «вчера» и «вечер».")
             }
+            SwiftUI.Section {
+                Stepper(
+                    s.routineWarnBelow == 0 ? "Не предупреждать" : "Предупреждать ниже \(s.routineWarnBelow)\u{00A0}%",
+                    value: binding(s.routineWarnBelow, "routine_warn_below"), in: 0...100, step: 5)
+            } header: {
+                Text("Рутины")
+            } footer: {
+                Text("Выполняемость рутины — какая доля её дней за последние 30 выполнена (у новой — с первого выполнения). Дни, пропущенные кнопкой «Пропуск», не в счёт, сегодняшний — только когда сделан. Ниже порога рутина помечается как пропускаемая.")
+            }
         }
         .navigationTitle("Настройки")
     }

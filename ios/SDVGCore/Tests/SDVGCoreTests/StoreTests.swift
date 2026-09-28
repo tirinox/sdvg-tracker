@@ -113,6 +113,29 @@ final class StoreTests: XCTestCase {
         XCTAssertNotNil(try s.routinesOn("2026-09-23")[lunch])
     }
 
+    func testRoutineAdherenceOnTheListTheDayAndTheEditor() throws {
+        let s = try store()
+        let r = try s.createRoutine(RoutineDraft(title: "Зарядка"), today: "2026-09-16")
+        try s.setRoutineCheck(r, date: "2026-09-18", status: .done)
+        try s.setRoutineCheck(r, date: "2026-09-21", status: .skipped)
+        _ = try s.createTask(TaskDraft(title: "Лампочка", date: today))
+
+        // 18 done, 19 and 20 missed, 21 skipped, today not marked yet.
+        let listed = try XCTUnwrap(s.loadRoutines(today: today).first).adherence
+        XCTAssertEqual(listed, Rules.Adherence(from: "2026-09-18", done: 1, total: 3, warning: true))
+        XCTAssertEqual(listed.percent, 33)
+        let day = try s.loadDay(today, now: nowLocal)
+        XCTAssertEqual(day.items.map(\.title), ["Зарядка", "Лампочка"])
+        XCTAssertEqual(day.items.map(\.adherence?.percent), [33, nil])
+        XCTAssertEqual(try s.loadRoutineAdherence(r, today: today), listed)
+
+        try s.updateSettings(["routine_warn_below": 30])
+        XCTAssertFalse(try s.loadRoutines(today: today)[0].adherence.warning)
+        try s.setRoutineCheck(r, date: today, status: .done)
+        let after = try s.loadRoutines(today: today)[0].adherence
+        XCTAssertEqual([after.done, after.total, after.percent], [2, 4, 50])
+    }
+
     func testDayViewSectionsAndNow() throws {
         let s = try store()
         _ = try s.createRoutine(RoutineDraft(title: "Пообедать") .with { $0.timing = Timing(kind: .exact, time: "13:00") }, today: today)

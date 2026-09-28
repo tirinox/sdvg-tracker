@@ -1,6 +1,7 @@
 // Russian labels for dates, timing, deadlines and reasons.
 import type { LocalDate, LocalDateTime, PartOfDay } from '../core/types'
 import { addDays, daysBetween, minutesBetween } from '../domain/dates'
+import type { Adherence } from '../domain/routines'
 import type { DayGroupId, DayItem, Section } from './views'
 
 export function plural(n: number, one: string, few: string, many: string): string {
@@ -111,6 +112,12 @@ export function deadlineLabel(i: Pick<DayItem, 'deadline' | 'deadline_date' | 'd
 
 export function movesLabel(n: number): string {
   return `${n} ${plural(n, 'перенос', 'переноса', 'переносов')}`
+}
+
+/** Where a routine's percent comes from: «сделано 5 из 8 дней с 5 сент». */
+export function adherenceLabel(a: Adherence): string {
+  const since = a.from ? ` с ${shortDate(a.from)}` : ''
+  return `сделано ${a.done} из ${a.total} ${plural(a.total, 'дня', 'дней', 'дней')}${since}`
 }
 
 /** Short "why is this here" hints for the Now screen. */
