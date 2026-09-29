@@ -69,6 +69,11 @@ struct Tag: View {
     }
 }
 
+/// Hides the keyboard, whichever field has it.
+@MainActor func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+
 struct Card<Content: View>: View {
     @ViewBuilder var content: Content
 
@@ -89,6 +94,10 @@ struct QuickAdd: View {
     /// A suggestion put into the field with ↖; its look is kept while the title is being edited.
     @State private var filled: Rules.TitleSuggestion?
     @FocusState private var focused: Bool
+    /// Where the field is in its scroll view.
+    @State private var fieldY: CGFloat = 0
+    /// Where it was once the keyboard came up; nil while the keyboard is down.
+    @State private var restY: CGFloat?
 
     var body: some View {
         let suggestions = focused ? Rules.suggestTitles(history, query: title) : []
@@ -117,7 +126,18 @@ struct QuickAdd: View {
                     .padding(.trailing, 48)
             }
         }
-        .onChange(of: focused) { if focused { loadHistory() } }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .scrollView).minY } action: { y in
+            fieldY = y
+            // Scrolled well down the list: the keyboard would only cover it.
+            if let restY, restY - y > 120 { focused = false }
+        }
+        // Counted from here, so the scroll that brings the field above the keyboard doesn't hide it.
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+            if focused { restY = fieldY }
+        }
+        .onChange(of: focused) {
+            if focused { loadHistory() } else { restY = nil }
+        }
         .onChange(of: title) { old, new in
             if new.trimmingCharacters(in: .whitespaces).isEmpty { filled = nil }
             // A new title starts: re-read, so tasks added a moment ago are suggested too.
