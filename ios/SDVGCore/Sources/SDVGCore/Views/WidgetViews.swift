@@ -33,9 +33,15 @@ struct WidgetRow: View {
     var body: some View {
         HStack(spacing: 8) {
             EmojiCircle(emoji: item.item.emoji, color: item.item.color, size: 26)
+                // High priority: a stripe in the item's color, out in the margin so rows stay aligned.
+                .overlay(alignment: .leading) {
+                    if item.item.priority == .high {
+                        Capsule().fill(Palette.color(item.item.color)).frame(width: 3, height: 22).offset(x: -7)
+                    }
+                }
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.item.title)
-                    .font(.caption)
+                    .font(.caption.weight(item.item.priority == .high ? .bold : .regular))
                     .lineLimit(1)
                     .strikethrough(item.item.done)
                     .foregroundStyle(item.item.done ? .secondary : .primary)
@@ -114,8 +120,19 @@ public struct HomeWidgetBody: View {
             }
             if let first = s.items.first {
                 EmojiCircle(emoji: first.item.emoji, color: first.item.color, size: 30)
-                Text(first.item.title).font(.footnote.weight(.medium)).lineLimit(3)
-                WidgetBadge(item: first)
+                Text(first.item.title).font(.footnote.weight(first.item.priority == .high ? .bold : .medium)).lineLimit(3)
+                HStack(spacing: 4) {
+                    if first.item.priority == .high {
+                        Text("!!")
+                            .font(.caption2.weight(.heavy))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 5).fill(Palette.color(first.item.color).opacity(0.24)))
+                            .foregroundStyle(Palette.text(first.item.color))
+                            .accessibilityLabel(Fmt.priorityTag)
+                    }
+                    WidgetBadge(item: first)
+                }
             } else {
                 WidgetEmpty()
             }

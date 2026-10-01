@@ -88,6 +88,21 @@ struct AppearancePicker: View {
     }
 }
 
+struct PriorityPicker: View {
+    @Binding var priority: Priority
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(tr("Приоритет", "Priority")).font(.footnote).foregroundStyle(.secondary)
+            FlowLayout {
+                ForEach(Priority.allCases, id: \.self) { p in
+                    Chip(label: Fmt.priority(p), selected: priority == p) { priority = p }
+                }
+            }
+        }
+    }
+}
+
 struct TimingPicker: View {
     @Binding var timing: Timing
     @Binding var duration: Int?
@@ -200,6 +215,7 @@ struct TaskEditor: View {
                     }
                 }
                 SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
+                SwiftUI.Section { PriorityPicker(priority: $draft.priority) }
                 SwiftUI.Section(tr("Дедлайн", "Deadline")) {
                     Toggle(tr("Есть дедлайн", "Has a deadline"), isOn: Binding(
                         get: { draft.deadlineDate != nil },
@@ -322,6 +338,7 @@ struct RoutineEditor: View {
                     AppearancePicker(emoji: $draft.emoji, color: $draft.color, title: draft.title, auto: id == nil)
                 }
                 SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
+                SwiftUI.Section { PriorityPicker(priority: $draft.priority) }
                 SwiftUI.Section {
                     FlowLayout {
                         ForEach(0..<7) { i in

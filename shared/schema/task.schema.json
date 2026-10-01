@@ -67,6 +67,9 @@
     "duration_min": {
       "$ref": "common.schema.json#/$defs/duration_min"
     },
+    "priority": {
+      "$ref": "common.schema.json#/$defs/priority"
+    },
     "deadline_date": {
       "anyOf": [
         {

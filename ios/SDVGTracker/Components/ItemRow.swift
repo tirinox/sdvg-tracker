@@ -19,11 +19,13 @@ struct ItemRow: View {
     /// Checked on tap, before the write: the row stays for a moment and a second tap takes it back.
     private var checking: Bool { model.pendingDone[doneKey] != nil }
 
+    private var high: Bool { item.priority == .high }
+
     private var borderColor: Color {
         switch item.done ? 0 : item.attention {
         case 2: Palette.warn.opacity(0.55)
         case 3, 4: Palette.danger.opacity(0.7)
-        default: Color(.separator).opacity(0.5)
+        default: high ? Palette.color(item.color).opacity(0.45) : Color(.separator).opacity(0.5)
         }
     }
 
@@ -35,7 +37,8 @@ struct ItemRow: View {
                         EmojiCircle(emoji: item.emoji, color: item.color)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.title)
-                                .font(.body.weight(.medium))
+                                .font(.body.weight(high ? .bold : item.priority == .low ? .regular : .medium))
+                                .foregroundStyle(item.priority == .low ? .secondary : .primary)
                                 .strikethrough(item.done)
                                 .multilineTextAlignment(.leading)
                             meta
@@ -104,6 +107,9 @@ struct ItemRow: View {
                 RoundedRectangle(cornerRadius: 14).fill(Palette.ok.opacity(checking ? 0.14 : 0))
             }
         }
+        .overlay {
+            if high { PriorityMarks(color: item.color, key: item.id, gleam: !item.done && !item.skipped) }
+        }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
@@ -113,6 +119,7 @@ struct ItemRow: View {
         let timing = Fmt.timing(item.timing, duration: item.durationMin)
         let deadline = Fmt.deadline(item, today: model.today)
         HStack(spacing: 6) {
+            if high { Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24)) }
             if !isTask { Image(systemName: "repeat").font(.caption2).foregroundStyle(.tertiary) }
             if !timing.isEmpty { Text(timing).font(.footnote).foregroundStyle(.secondary) }
             if !deadline.isEmpty && !item.done {
@@ -134,6 +141,9 @@ struct ItemRow: View {
                     .accessibilityLabel(tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))"))
             }
             if item.skipped { Text(tr("пропущено", "skipped")).font(.footnote).foregroundStyle(.secondary) }
+            if item.priority == .low && !item.done && !item.skipped {
+                Text(Fmt.lowPriority).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -162,5 +172,46 @@ struct ItemRow: View {
 
     private func setCheck(_ status: CheckStatus?) {
         model.perform { [item, day] in try $0.setRoutineCheck(item.refID, date: day, status: status) }
+    }
+}
+
+/// High priority, in the item's own color: a stripe on the left and a gleam passing over the row
+/// now and then (not with Reduce Motion). Neighbouring rows start their gleams at different moments.
+struct PriorityMarks: View {
+    var color: Int
+    /// Picks the gleam's start, so rows do not flash in step.
+    var key: String
+    var gleam: Bool
+    var cornerRadius: CGFloat = 14
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var started = false
+
+    var body: some View {
+        let c = Palette.color(color)
+        ZStack(alignment: .leading) {
+            if gleam && !reduceMotion && started {
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    LinearGradient(colors: [.clear, c.opacity(0.26), .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: w * 0.4)
+                        .keyframeAnimator(initialValue: -0.4, repeating: true) { content, x in
+                            content.offset(x: x * w)
+                        } keyframes: { _ in
+                            LinearKeyframe(-0.4, duration: 1.9)
+                            CubicKeyframe(1.0, duration: 1.6)
+                        }
+                }
+            }
+            Rectangle().fill(c).frame(width: 4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .task {
+            let h = key.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
+            try? await Task.sleep(for: .milliseconds(h % 7 * 500))
+            started = true
+        }
     }
 }

@@ -8,6 +8,7 @@ import type {
   LocalDate,
   LocalDateTime,
   PartOfDay,
+  Priority,
   RoutineSnapshot,
   RoutineVersion,
   Task,
@@ -40,6 +41,7 @@ interface RoutineSpec {
   time?: string
   duration?: number
   weekdays?: number
+  priority?: Priority
   /** Title before a mid-history edit, to demonstrate versions. */
   oldTitle?: string
 }
@@ -48,7 +50,7 @@ interface RoutineSpec {
 // nothing matches on them (ids come from keys and positions).
 const routineSpecs = (): RoutineSpec[] => [
   { key: 'water', title: tr('Стакан воды после пробуждения', 'Glass of water after waking up'), emoji: '💧', color: 6, kind: 'exact', time: '07:00', duration: 5 },
-  { key: 'pills', title: tr('Принять таблетки', 'Take meds'), emoji: '💊', color: 0, kind: 'exact', time: '07:30', duration: 5 },
+  { key: 'pills', title: tr('Принять таблетки', 'Take meds'), emoji: '💊', color: 0, kind: 'exact', time: '07:30', duration: 5, priority: 'high' },
   { key: 'teeth-am', title: tr('Почистить зубы', 'Brush teeth'), emoji: '🪥', color: 7, kind: 'part', part: 'morning' },
   { key: 'shower', title: tr('Принять душ', 'Shower'), emoji: '🚿', color: 6, kind: 'part', part: 'morning', duration: 15 },
   { key: 'bed', title: tr('Застелить кровать', 'Make the bed'), emoji: '🛏️', color: 9, kind: 'part', part: 'morning' },
@@ -66,7 +68,7 @@ const routineSpecs = (): RoutineSpec[] => [
   { key: 'trash', title: tr('Вынести мусор', 'Take out the trash'), emoji: '🗑️', color: 11, kind: 'part', part: 'evening', weekdays: TUE_FRI },
   { key: 'dinner', title: tr('Поужинать', 'Have dinner'), emoji: '🍝', color: 1, kind: 'exact', time: '19:30', duration: 30 },
   { key: 'dishes', title: tr('Помыть посуду', 'Do the dishes'), emoji: '🧽', color: 5, kind: 'part', part: 'evening', duration: 15 },
-  { key: 'tidy', title: tr('15 минут уборки', '15 minutes of tidying'), emoji: '🧹', color: 3, kind: 'part', part: 'evening', duration: 15 },
+  { key: 'tidy', title: tr('15 минут уборки', '15 minutes of tidying'), emoji: '🧹', color: 3, kind: 'part', part: 'evening', duration: 15, priority: 'low' },
   { key: 'clothes', title: tr('Приготовить одежду на завтра', 'Lay out clothes for tomorrow'), emoji: '👕', color: 9, kind: 'part', part: 'evening' },
   { key: 'tomorrow', title: tr('Проверить календарь на завтра', 'Check tomorrow’s calendar'), emoji: '📅', color: 8, kind: 'part', part: 'evening', duration: 5 },
   { key: 'read', title: tr('Чтение 20 минут', 'Read for 20 minutes'), emoji: '📖', color: 10, kind: 'part', part: 'evening', duration: 20 },
@@ -88,20 +90,21 @@ interface TaskSpec {
   deadline?: number
   deadlineTime?: string
   notes?: string
+  priority?: Priority
 }
 
 const openTaskSpecs = (): TaskSpec[] => [
   { title: tr('Починить колесо коляски', 'Fix the stroller wheel'), emoji: '🛠️', color: 1, moves: 12, notes: tr('Нужен шестигранник на 5', 'Need a 5 mm hex key') },
-  { title: tr('Записаться к стоматологу', 'Book a dentist appointment'), emoji: '🦷', color: 7, moves: 9, deadline: 3 },
+  { title: tr('Записаться к стоматологу', 'Book a dentist appointment'), emoji: '🦷', color: 7, moves: 9, deadline: 3, priority: 'high' },
   { title: tr('Заполнить налоговый вычет', 'File the tax return'), emoji: '🧾', color: 11, moves: 7, deadline: -1 },
   { title: tr('Позвонить в поликлинику', 'Call the clinic'), emoji: '📞', color: 0, kind: 'exact', time: '10:30', duration: 15, moves: 2 },
   { title: tr('Оплатить интернет', 'Pay the internet bill'), emoji: '💳', color: 8, deadline: 0, moves: 1 },
   { title: tr('Ответить Лене про выходные', 'Reply to Emma about the weekend'), emoji: '💬', color: 10, kind: 'part', part: 'day', moves: 3 },
   { title: tr('Купить подгузники', 'Buy diapers'), emoji: '🛒', color: 4, kind: 'part', part: 'day' },
   { title: tr('Отнести куртку в химчистку', 'Take the jacket to the dry cleaner'), emoji: '🧥', color: 9, moves: 5 },
-  { title: tr('Разобрать фото с телефона', 'Sort the photos on my phone'), emoji: '📸', color: 10, moves: 14 },
+  { title: tr('Разобрать фото с телефона', 'Sort the photos on my phone'), emoji: '📸', color: 10, moves: 14, priority: 'low' },
   { title: tr('Продлить страховку машины', 'Renew the car insurance'), emoji: '🚗', color: 7, deadline: 2, moves: 4 },
-  { title: tr('Подготовить отчёт для работы', 'Prepare the work report'), emoji: '📊', color: 8, kind: 'exact', time: '11:00', duration: 90, deadline: 1, deadlineTime: '18:00' },
+  { title: tr('Подготовить отчёт для работы', 'Prepare the work report'), emoji: '📊', color: 8, kind: 'exact', time: '11:00', duration: 90, deadline: 1, deadlineTime: '18:00', priority: 'high' },
   { title: tr('Созвон с командой', 'Team call'), emoji: '👥', color: 7, kind: 'exact', time: '15:00', duration: 30 },
   { title: tr('Поменять лампочку в коридоре', 'Change the hallway light bulb'), emoji: '💡', color: 2, moves: 6 },
   { title: tr('Вернуть книгу в библиотеку', 'Return the library book'), emoji: '📚', color: 3, deadline: -2, moves: 8 },
@@ -116,7 +119,7 @@ const openTaskSpecs = (): TaskSpec[] => [
   { title: tr('Выбросить старые батарейки', 'Recycle the old batteries'), emoji: '🔋', color: 3, moves: 2 },
   { title: tr('Купить подарок на ДР Саше', 'Buy Sam a birthday present'), emoji: '🎁', color: 10, deadline: 9 },
   { title: tr('Забрать посылку', 'Pick up the parcel'), emoji: '📮', color: 1, kind: 'part', part: 'day', deadline: 2 },
-  { title: tr('Почистить кофемашину', 'Clean the coffee machine'), emoji: '☕', color: 2, moves: 1 },
+  { title: tr('Почистить кофемашину', 'Clean the coffee machine'), emoji: '☕', color: 2, moves: 1, priority: 'low' },
   { title: tr('Обновить резюме', 'Update my resume'), emoji: '📝', color: 8, moves: 6 },
   { title: tr('Записать ребёнка к педиатру', 'Book the kid’s pediatrician visit'), emoji: '👶', color: 4, kind: 'part', part: 'morning', deadline: 7 },
   { title: tr('Разобрать шкаф с одеждой', 'Sort out the wardrobe'), emoji: '👚', color: 9, moves: 3 },
@@ -176,6 +179,7 @@ function version(spec: RoutineSpec, from: LocalDate, title: string): RoutineVers
     part_of_day: spec.kind === 'part' ? spec.part! : null,
     time: spec.kind === 'exact' ? spec.time! : null,
     duration_min: spec.duration ?? null,
+    priority: spec.priority ?? 'normal',
     weekdays: spec.weekdays ?? DAILY,
     archived: false,
     created_at: iso(from, '06:00'),
@@ -302,6 +306,7 @@ function task(
     part_of_day: kind === 'part' ? spec.part! : null,
     time: kind === 'exact' ? spec.time! : null,
     duration_min: spec.duration ?? null,
+    priority: spec.priority ?? 'normal',
     deadline_date: spec.deadline === undefined || !date ? null : addDays(date, spec.deadline),
     deadline_time: spec.deadlineTime ?? null,
     done_on: doneOn,

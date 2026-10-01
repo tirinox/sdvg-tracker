@@ -4,6 +4,7 @@ import type {
   LocalDate,
   LocalDateTime,
   PartOfDay,
+  Priority,
   Row,
   RoutineVersion,
   Settings,
@@ -13,6 +14,7 @@ import type {
 import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
 import { localNow, logicalDay, partOfDay } from '../domain/dates'
+import { compareItems, pickTop, priorityRank } from '../domain/order'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
 import { routineAdherence, routinesForDay, type Adherence } from '../domain/routines'
 import { nowScore, type ScoreReason } from '../domain/score'
@@ -37,6 +39,7 @@ export interface DayItem {
   part_of_day: PartOfDay | null
   time: string | null
   duration_min: number | null
+  priority: Priority
   section: Section
   done: boolean
   skipped: boolean
@@ -62,15 +65,7 @@ export function sectionOf(
   return 'anytime'
 }
 
-/** Open first; timed ones by time, then the rest by manual order; done at the end. */
-export function compareItems(a: DayItem, b: DayItem): number {
-  if (a.done !== b.done || a.skipped !== b.skipped) {
-    return Number(a.done || a.skipped) - Number(b.done || b.skipped)
-  }
-  if (a.time && b.time && a.time !== b.time) return a.time < b.time ? -1 : 1
-  if (Boolean(a.time) !== Boolean(b.time)) return a.time ? 1 : -1
-  return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0
-}
+export { compareItems }
 
 const isClosed = (i: DayItem) => i.done || i.skipped
 
@@ -130,6 +125,7 @@ export function taskItem(
     part_of_day: t.part_of_day ?? null,
     time: t.time_kind === 'exact' ? (t.time ?? null) : null,
     duration_min: t.duration_min ?? null,
+    priority: t.priority ?? 'normal',
     done: Boolean(t.done_on),
     skipped: false,
     moves,
@@ -166,6 +162,7 @@ function routineItem(
     part_of_day: v.part_of_day,
     time: v.time_kind === 'exact' ? v.time : null,
     duration_min: v.duration_min,
+    priority: v.priority ?? 'normal',
     done: status === 'done',
     skipped: status === 'skipped',
     moves: 0,
@@ -242,15 +239,9 @@ export function dayGroups(items: DayItem[]): { id: DayGroupId; items: DayItem[] 
   ].filter((g) => g.items.length)
 }
 
-/** Top items for the "Now" screen: highest score first, topped up with the next open items. */
+/** Top items for the "Now" screen: high priority and highest score first, topped up with the next open items. */
 export function pickNow(day: DayView, max = 7, min = 5): DayItem[] {
-  const open = day.items.filter((i) => !i.done && !i.skipped)
-  const ranked = open
-    .filter((i) => i.score > 0)
-    .sort((a, b) => b.score - a.score || compareItems(a, b))
-    .slice(0, max)
-  const rest = open.filter((i) => !ranked.includes(i))
-  return [...ranked, ...rest.slice(0, Math.max(0, min - ranked.length))]
+  return pickTop(day.items, max, min)
 }
 
 export interface HeatCell {
@@ -385,6 +376,7 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
     }))
     .sort((a, b) =>
       SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) ||
+      priorityRank(a.version.priority) - priorityRank(b.version.priority) ||
       (a.version.time ?? '').localeCompare(b.version.time ?? '') ||
       a.sort_key.localeCompare(b.sort_key),
     )

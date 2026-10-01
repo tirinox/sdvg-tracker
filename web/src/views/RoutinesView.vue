@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { adherenceLabel, sectionTitle, shortDate, timingLabel, weekdaysLabel } from '../app/format'
+import { adherenceLabel, priorityStyle, priorityTag, sectionTitle, shortDate, timingLabel, weekdaysLabel } from '../app/format'
 import { tr, trn } from '../app/i18n'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadRoutines, type RoutineListItem } from '../app/views'
@@ -51,11 +51,20 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
       <h2 class="section-title">{{ s.title }}</h2>
       <ul class="list">
         <li v-for="r in s.items" :key="r.id">
-          <button class="row card" type="button" @click="openRoutine(r.id)">
+          <button
+            class="row card"
+            :class="`prio-${r.version.priority ?? 'normal'}`"
+            :style="r.version.priority === 'high' ? priorityStyle(r.id, r.version.color) : undefined"
+            type="button"
+            @click="openRoutine(r.id)"
+          >
+            <span v-if="r.version.priority === 'high'" class="prio-fx" aria-hidden="true" />
             <EmojiCircle :emoji="r.version.emoji" :color="r.version.color" :size="36" />
             <span class="text">
               <span class="title">{{ r.version.title }}</span>
               <span class="meta muted">
+                <span v-if="r.version.priority === 'high'" class="prio-tag">{{ priorityTag() }}</span>
+                <template v-if="r.version.priority === 'low'">↓ {{ tr('не срочно', 'not urgent') }} · </template>
                 {{ [timingLabel(r.version), weekdaysLabel(r.version.weekdays)].filter(Boolean).join(' · ') }}
                 <span v-if="r.pendingFrom" class="pending">{{
                   tr(`изменения с ${shortDate(r.pendingFrom)}`, `changes from ${shortDate(r.pendingFrom)}`)
@@ -98,6 +107,7 @@ h1 {
   list-style: none;
 }
 .row {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
@@ -115,6 +125,19 @@ h1 {
 }
 .title {
   font-weight: 550;
+}
+.prio-high {
+  border-color: color-mix(in srgb, var(--c) 40%, var(--line));
+}
+.prio-high .title {
+  font-weight: 700;
+}
+.prio-low .title {
+  color: var(--muted);
+  font-weight: 450;
+}
+.prio-tag {
+  margin-right: 6px;
 }
 .meta {
   font-size: 13px;

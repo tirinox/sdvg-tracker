@@ -1,0 +1,201 @@
+{
+  "description": "Order of items inside one list (a part of the day, the inbox): open before done or skipped; then priority high, normal, low (no priority = normal); then items without an exact time before timed ones, timed ones by time; then by sort_key. expect.order lists ids in that order.",
+  "cases": [
+    {
+      "name": "priority goes before time",
+      "input": {
+        "items": [
+          {
+            "id": "a",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": "09:00",
+            "sort_key": "a0"
+          },
+          {
+            "id": "b",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a1"
+          },
+          {
+            "id": "c",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": "18:00",
+            "sort_key": "a2"
+          },
+          {
+            "id": "d",
+            "priority": "low",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a3"
+          },
+          {
+            "id": "e",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a4"
+          }
+        ]
+      },
+      "expect": {
+        "order": [
+          "b",
+          "c",
+          "e",
+          "a",
+          "d"
+        ]
+      }
+    },
+    {
+      "name": "done and skipped go last whatever the priority",
+      "input": {
+        "items": [
+          {
+            "id": "high-done",
+            "priority": "high",
+            "done": true,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a0"
+          },
+          {
+            "id": "low-skipped",
+            "priority": "low",
+            "done": false,
+            "skipped": true,
+            "time": null,
+            "sort_key": "a1"
+          },
+          {
+            "id": "normal",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a2"
+          },
+          {
+            "id": "low",
+            "priority": "low",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a3"
+          }
+        ]
+      },
+      "expect": {
+        "order": [
+          "normal",
+          "low",
+          "high-done",
+          "low-skipped"
+        ]
+      }
+    },
+    {
+      "name": "no priority reads as normal",
+      "input": {
+        "items": [
+          {
+            "id": "low",
+            "priority": "low",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a0"
+          },
+          {
+            "id": "old",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a1"
+          },
+          {
+            "id": "normal",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a2"
+          },
+          {
+            "id": "high",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a3"
+          }
+        ]
+      },
+      "expect": {
+        "order": [
+          "high",
+          "old",
+          "normal",
+          "low"
+        ]
+      }
+    },
+    {
+      "name": "same priority keeps time and manual order",
+      "input": {
+        "items": [
+          {
+            "id": "late",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": "20:00",
+            "sort_key": "a0"
+          },
+          {
+            "id": "early",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": "08:00",
+            "sort_key": "a1"
+          },
+          {
+            "id": "second",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a3"
+          },
+          {
+            "id": "first",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a2"
+          }
+        ]
+      },
+      "expect": {
+        "order": [
+          "first",
+          "second",
+          "early",
+          "late"
+        ]
+      }
+    }
+  ]
+}

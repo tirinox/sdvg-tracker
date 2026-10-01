@@ -9,6 +9,8 @@ export type Hlc = string
 
 export type TimeKind = 'none' | 'part' | 'exact'
 export type PartOfDay = 'morning' | 'day' | 'evening'
+/** Rows written before priorities existed have none: read them as 'normal'. */
+export type Priority = 'low' | 'normal' | 'high'
 
 export interface Timing {
   time_kind: TimeKind
@@ -24,6 +26,7 @@ export interface Task extends Timing {
   date: LocalDate | null
   first_date: LocalDate | null
   duration_min: number | null
+  priority: Priority
   deadline_date: LocalDate | null
   deadline_time: LocalTime | null
   done_on: LocalDate | null
@@ -51,6 +54,7 @@ export interface RoutineVersion extends Timing {
   emoji: string | null
   color: number
   duration_min: number | null
+  priority: Priority
   /** Bit 0 = Monday ... bit 6 = Sunday. */
   weekdays: number
   archived: boolean

@@ -11,6 +11,7 @@ public struct TaskDraft: Sendable, Equatable {
     public var date: LocalDate?
     public var timing = Timing(kind: .none)
     public var durationMin: Int?
+    public var priority = Priority.normal
     public var deadlineDate: LocalDate?
     public var deadlineTime: LocalTime?
 
@@ -27,6 +28,7 @@ public struct TaskDraft: Sendable, Equatable {
         date = t.date
         timing = t.timing
         durationMin = t.durationMin
+        priority = t.priority
         deadlineDate = t.deadlineDate
         deadlineTime = t.deadlineTime
     }
@@ -35,7 +37,8 @@ public struct TaskDraft: Sendable, Equatable {
     var contentFields: Fields {
         var f: Fields = [
             "title": .string(title), "notes": .string(notes), "emoji": JSONValue(emoji), "color": .int(color),
-            "duration_min": JSONValue(durationMin), "deadline_date": JSONValue(deadlineDate),
+            "duration_min": JSONValue(durationMin), "priority": .string(priority.rawValue),
+            "deadline_date": JSONValue(deadlineDate),
             "deadline_time": JSONValue(deadlineDate == nil ? nil : deadlineTime),
         ]
         f.merge(timing.fields) { $1 }
@@ -49,6 +52,7 @@ public struct RoutineDraft: Sendable, Equatable {
     public var color = 4
     public var timing = Timing(kind: .none)
     public var durationMin: Int?
+    public var priority = Priority.normal
     public var weekdays = 127
 
     public init(title: String = "") { self.title = title }
@@ -59,13 +63,14 @@ public struct RoutineDraft: Sendable, Equatable {
         color = v.color
         timing = v.timing
         durationMin = v.durationMin
+        priority = v.priority
         weekdays = v.weekdays
     }
 
     var fields: Fields {
         var f: Fields = [
             "title": .string(title), "emoji": JSONValue(emoji), "color": .int(color),
-            "duration_min": JSONValue(durationMin), "weekdays": .int(weekdays),
+            "duration_min": JSONValue(durationMin), "priority": .string(priority.rawValue), "weekdays": .int(weekdays),
         ]
         f.merge(timing.fields) { $1 }
         return f
@@ -240,7 +245,10 @@ extension Store {
 
     public func editRoutine(_ routineID: String, _ d: RoutineDraft, today: LocalDate) throws {
         guard let latest = try latestVersion(routineID) else { throw ActionError.notFound(routineID) }
-        let patch = d.fields.filter { latest.fields[$0.key] != $0.value }
+        // A version from before priorities has none; saving it unchanged should not add a version.
+        var current = latest.fields
+        current["priority"] = current["priority"] ?? .string(Priority.normal.rawValue)
+        let patch = d.fields.filter { current[$0.key] != $0.value }
         if !patch.isEmpty { try addVersion(routineID, patch, today: today) }
     }
 

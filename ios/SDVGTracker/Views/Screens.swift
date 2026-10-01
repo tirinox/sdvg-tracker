@@ -277,7 +277,15 @@ struct InboxScreen: View {
                         Button { model.openTask(item.refID) } label: {
                             HStack(spacing: 10) {
                                 EmojiCircle(emoji: item.emoji, color: item.color, size: 34)
-                                Text(item.title).font(.body.weight(.medium)).multilineTextAlignment(.leading)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.title)
+                                        .font(.body.weight(item.priority == .high ? .bold : item.priority == .low ? .regular : .medium))
+                                        .foregroundStyle(item.priority == .low ? .secondary : .primary)
+                                        .multilineTextAlignment(.leading)
+                                    if item.priority == .high {
+                                        Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24))
+                                    }
+                                }
                                 Spacer(minLength: 0)
                             }
                         }
@@ -287,6 +295,14 @@ struct InboxScreen: View {
                     }
                     .padding(10)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground)))
+                    .overlay {
+                        if item.priority == .high {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.color(item.color).opacity(0.45))
+                                PriorityMarks(color: item.color, key: item.id, gleam: true)
+                            }
+                        }
+                    }
                 }
                 if items.isEmpty { Text(tr("Входящие пусты ✨", "Inbox is empty ✨")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30) }
             }
@@ -330,10 +346,18 @@ struct RoutinesScreen: View {
                                 HStack(spacing: 12) {
                                     EmojiCircle(emoji: r.version.emoji, color: r.version.color, size: 34)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(r.version.title).foregroundStyle(.primary)
-                                        Text([Fmt.timing(r.version.timing, duration: r.version.durationMin), Fmt.weekdays(r.version.weekdays)]
-                                            .filter { !$0.isEmpty }.joined(separator: " · "))
-                                            .font(.footnote).foregroundStyle(.secondary)
+                                        let p = r.version.priority
+                                        Text(r.version.title)
+                                            .fontWeight(p == .high ? .bold : nil)
+                                            .foregroundStyle(p == .low ? .secondary : .primary)
+                                        HStack(spacing: 6) {
+                                            if p == .high {
+                                                Tag(text: Fmt.priorityTag, fg: Palette.text(r.version.color), bg: Palette.color(r.version.color).opacity(0.24))
+                                            }
+                                            Text(([p == .low ? Fmt.lowPriority : ""] + [Fmt.timing(r.version.timing, duration: r.version.durationMin), Fmt.weekdays(r.version.weekdays)])
+                                                .filter { !$0.isEmpty }.joined(separator: " · "))
+                                                .font(.footnote).foregroundStyle(.secondary)
+                                        }
                                         if let from = r.pendingFrom {
                                             Text(tr("изменения с \(Fmt.shortDate(from))", "changes from \(Fmt.shortDate(from))")).font(.footnote.weight(.semibold)).foregroundStyle(Color.accentColor)
                                         }
@@ -354,6 +378,12 @@ struct RoutinesScreen: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .listRowBackground(ZStack {
+                                Color(.secondarySystemGroupedBackground)
+                                if r.version.priority == .high {
+                                    PriorityMarks(color: r.version.color, key: r.id, gleam: true, cornerRadius: 0)
+                                }
+                            })
                         }
                     }
                 }

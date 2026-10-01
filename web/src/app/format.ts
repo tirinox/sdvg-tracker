@@ -1,5 +1,5 @@
 // Labels for dates, timing, deadlines and reasons, in the interface language.
-import type { LocalDate, LocalDateTime, PartOfDay } from '../core/types'
+import type { LocalDate, LocalDateTime, PartOfDay, Priority } from '../core/types'
 import { addDays, daysBetween, minutesBetween } from '../domain/dates'
 import type { Adherence } from '../domain/routines'
 import { lang, plural, tr, trn, type Lang } from './i18n'
@@ -171,4 +171,25 @@ export function weekdaysLabel(mask: number): string {
   return weekdayNames()
     .filter((_, i) => mask & (1 << i))
     .join(', ')
+}
+
+/** "!! важно": the tag of a high-priority item. */
+export function priorityTag(): string {
+  return tr('!! важно', '!! important')
+}
+
+export function priorityTitle(p: Priority): string {
+  if (p === 'high') return tr('Высокий', 'High')
+  if (p === 'low') return tr('Низкий', 'Low')
+  return tr('Обычный', 'Normal')
+}
+
+/**
+ * Inline style of a row with a priority: its color for the stripe, tag and gleam, and a gleam
+ * delay picked from the id, so neighbouring rows do not flash in step.
+ */
+export function priorityStyle(id: string, color: number): Record<string, string> {
+  let h = 0
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return { '--c': `var(--c${color})`, '--gleam-delay': `${-(h % 7) * 0.5}s` }
 }

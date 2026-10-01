@@ -19,6 +19,7 @@ import type { TitleSuggestion } from '../domain/suggest'
 import { autoEmoji } from '../sync/emoji'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
+import PriorityField from './PriorityField.vue'
 import TimingFields from './TimingFields.vue'
 import TitleInput from './TitleInput.vue'
 
@@ -36,6 +37,7 @@ const form = reactive({
   part_of_day: null as Task['part_of_day'],
   time: null as string | null,
   duration_min: null as number | null,
+  priority: 'normal' as Task['priority'],
   deadline_date: null as string | null,
   deadline_time: null as string | null,
   ...props.defaults,
@@ -63,7 +65,8 @@ onMounted(async () => {
 function pick(t: Task) {
   const { title, notes, emoji, color, date, time_kind, part_of_day, time } = t
   const { duration_min, deadline_date, deadline_time } = t
-  return { title, notes, emoji, color, date, time_kind, part_of_day, time, duration_min, deadline_date, deadline_time }
+  const priority = t.priority ?? 'normal'
+  return { title, notes, emoji, color, date, time_kind, part_of_day, time, duration_min, priority, deadline_date, deadline_time }
 }
 
 const inbox = computed({
@@ -185,6 +188,8 @@ async function remove() {
         v-model:time="form.time"
         v-model:duration="form.duration_min"
       />
+
+      <PriorityField v-model="form.priority" />
 
       <div class="pair">
         <label class="field">

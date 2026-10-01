@@ -121,6 +121,18 @@ public enum Fmt {
         }
     }
 
+    /// "!! важно": the tag of a high-priority item.
+    public static var priorityTag: String { tr("!! важно", "!! important") }
+    public static var lowPriority: String { tr("↓ не срочно", "↓ not urgent") }
+
+    public static func priority(_ p: Priority) -> String {
+        switch p {
+        case .high: tr("!! Высокий", "!! High")
+        case .normal: tr("Обычный", "Normal")
+        case .low: tr("↓ Низкий", "↓ Low")
+        }
+    }
+
     public static func moves(_ n: Int) -> String { trn(n, ru: ("перенос", "переноса", "переносов"), en: ("move", "moves")) }
 
     /// Where a routine's percent comes from: «сделано 5 из 8 дней с 5 сент».
@@ -158,12 +170,23 @@ public enum Fmt {
 
 /// The shared 12-color palette (index stored in data).
 public enum Palette {
-    public static let colors: [Color] = [
+    static let hexes = [
         0xF06A6A, 0xF39A4C, 0xEEC14A, 0xA9CF54, 0x5DBB7A, 0x45B8A8,
         0x4BB0DE, 0x5B8DEF, 0x7B74E6, 0xA97BE0, 0xE57BB8, 0x8E95A8,
-    ].map { Color(hex: $0) }
+    ]
+    public static let colors: [Color] = hexes.map { Color(hex: $0) }
+    /// Readable text in a palette color, as on the web: 55 % of it over the text color of the theme.
+    static let texts: [Color] = hexes.map { Color(light: mix($0, 0x1F1D2B, 0.55), dark: mix($0, 0xECEBF5, 0.55)) }
 
     public static func color(_ i: Int) -> Color { colors[(i % 12 + 12) % 12] }
+    public static func text(_ i: Int) -> Color { texts[(i % 12 + 12) % 12] }
+
+    private static func mix(_ a: Int, _ b: Int, _ t: Double) -> Int {
+        [16, 8, 0].reduce(0) { acc, shift in
+            let x = Double((a >> shift) & 0xff) * t + Double((b >> shift) & 0xff) * (1 - t)
+            return acc | (Int(x.rounded()) << shift)
+        }
+    }
 
     public static let heat: [Color] = [
         Color(light: 0xE9E7F2, dark: 0x24222E), Color(light: 0xCFE8D6, dark: 0x1D4630), Color(light: 0x97D2A8, dark: 0x247046),

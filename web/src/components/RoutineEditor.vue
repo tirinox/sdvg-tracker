@@ -9,6 +9,7 @@ import type { Adherence } from '../domain/routines'
 import { archiveRoutine, createRoutine, editRoutine, routineVersions, type RoutineContent } from '../db/actions'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
+import PriorityField from './PriorityField.vue'
 import TimingFields from './TimingFields.vue'
 
 const props = defineProps<{ id: string | null }>()
@@ -23,6 +24,7 @@ const form = reactive<Required<RoutineContent>>({
   part_of_day: null,
   time: null,
   duration_min: null,
+  priority: 'normal',
   weekdays: 127,
 })
 let original: Required<RoutineContent> | null = null
@@ -36,7 +38,8 @@ onMounted(async () => {
     .at(-1)
   if (latest) {
     const { title, emoji, color, time_kind, part_of_day, time, duration_min, weekdays } = latest as RoutineVersion
-    original = { title, emoji, color, time_kind, part_of_day, time, duration_min, weekdays }
+    const priority = latest.priority ?? 'normal'
+    original = { title, emoji, color, time_kind, part_of_day, time, duration_min, priority, weekdays }
     Object.assign(form, original)
   }
   adherence.value = await loadRoutineAdherence(store, props.id, today.value)
@@ -106,6 +109,7 @@ async function archive() {
         v-model:time="form.time"
         v-model:duration="form.duration_min"
       />
+      <PriorityField v-model="form.priority" />
       <div class="field">
         <span>{{ tr('Дни недели', 'Days of the week') }}</span>
         <div class="chips">

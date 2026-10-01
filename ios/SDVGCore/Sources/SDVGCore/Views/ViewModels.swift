@@ -24,6 +24,7 @@ public struct DayItem: Identifiable, Hashable, Sendable {
     public var color: Int
     public var timing: Timing
     public var durationMin: Int?
+    public var priority: Priority = .normal
     public var section: DaySection
     public var done: Bool
     public var skipped: Bool
@@ -49,10 +50,12 @@ public func sectionOf(_ t: Timing, _ s: Settings) -> DaySection {
     }
 }
 
-/// Open first; timed ones by time, then the rest by manual order.
+/// Open first, then by priority; untimed before timed ones by time, then by manual order
+/// (shared/domain-fixtures/item_order.json).
 func compareItems(_ a: DayItem, _ b: DayItem) -> Bool {
     let ad = a.done || a.skipped, bd = b.done || b.skipped
     if ad != bd { return !ad }
+    if a.priority != b.priority { return a.priority.rank < b.priority.rank }
     let at = a.timing.time, bt = b.timing.time
     if let at, let bt, at != bt { return at < bt }
     if (at == nil) != (bt == nil) { return at == nil }
@@ -127,7 +130,7 @@ extension Store {
             : (0, [])
         return DayItem(
             kind: .task, refID: t.id, title: t.title, emoji: t.emoji, color: t.color, timing: t.timing,
-            durationMin: t.durationMin, section: sectionOf(t.timing, s), done: t.doneOn != nil, skipped: false,
+            durationMin: t.durationMin, priority: t.priority, section: sectionOf(t.timing, s), done: t.doneOn != nil, skipped: false,
             moves: moves, attention: Rules.attentionLevel(moves: moves, thresholds: s.attentionThresholds),
             deadline: deadline, deadlineDate: t.deadlineDate, deadlineTime: t.deadlineTime,
             score: score, reasons: reasons, sortKey: t.sortKey)
@@ -154,7 +157,7 @@ extension Store {
                     : (0, [])
                 items.append(DayItem(
                     kind: .routine, refID: v.routineID, title: v.title, emoji: v.emoji, color: v.color, timing: v.timing,
-                    durationMin: v.durationMin, section: sectionOf(v.timing, s), done: st == .done, skipped: st == .skipped,
+                    durationMin: v.durationMin, priority: v.priority, section: sectionOf(v.timing, s), done: st == .done, skipped: st == .skipped,
                     moves: 0, attention: 0, deadline: .none, deadlineDate: nil, deadlineTime: nil,
                     score: score, reasons: reasons, sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID]))
             }
@@ -276,6 +279,7 @@ extension Store {
             }.sorted {
                 let a = order.firstIndex(of: $0.section)!, b = order.firstIndex(of: $1.section)!
                 if a != b { return a < b }
+                if $0.version.priority != $1.version.priority { return $0.version.priority.rank < $1.version.priority.rank }
                 let at = $0.version.timing.time ?? "", bt = $1.version.timing.time ?? ""
                 return at != bt ? at < bt : $0.sortKey < $1.sortKey
             }
@@ -283,11 +287,15 @@ extension Store {
     }
 }
 
-/// Top items for the "Now" screen: highest score first, topped up with the next open items.
+/// Top items for the "Now" screen (shared/domain-fixtures/now_pick.json): scored and high-priority
+/// items by priority and score, topped up with the next open items.
 public func pickNow(_ day: DayView, max: Int = 7, min: Int = 5) -> [DayItem] {
     let open = day.items.filter { !$0.done && !$0.skipped }
-    let ranked = open.filter { $0.score > 0 }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : compareItems($0, $1) }
+    let ranked = open.filter { $0.score > 0 || $0.priority == .high }
+        .sorted {
+            if $0.priority != $1.priority { return $0.priority.rank < $1.priority.rank }
+            return $0.score != $1.score ? $0.score > $1.score : compareItems($0, $1)
+        }
         .prefix(max)
     let rest = open.filter { item in !ranked.contains { $0.id == item.id } }
     return Array(ranked) + rest.prefix(Swift.max(0, min - ranked.count))

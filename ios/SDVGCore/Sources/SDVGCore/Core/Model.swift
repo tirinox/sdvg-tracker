@@ -16,6 +16,22 @@ public enum TimeKind: String, Codable, Sendable, CaseIterable { case none, part,
 public enum PartOfDay: String, Codable, Sendable, CaseIterable { case morning, day, evening }
 public enum CheckStatus: String, Codable, Sendable { case done, skipped }
 
+/// Rows written before priorities existed have none: they read as `.normal`.
+public enum Priority: String, Codable, Sendable, CaseIterable {
+    case low, normal, high
+
+    /// Position in lists: high first.
+    public var rank: Int {
+        switch self {
+        case .high: 0
+        case .normal: 1
+        case .low: 2
+        }
+    }
+
+    init(_ value: JSONValue?) { self = value?.string.flatMap(Priority.init(rawValue:)) ?? .normal }
+}
+
 /// A row or a change on the wire: `{entity, id, fields, clocks}`.
 public struct Change: Codable, Hashable, Sendable {
     public var entity: String
@@ -76,6 +92,7 @@ public struct TaskRecord: Hashable, Sendable, Identifiable {
     public var firstDate: LocalDate?
     public var timing: Timing
     public var durationMin: Int?
+    public var priority: Priority
     public var deadlineDate: LocalDate?
     public var deadlineTime: LocalTime?
     public var doneOn: LocalDate?
@@ -94,6 +111,7 @@ public struct TaskRecord: Hashable, Sendable, Identifiable {
         firstDate = f["first_date"]?.string
         timing = Timing(f)
         durationMin = f["duration_min"]?.int
+        priority = Priority(f["priority"])
         deadlineDate = f["deadline_date"]?.string
         deadlineTime = f["deadline_time"]?.string
         doneOn = f["done_on"]?.string
@@ -112,6 +130,7 @@ public struct RoutineVersionRecord: Hashable, Sendable, Identifiable {
     public var color: Int
     public var timing: Timing
     public var durationMin: Int?
+    public var priority: Priority
     public var weekdays: Int
     public var archived: Bool
     /// Clock of the version; breaks ties between versions with the same effective_from.
@@ -128,6 +147,7 @@ public struct RoutineVersionRecord: Hashable, Sendable, Identifiable {
         color = f["color"]?.int ?? 0
         timing = Timing(f)
         durationMin = f["duration_min"]?.int
+        priority = Priority(f["priority"])
         weekdays = f["weekdays"]?.int ?? 127
         archived = f["archived"]?.bool ?? false
         hlc = row.clocks["effective_from"] ?? ""

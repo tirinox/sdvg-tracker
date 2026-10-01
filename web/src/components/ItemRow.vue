@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useApp } from '../app/context'
-import { adherenceLabel, deadlineLabel, movesLabel, reasonLabels, shortDate, timingLabel } from '../app/format'
+import {
+  adherenceLabel,
+  deadlineLabel,
+  movesLabel,
+  priorityStyle,
+  priorityTag,
+  reasonLabels,
+  shortDate,
+  timingLabel,
+} from '../app/format'
 import { tr } from '../app/i18n'
 import type { DayItem } from '../app/views'
 import {
@@ -82,14 +91,18 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
     :class="[
       `att-${item.attention}`,
       `dl-${item.deadline}`,
+      `prio-${item.priority}`,
       { done: item.done, skipped: item.skipped, checking },
     ]"
+    :style="item.priority === 'high' ? priorityStyle(item.key, item.color) : undefined"
   >
+    <span v-if="item.priority === 'high'" class="prio-fx" :class="{ still: item.done || item.skipped }" aria-hidden="true" />
     <button class="main" type="button" @click="edit">
       <EmojiCircle :emoji="item.emoji" :color="item.color" />
       <span class="text">
         <span class="title">{{ item.title }}</span>
         <span class="meta">
+          <span v-if="item.priority === 'high'" class="prio-tag">{{ priorityTag() }}</span>
           <span v-if="item.kind === 'routine'" class="tag routine" :title="tr('Регулярная', 'Routine')">⟳</span>
           <span v-if="timing">{{ timing }}</span>
           <span v-if="deadline && !item.done" class="tag deadline">{{ deadline }}</span>
@@ -104,6 +117,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
             ⚠︎ {{ item.adherence.percent }}{{ tr('\u00a0%', '%') }}
           </span>
           <span v-if="item.skipped">{{ tr('пропущено', 'skipped') }}</span>
+          <span v-if="item.priority === 'low' && !item.done && !item.skipped">↓ {{ tr('не срочно', 'not urgent') }}</span>
           <span v-if="compact && item.deadline_date" class="muted">
             {{ tr(`до ${shortDate(item.deadline_date)}`, `due ${shortDate(item.deadline_date)}`) }}
           </span>
@@ -148,6 +162,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 
 <style scoped>
 .row {
+  position: relative;
   list-style: none;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -158,6 +173,17 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   border: 1px solid var(--line);
   border-radius: var(--radius);
   transition: opacity 0.2s;
+}
+/* Priority: high gets a stripe, a tag and a gleam (.prio-fx, styles.css); low steps back. */
+.prio-high {
+  border-color: color-mix(in srgb, var(--c) 40%, var(--line));
+}
+.prio-high .title {
+  font-weight: 700;
+}
+.prio-low .title {
+  color: var(--muted);
+  font-weight: 450;
 }
 .main {
   display: flex;

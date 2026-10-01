@@ -31,6 +31,7 @@ def test_deterministic_id_matches_vectors():
     [
         change(title="Починить коляску", color=3, date=None, time_kind="exact", time="09:30"),
         change(done_on="2026-09-22"),
+        change(priority="high"),
         change("settings", "settings", day_start_hour=5, attention_thresholds=[1, 2, 3, 4]),
         change(
             "routine_check",
@@ -45,7 +46,15 @@ def test_deterministic_id_matches_vectors():
         ),
         change(clock=f"{NOW + DAY:013d}-0000-aaaaaaaaaaaaaaaa", title="на границе"),
     ],
-    ids=["task", "partial", "settings", "routine_check", "partial deterministic", "max skew"],
+    ids=[
+        "task",
+        "partial",
+        "priority",
+        "settings",
+        "routine_check",
+        "partial deterministic",
+        "max skew",
+    ],
 )
 def test_valid_changes(validator, ch):
     validator.validate(ch)
@@ -60,6 +69,8 @@ def test_valid_changes(validator, ch):
         (change(date="2026-13-01"), "task.date"),
         (change(time="9:30"), "task.time"),
         (change(time_kind="later"), "task.time_kind"),
+        (change(priority="urgent"), "task.priority"),
+        (change("routine_version", ROUTINE, priority=2), "routine_version.priority"),
         (change(clock="yesterday", title="x"), "invalid clock"),
         (change(clock=f"{NOW + DAY + 1:013d}-0000-aaaaaaaaaaaaaaaa", title="x"), "future"),
         (change(id_=TASK.upper(), title="x"), "lowercase canonical UUID"),
