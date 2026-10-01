@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
-        test-live test-ios test-ios-live ios-build ios-open seed seed-clear import lint fmt backend-dev web-dev \
+        test-live test-ios test-ios-live ios-build ios-open ios-install seed seed-clear import lint fmt backend-dev web-dev \
         emoji-model emoji-catalog \
         backup reset-db restore deploy deploy-logs connect-prod
 
@@ -96,6 +96,34 @@ ios-build: ## Build the iOS app for the simulator
 
 ios-open: ## Open the iOS project in Xcode (git override so Xcode can fetch GRDB)
 	$(SWIFT_ENV) open ios/SDVGTracker.xcodeproj
+
+# A free Personal Team can't get the App Group, so the app is signed without entitlements:
+# it keeps its database in Application Support and the widgets see no data.
+IOS_TEAM ?= 7L32PPK723
+IOS_DEVICE ?=
+
+ios-install: ## Build, install and launch on a connected iPhone (IOS_DEVICE=<udid>, IOS_TEAM=<team id>)
+	@udid="$(IOS_DEVICE)"; \
+	if [ -z "$$udid" ]; then \
+		tmp=$$(mktemp); xcrun devicectl list devices --json-output $$tmp >/dev/null 2>&1; \
+		udid=$$(python3 -c 'import json, sys; ds = json.load(open(sys.argv[1]))["result"]["devices"]; \
+			print(next((d["hardwareProperties"]["udid"] for d in ds if d["hardwareProperties"].get("deviceType") == "iPhone" \
+			and d["connectionProperties"].get("tunnelState") != "unavailable"), ""))' $$tmp); \
+		rm -f $$tmp; \
+	fi; \
+	test -n "$$udid" || { echo "No iPhone available: unlock it and connect by cable or the same Wi-Fi"; exit 1; }; \
+	echo "Device: $$udid"; \
+	mkdir -p ios/build; \
+	( cd ios && $(SWIFT_ENV) xcodebuild -project SDVGTracker.xcodeproj -scheme SDVGTracker -configuration Debug \
+		-destination "id=$$udid" -derivedDataPath build/device DEVELOPMENT_TEAM=$(IOS_TEAM) CODE_SIGN_ENTITLEMENTS= \
+		-allowProvisioningUpdates build ) > ios/build/device.log 2>&1 \
+		|| { grep -E "error:" ios/build/device.log; echo "Build failed, full log: ios/build/device.log"; exit 1; }; \
+	echo "Built"; \
+	xcrun devicectl device install app --device $$udid ios/build/device/Build/Products/Debug-iphoneos/SDVGTracker.app \
+		>/dev/null || { echo "Install failed"; exit 1; }; \
+	echo "Installed"; \
+	xcrun devicectl device process launch --device $$udid com.tirinox.sdvgtracker >/dev/null 2>&1 \
+		&& echo "Launched" || echo "Installed, but not launched: unlock the phone and open the app"
 
 test-ios-live: ## iOS sync client against a real backend on a throwaway database
 	@cd backend && uv sync -q

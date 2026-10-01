@@ -22,6 +22,7 @@ make up        # создаст .env со случайным токеном и �
 
 ```bash
 make ios-open      # открыть проект в Xcode
+make ios-install   # собрать, поставить и запустить на подключённом iPhone
 make test-ios      # тесты ядра SDVGCore на общих фикстурах
 ```
 
