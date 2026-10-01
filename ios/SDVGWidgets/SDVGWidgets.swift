@@ -1,3 +1,4 @@
+import SDVGCore
 import SwiftUI
 import WidgetKit
 
@@ -15,8 +16,8 @@ struct HomeWidget: Widget {
             HomeWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Сейчас")
-        .description("Главные дела, прогресс дня и стрик.")
+        .configurationDisplayName(tr("Сейчас", "Now"))
+        .description(tr("Главные дела, прогресс дня и стрик.", "Top things to do, the day's progress and your streak."))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
@@ -27,8 +28,8 @@ struct LockWidget: Widget {
             LockWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Трекер")
-        .description("Ближайшее дело и прогресс на экране блокировки.")
+        .configurationDisplayName(tr("Трекер", "Tracker"))
+        .description(tr("Ближайшее дело и прогресс на экране блокировки.", "The next thing to do and your progress, on the Lock Screen."))
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }

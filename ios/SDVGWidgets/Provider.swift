@@ -30,16 +30,19 @@ struct Entry: TimelineEntry {
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> Entry {
-        Entry(date: Date(), snapshot: nil)
+        refreshLanguage()
+        return Entry(date: Date(), snapshot: nil)
     }
 
     func snapshot(for configuration: WidgetSettings, in context: Context) async -> Entry {
-        entry(at: Date(), configuration.filter.core)
+        refreshLanguage()
+        return entry(at: Date(), configuration.filter.core)
     }
 
     /// One entry per moment the content changes: a timed item starting or ending, a new part of
     /// the day, the start of the next logical day. No network, no background refresh needed.
     func timeline(for configuration: WidgetSettings, in context: Context) async -> Timeline<Entry> {
+        refreshLanguage()
         let filter = configuration.filter.core
         let now = Date()
         var dates = [now]
@@ -49,6 +52,11 @@ struct Provider: AppIntentTimelineProvider {
         let entries = dates.map { entry(at: $0, filter) }
         let end = dates.last.map { $0.addingTimeInterval(60) } ?? now.addingTimeInterval(3600)
         return Timeline(entries: entries, policy: .after(end))
+    }
+
+    /// The extension process can outlive a language change in the app; read the setting again.
+    private func refreshLanguage() {
+        L10n.current = L10n.resolve(L10n.preference)
     }
 
     private func entry(at date: Date, _ filter: WidgetFilter) -> Entry {

@@ -24,7 +24,7 @@ struct TitleSuggestions: View {
                             Image(systemName: "arrow.up.left").frame(width: 36, height: 36).contentShape(Rectangle())
                         }
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Вставить в поле")
+                        .accessibilityLabel(tr("Вставить в поле", "Put into the field"))
                     }
                 }
                 .buttonStyle(.plain)
@@ -33,7 +33,7 @@ struct TitleSuggestions: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Из прошлых задач")
+        .accessibilityLabel(tr("Из прошлых задач", "From past tasks"))
     }
 }
 

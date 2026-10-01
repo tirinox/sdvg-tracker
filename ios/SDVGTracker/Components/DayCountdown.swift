@@ -22,7 +22,7 @@ struct DayCountdown: View {
                     .monospacedDigit()
                     .fontWeight(.semibold)
                     .foregroundStyle(level == .calm ? Color.primary : fg)
-                Text("до конца дня")
+                Text(tr("до конца дня", "left today"))
             }
             .font(.subheadline)
             .foregroundStyle(fg)
@@ -32,7 +32,7 @@ struct DayCountdown: View {
             .background(Capsule().fill(bg))
             .animation(.easeInOut(duration: 0.3), value: level)
             .accessibilityElement(children: .combine)
-            .accessibilityHint("День закончится в \(endsAt.suffix(5))")
+            .accessibilityHint(tr("День закончится в \(endsAt.suffix(5))", "The day ends at \(endsAt.suffix(5))"))
         }
     }
 }

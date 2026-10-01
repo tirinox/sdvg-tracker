@@ -1,0 +1,22 @@
+{
+  "sourceLanguage": "ru",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To sync your tasks with your own server on the local network."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтобы синхронизировать задачи с вашим сервером в локальной сети."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -74,7 +74,7 @@ struct WidgetEmpty: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: "checkmark.circle").font(.title2).foregroundStyle(Palette.ok)
-            Text("На сегодня всё").font(.caption).foregroundStyle(.secondary)
+            Text(tr("На сегодня всё", "All done for today")).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -100,7 +100,7 @@ public struct HomeWidgetBody: View {
             case .medium: medium(snapshot)
             }
         } else {
-            Text("Откройте приложение").font(.caption).foregroundStyle(.secondary)
+            Text(tr("Откройте приложение", "Open the app")).font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -108,7 +108,7 @@ public struct HomeWidgetBody: View {
     private func small(_ s: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text("Сейчас").font(.caption2).foregroundStyle(.secondary)
+                Text(tr("Сейчас", "Now")).font(.caption2).foregroundStyle(.secondary)
                 Spacer()
                 Text(s.progressText).font(.caption2).foregroundStyle(.secondary)
             }
@@ -142,7 +142,7 @@ public struct HomeWidgetBody: View {
     /// The current part of the day as a short timeline.
     private func large(_ s: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            WidgetHeader(snapshot: s, trailing: "\(Fmt.sectionTitles[s.part] ?? ""): \(s.partDone)/\(s.partTotal)")
+            WidgetHeader(snapshot: s, trailing: "\(Fmt.sectionTitle(s.part)): \(s.partDone)/\(s.partTotal)")
             ProgressView(value: s.partTotal > 0 ? Double(s.partDone) / Double(s.partTotal) : 0)
                 .tint(Palette.ok)
             if s.partItems.isEmpty {
@@ -152,10 +152,10 @@ public struct HomeWidgetBody: View {
             }
             Spacer(minLength: 0)
             HStack {
-                if s.moreInPart > 0 { Text("и ещё \(s.moreInPart)") }
+                if s.moreInPart > 0 { Text(tr("и ещё \(s.moreInPart)", "and \(s.moreInPart) more")) }
                 Spacer()
                 if let next = s.nextPart, s.nextPartCount > 0 {
-                    Text("дальше \(Fmt.sectionTitles[next]?.lowercased() ?? "") (\(s.nextPartCount))")
+                    Text(tr("дальше \(Fmt.sectionTitle(next).lowercased()) (\(s.nextPartCount))", "next: \(Fmt.sectionTitle(next).lowercased()) (\(s.nextPartCount))"))
                 }
             }
             .font(.caption2)
@@ -188,18 +188,18 @@ public struct LockWidgetBody: View {
             if let s {
                 Text("🔥 \(s.streak) · \(s.progressText)\(s.items.first?.badge.map { " · \($0)" } ?? "")")
             } else {
-                Text("Трекер")
+                Text(tr("Трекер", "Tracker"))
             }
         case .rectangular:
             VStack(alignment: .leading, spacing: 1) {
                 if let s, let first = s.items.first {
-                    Text(first.badge ?? Fmt.sectionTitles[s.part] ?? "").font(.caption2).foregroundStyle(.secondary)
+                    Text(first.badge ?? Fmt.sectionTitle(s.part)).font(.caption2).foregroundStyle(.secondary)
                     Text(first.item.title).font(.footnote.weight(.medium)).lineLimit(2)
                     if s.items.count > 1 {
-                        Text("потом: \(s.items[1].item.title)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text(tr("потом: \(s.items[1].item.title)", "then: \(s.items[1].item.title)")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
                 } else {
-                    Text("На сегодня всё").font(.footnote)
+                    Text(tr("На сегодня всё", "All done for today")).font(.footnote)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

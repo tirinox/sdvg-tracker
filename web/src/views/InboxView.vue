@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useApp } from '../app/context'
+import { tr } from '../app/i18n'
 import { useLive } from '../app/useLive'
 import { loadInbox, type DayItem } from '../app/views'
 import EmojiCircle from '../components/EmojiCircle.vue'
@@ -15,9 +16,16 @@ const plan = (id: string, date: string) => updateTask(store, id, { date })
 
 <template>
   <section>
-    <h1>Входящие</h1>
-    <p class="muted intro">Всё, что пока без дня. Когда будете готовы — отправьте на сегодня или завтра.</p>
-    <QuickAdd :date="null" placeholder="Записать мысль или задачу…" />
+    <h1>{{ tr('Входящие', 'Inbox') }}</h1>
+    <p class="muted intro">
+      {{
+        tr(
+          'Всё, что пока без дня. Когда будете готовы — отправьте на сегодня или завтра.',
+          'Everything without a day yet. When you’re ready, send it to today or tomorrow.',
+        )
+      }}
+    </p>
+    <QuickAdd :date="null" :placeholder="tr('Записать мысль или задачу…', 'Jot down a thought or a task…')" />
 
     <ul v-if="items.length" class="list">
       <li v-for="item in items" :key="item.key" class="row card">
@@ -25,11 +33,11 @@ const plan = (id: string, date: string) => updateTask(store, id, { date })
           <EmojiCircle :emoji="item.emoji" :color="item.color" :size="34" />
           <span>{{ item.title }}</span>
         </button>
-        <button class="btn" type="button" @click="plan(item.id, today)">Сегодня</button>
-        <button class="btn" type="button" @click="plan(item.id, addDays(today, 1))">Завтра</button>
+        <button class="btn" type="button" @click="plan(item.id, today)">{{ tr('Сегодня', 'Today') }}</button>
+        <button class="btn" type="button" @click="plan(item.id, addDays(today, 1))">{{ tr('Завтра', 'Tomorrow') }}</button>
       </li>
     </ul>
-    <p v-else class="empty">Входящие пусты ✨</p>
+    <p v-else class="empty">{{ tr('Входящие пусты ✨', 'Inbox is empty ✨') }}</p>
   </section>
 </template>
 

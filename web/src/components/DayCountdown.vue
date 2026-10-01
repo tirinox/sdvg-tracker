@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useApp } from '../app/context'
 import { countdownLabel } from '../app/format'
+import { tr } from '../app/i18n'
 import { dayEnd, dayEndLevel, instantOf } from '../domain/dates'
 
 // Time left in the logical day: yellow in the last hour, red in the last half hour.
@@ -25,10 +26,10 @@ const level = computed(() => dayEndLevel(secondsLeft.value))
 </script>
 
 <template>
-  <span class="countdown" :class="level" role="timer" :title="`День закончится в ${endsAt.slice(11)}`">
+  <span class="countdown" :class="level" role="timer" :title="tr(`День закончится в ${endsAt.slice(11)}`, `The day ends at ${endsAt.slice(11)}`)">
     <span aria-hidden="true">⏳</span>
     <b>{{ countdownLabel(secondsLeft) }}</b>
-    <span>до конца дня</span>
+    <span>{{ tr('до конца дня', 'left today') }}</span>
   </span>
 </template>
 

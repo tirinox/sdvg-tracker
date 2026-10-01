@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { SECTION_TITLES, adherenceLabel, plural, shortDate, timingLabel, weekdaysLabel } from '../app/format'
+import { adherenceLabel, sectionTitle, shortDate, timingLabel, weekdaysLabel } from '../app/format'
+import { tr, trn } from '../app/i18n'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadRoutines, type RoutineListItem } from '../app/views'
 import EmojiCircle from '../components/EmojiCircle.vue'
@@ -12,7 +13,7 @@ const routines = useLive<RoutineListItem[]>(() => loadRoutines(store, today.valu
 const sections = computed(() =>
   SECTIONS.map((s) => ({
     id: s,
-    title: SECTION_TITLES[s],
+    title: sectionTitle(s),
     items: routines.value.filter((r) => r.section === s),
   })).filter((s) => s.items.length),
 )
@@ -22,16 +23,28 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
 <template>
   <section>
     <header class="head">
-      <h1>Рутины</h1>
-      <button class="btn primary" type="button" @click="openRoutine(null)">＋ Добавить</button>
+      <h1>{{ tr('Рутины', 'Routines') }}</h1>
+      <button class="btn primary" type="button" @click="openRoutine(null)">{{ tr('＋ Добавить', '＋ Add') }}</button>
     </header>
     <p class="muted intro">
-      {{ routines.length }} {{ plural(routines.length, 'регулярная задача', 'регулярные задачи', 'регулярных задач') }}.
-      Они повторяются по расписанию и не переносятся.
+      {{ trn(routines.length, ['регулярная задача', 'регулярные задачи', 'регулярных задач'], ['routine', 'routines']) }}.
+      {{ tr('Они повторяются по расписанию и не переносятся.', 'They repeat on a schedule and never get moved.') }}
     </p>
     <p v-if="lagging" class="lagging-note">
-      ⚠︎ {{ lagging }} {{ plural(lagging, 'рутина пропускается', 'рутины пропускаются', 'рутин пропускаются') }}:
-      за последние 30 дней сделано меньше {{ settings.routine_warn_below }}&nbsp;%.
+      ⚠︎
+      {{
+        trn(
+          lagging,
+          ['рутина пропускается', 'рутины пропускаются', 'рутин пропускаются'],
+          ['routine is being skipped', 'routines are being skipped'],
+        )
+      }}:
+      {{
+        tr(
+          `за последние 30 дней сделано меньше ${settings.routine_warn_below}\u00a0%.`,
+          `done less than ${settings.routine_warn_below}% of the time over the last 30 days.`,
+        )
+      }}
     </p>
 
     <template v-for="s in sections" :key="s.id">
@@ -44,7 +57,9 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
               <span class="title">{{ r.version.title }}</span>
               <span class="meta muted">
                 {{ [timingLabel(r.version), weekdaysLabel(r.version.weekdays)].filter(Boolean).join(' · ') }}
-                <span v-if="r.pendingFrom" class="pending">изменения с {{ shortDate(r.pendingFrom) }}</span>
+                <span v-if="r.pendingFrom" class="pending">{{
+                  tr(`изменения с ${shortDate(r.pendingFrom)}`, `changes from ${shortDate(r.pendingFrom)}`)
+                }}</span>
               </span>
             </span>
             <span
@@ -53,13 +68,13 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
               :class="{ warn: r.adherence.warning }"
               :title="adherenceLabel(r.adherence)"
             >
-              <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}&nbsp;%
+              <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}{{ tr('\u00a0%', '%') }}
             </span>
           </button>
         </li>
       </ul>
     </template>
-    <p v-if="!routines.length" class="empty">Пока нет регулярных задач.</p>
+    <p v-if="!routines.length" class="empty">{{ tr('Пока нет регулярных задач.', 'No routines yet.') }}</p>
   </section>
 </template>
 

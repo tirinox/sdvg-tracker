@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
+import { lang, langPref, setLangPref, tr, type LangPref } from '../app/i18n'
 import { useLive } from '../app/useLive'
 import { updateSettings } from '../db/actions'
 import { clearDemo, generateDemo } from '../demo/demo'
@@ -25,14 +26,23 @@ async function connect() {
   check.value = await connectServer(store, sync, conn.baseUrl, conn.token)
 }
 
-const STATE_TEXT: Record<string, string> = {
-  idle: 'синхронизировано',
-  syncing: 'синхронизация…',
-  offline: 'сервер недоступен — работаем офлайн',
-  unauthorized: 'неверный токен',
-  unconfigured: 'сервер не подключён',
-  server_changed: 'на паузе: данные на сервере сменились',
-  error: 'ошибка',
+const LANGS = (): { id: LangPref; label: string }[] => [
+  { id: 'system', label: tr('Как в системе', 'System default') },
+  { id: 'ru', label: 'Русский' },
+  { id: 'en', label: 'English' },
+]
+
+function stateText(state: string): string {
+  const texts: Record<string, string> = {
+    idle: tr('синхронизировано', 'synced'),
+    syncing: tr('синхронизация…', 'syncing…'),
+    offline: tr('сервер недоступен — работаем офлайн', 'server unreachable — working offline'),
+    unauthorized: tr('неверный токен', 'wrong token'),
+    unconfigured: tr('сервер не подключён', 'no server connected'),
+    server_changed: tr('на паузе: данные на сервере сменились', 'paused: the data on the server changed'),
+    error: tr('ошибка', 'error'),
+  }
+  return texts[state] ?? ''
 }
 
 async function setNumber(key: keyof typeof settings.value, value: string) {
@@ -55,59 +65,87 @@ async function run(label: string, fn: () => Promise<unknown>) {
 }
 
 const fillDemo = () =>
-  confirm('Добавить демо-данные: ~24 рутины, ~40 задач и историю за 4 месяца?') &&
+  confirm(
+    tr(
+      'Добавить демо-данные: ~24 рутины, ~40 задач и историю за 4 месяца?',
+      'Add demo data: ~24 routines, ~40 tasks and 4 months of history?',
+    ),
+  ) &&
   run('demo', () => generateDemo(store, today.value, now.value))
 const removeDemo = () =>
-  confirm('Удалить все демо-данные? Ваши собственные задачи останутся.') &&
+  confirm(tr('Удалить все демо-данные? Ваши собственные задачи останутся.', 'Delete all demo data? Your own tasks will stay.')) &&
   run('clear', () => clearDemo(store))
 </script>
 
 <template>
   <section class="settings">
-    <h1>Настройки</h1>
+    <h1>{{ tr('Настройки', 'Settings') }}</h1>
 
     <div class="card block">
-      <h2>Синхронизация</h2>
+      <h2>{{ tr('Язык', 'Language') }}</h2>
+      <div class="chips" role="group" :aria-label="tr('Язык', 'Language')">
+        <button
+          v-for="l in LANGS()"
+          :key="l.id"
+          type="button"
+          class="chip"
+          :aria-pressed="langPref === l.id"
+          @click="setLangPref(l.id)"
+        >
+          {{ l.label }}
+        </button>
+      </div>
+      <p class="muted">{{ tr('Только на этом устройстве.', 'This device only.') }}</p>
+    </div>
+
+    <div class="card block">
+      <h2>{{ tr('Синхронизация', 'Sync') }}</h2>
       <p class="muted">
-        Приложение работает и без сервера. Сервер нужен, чтобы данные были одинаковыми на телефоне и в
-        браузере. Токен — значение <code>API_TOKEN</code> из файла <code>.env</code>.
+        {{
+          tr(
+            'Приложение работает и без сервера. Сервер нужен, чтобы данные были одинаковыми на телефоне и в браузере.',
+            'The app works without a server too. A server keeps your data the same on your phone and in the browser.',
+          )
+        }}
+        {{ tr('Токен — значение', 'The token is the') }} <code>API_TOKEN</code>
+        {{ tr('из файла', 'value from the') }} <code>.env</code>{{ tr('.', ' file.') }}
       </p>
       <label class="field">
-        <span>Адрес сервера (пусто — этот же сайт)</span>
+        <span>{{ tr('Адрес сервера (пусто — этот же сайт)', 'Server address (empty means this site)') }}</span>
         <input v-model="conn.baseUrl" class="input" placeholder="http://192.168.1.10:8420" />
       </label>
       <label class="field">
-        <span>Токен</span>
+        <span>{{ tr('Токен', 'Token') }}</span>
         <input v-model="conn.token" class="input" type="password" autocomplete="off" />
       </label>
       <div class="actions">
         <button class="btn primary" type="button" :disabled="!conn.token || check === 'checking'" @click="connect">
-          Подключить
+          {{ tr('Подключить', 'Connect') }}
         </button>
-        <span v-if="check === 'ok'" class="ok">Подключено ✓</span>
-        <span v-else-if="check === 'bad-token'" class="bad">Неверный токен</span>
-        <span v-else-if="check === 'offline'" class="bad">Сервер не отвечает</span>
+        <span v-if="check === 'ok'" class="ok">{{ tr('Подключено ✓', 'Connected ✓') }}</span>
+        <span v-else-if="check === 'bad-token'" class="bad">{{ tr('Неверный токен', 'Wrong token') }}</span>
+        <span v-else-if="check === 'offline'" class="bad">{{ tr('Сервер не отвечает', 'Server isn’t responding') }}</span>
       </div>
       <dl class="status">
-        <dt>Состояние</dt>
-        <dd>{{ STATE_TEXT[syncStatus.state] }}</dd>
-        <dt>Последняя синхронизация</dt>
-        <dd>{{ syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString('ru') : '—' }}</dd>
-        <dt>Ждут отправки</dt>
+        <dt>{{ tr('Состояние', 'Status') }}</dt>
+        <dd>{{ stateText(syncStatus.state) }}</dd>
+        <dt>{{ tr('Последняя синхронизация', 'Last sync') }}</dt>
+        <dd>{{ syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString(lang) : '—' }}</dd>
+        <dt>{{ tr('Ждут отправки', 'Waiting to send') }}</dt>
         <dd>{{ outbox }}</dd>
         <template v-if="rejected">
-          <dt>Отклонены сервером</dt>
+          <dt>{{ tr('Отклонены сервером', 'Rejected by the server') }}</dt>
           <dd class="bad">{{ rejected }}</dd>
         </template>
       </dl>
-      <button class="btn" type="button" @click="sync.sync()">Синхронизировать сейчас</button>
+      <button class="btn" type="button" @click="sync.sync()">{{ tr('Синхронизировать сейчас', 'Sync now') }}</button>
     </div>
 
     <div class="card block">
-      <h2>День</h2>
+      <h2>{{ tr('День', 'Day') }}</h2>
       <div class="grid">
         <label class="field">
-          <span>День начинается в (ч)</span>
+          <span>{{ tr('День начинается в (ч)', 'Day starts at (h)') }}</span>
           <input
             class="input"
             type="number"
@@ -118,7 +156,7 @@ const removeDemo = () =>
           />
         </label>
         <label class="field">
-          <span>Утро с (ч)</span>
+          <span>{{ tr('Утро с (ч)', 'Morning from (h)') }}</span>
           <input
             class="input"
             type="number"
@@ -129,7 +167,7 @@ const removeDemo = () =>
           />
         </label>
         <label class="field">
-          <span>День с (ч)</span>
+          <span>{{ tr('День с (ч)', 'Afternoon from (h)') }}</span>
           <input
             class="input"
             type="number"
@@ -140,7 +178,7 @@ const removeDemo = () =>
           />
         </label>
         <label class="field">
-          <span>Вечер с (ч)</span>
+          <span>{{ tr('Вечер с (ч)', 'Evening from (h)') }}</span>
           <input
             class="input"
             type="number"
@@ -151,7 +189,7 @@ const removeDemo = () =>
           />
         </label>
         <label class="field">
-          <span>Стрик: минимум дел в день</span>
+          <span>{{ tr('Стрик: минимум дел в день', 'Streak: minimum things a day') }}</span>
           <input
             class="input"
             type="number"
@@ -161,13 +199,20 @@ const removeDemo = () =>
           />
         </label>
       </div>
-      <p class="muted">После полуночи и до начала дня всё ещё считается «вчера» и «вечер».</p>
+      <p class="muted">
+        {{
+          tr(
+            'После полуночи и до начала дня всё ещё считается «вчера» и «вечер».',
+            'From midnight until the day starts, it still counts as “yesterday” and “evening”.',
+          )
+        }}
+      </p>
     </div>
 
     <div class="card block">
-      <h2>Рутины</h2>
+      <h2>{{ tr('Рутины', 'Routines') }}</h2>
       <label class="field narrow">
-        <span>Предупреждать, если сделано меньше (%)</span>
+        <span>{{ tr('Предупреждать, если сделано меньше (%)', 'Warn when done less than (%)') }}</span>
         <input
           class="input"
           type="number"
@@ -179,24 +224,35 @@ const removeDemo = () =>
         />
       </label>
       <p class="muted">
-        Выполняемость рутины — какая доля её дней за последние 30 выполнена (у новой — с первого выполнения).
-        Дни, пропущенные кнопкой «Пропуск», не в счёт, сегодняшний — только когда сделан. Ниже порога рутина
-        помечается как пропускаемая. 0 — не предупреждать.
+        {{
+          tr(
+            'Выполняемость рутины — какая доля её дней за последние 30 выполнена (у новой — с первого выполнения). ' +
+              'Дни, пропущенные кнопкой «Пропуск», не в счёт, сегодняшний — только когда сделан. ' +
+              'Ниже порога рутина помечается как пропускаемая. 0 — не предупреждать.',
+            'A routine’s completion rate is the share of its days in the last 30 that got done (for a new one, since it was first done). ' +
+              'Days skipped with the “Skip” button don’t count, and today counts only once it’s done. ' +
+              'Below the threshold, the routine is flagged as being skipped. 0 turns warnings off.',
+          )
+        }}
       </p>
     </div>
 
     <div class="card block">
-      <h2>Демо-данные</h2>
+      <h2>{{ tr('Демо-данные', 'Demo data') }}</h2>
       <p class="muted">
-        Чтобы посмотреть приложение в деле. Демо-данные отмечены особыми ID и удаляются одной кнопкой на
-        всех устройствах — ваши задачи не пострадают.
+        {{
+          tr(
+            'Чтобы посмотреть приложение в деле. Демо-данные отмечены особыми ID и удаляются одной кнопкой на всех устройствах — ваши задачи не пострадают.',
+            'To see the app in action. Demo data is tagged with special IDs and removed with one button on all devices — your own tasks stay safe.',
+          )
+        }}
       </p>
       <div class="actions">
         <button class="btn" type="button" :disabled="!!busy" @click="fillDemo">
-          {{ busy === 'demo' ? 'Заполняю…' : 'Заполнить демо-данными' }}
+          {{ busy === 'demo' ? tr('Заполняю…', 'Filling…') : tr('Заполнить демо-данными', 'Fill with demo data') }}
         </button>
         <button class="btn danger" type="button" :disabled="!!busy" @click="removeDemo">
-          {{ busy === 'clear' ? 'Удаляю…' : 'Удалить демо-данные' }}
+          {{ busy === 'clear' ? tr('Удаляю…', 'Deleting…') : tr('Удалить демо-данные', 'Delete demo data') }}
         </button>
       </div>
     </div>

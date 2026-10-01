@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useApp } from '../app/context'
-import { plural } from '../app/format'
+import { tr, trn } from '../app/i18n'
 import type { Counts, ServerChange } from '../sync/client'
 import Modal from './Modal.vue'
 
@@ -11,14 +11,16 @@ const { sync } = useApp()
 const busy = ref<'server' | 'merge' | null>(null)
 
 const title = computed(() =>
-  props.change.kind === 'first' ? 'На сервере уже есть данные' : 'Данные на сервере сменились',
+  props.change.kind === 'first'
+    ? tr('На сервере уже есть данные', 'The server already has data')
+    : tr('Данные на сервере сменились', 'The data on the server has changed'),
 )
 
 function describe(c: Counts): string {
-  if (c.task + c.routine === 0) return 'пусто'
+  if (c.task + c.routine === 0) return tr('пусто', 'empty')
   return [
-    `${c.task} ${plural(c.task, 'задача', 'задачи', 'задач')}`,
-    `${c.routine} ${plural(c.routine, 'рутина', 'рутины', 'рутин')}`,
+    trn(c.task, ['задача', 'задачи', 'задач'], ['task', 'tasks']),
+    trn(c.routine, ['рутина', 'рутины', 'рутин'], ['routine', 'routines']),
   ].join(' · ')
 }
 
@@ -37,30 +39,57 @@ async function choose(choice: 'server' | 'merge') {
   <Modal :title="title" @close="emit('close')">
     <p class="lead">
       <template v-if="change.kind === 'first'">
-        Задачи есть и на этом устройстве, и на сервере.
+        {{
+          tr('Задачи есть и на этом устройстве, и на сервере.', 'There are tasks both on this device and on the server.')
+        }}
       </template>
-      <template v-else>Базу на сервере пересоздали, или это другой сервер.</template>
-      Синхронизация на паузе, пока вы не решите, что делать с данными.
+      <template v-else>
+        {{
+          tr(
+            'Базу на сервере пересоздали, или это другой сервер.',
+            'The server database was recreated, or this is a different server.',
+          )
+        }}
+      </template>
+      {{
+        tr(
+          'Синхронизация на паузе, пока вы не решите, что делать с данными.',
+          'Sync is paused until you decide what to do with the data.',
+        )
+      }}
     </p>
     <dl class="counts">
-      <dt>На сервере</dt>
+      <dt>{{ tr('На сервере', 'On the server') }}</dt>
       <dd>{{ describe(change.server) }}</dd>
-      <dt>На этом устройстве</dt>
+      <dt>{{ tr('На этом устройстве', 'On this device') }}</dt>
       <dd>{{ describe(change.local) }}</dd>
     </dl>
     <div class="choices">
       <button class="choice primary" type="button" :disabled="!!busy" @click="choose('server')">
-        <strong>{{ busy === 'server' ? 'Загружаю…' : 'Взять данные сервера' }}</strong>
-        <span>Данные этого устройства удалятся, загрузятся серверные.</span>
+        <strong>
+          {{ busy === 'server' ? tr('Загружаю…', 'Downloading…') : tr('Взять данные сервера', 'Use the server’s data') }}
+        </strong>
+        <span>
+          {{
+            tr(
+              'Данные этого устройства удалятся, загрузятся серверные.',
+              'The data on this device is deleted and the server’s data is downloaded.',
+            )
+          }}
+        </span>
       </button>
       <button class="choice" type="button" :disabled="!!busy" @click="choose('merge')">
-        <strong>{{ busy === 'merge' ? 'Отправляю…' : 'Объединить' }}</strong>
-        <span>Данные этого устройства добавятся к серверным.</span>
+        <strong>{{ busy === 'merge' ? tr('Отправляю…', 'Uploading…') : tr('Объединить', 'Merge') }}</strong>
+        <span>
+          {{ tr('Данные этого устройства добавятся к серверным.', 'The data on this device is added to the server’s.') }}
+        </span>
       </button>
     </div>
 
     <template #footer>
-      <button class="btn ghost" type="button" :disabled="!!busy" @click="emit('close')">Решить позже</button>
+      <button class="btn ghost" type="button" :disabled="!!busy" @click="emit('close')">
+        {{ tr('Решить позже', 'Decide later') }}
+      </button>
     </template>
   </Modal>
 </template>

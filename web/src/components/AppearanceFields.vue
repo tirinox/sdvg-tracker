@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue'
 import { useApp } from '../app/context'
+import { tr } from '../app/i18n'
 import { suggestEmoji } from '../sync/emoji'
 import EmojiCircle from './EmojiCircle.vue'
 
@@ -59,10 +60,10 @@ const open = ref(false)
 
 <template>
   <div class="appearance">
-    <button class="preview" type="button" title="Выбрать эмодзи" @click="open = !open">
+    <button class="preview" type="button" :title="tr('Выбрать эмодзи', 'Pick an emoji')" @click="open = !open">
       <EmojiCircle :emoji="emoji" :color="color" :size="52" />
     </button>
-    <div class="colors" role="radiogroup" aria-label="Цвет">
+    <div class="colors" role="radiogroup" :aria-label="tr('Цвет', 'Color')">
       <button
         v-for="c in 12"
         :key="c"
@@ -75,8 +76,8 @@ const open = ref(false)
       />
     </div>
   </div>
-  <div v-if="suggested.length" class="suggested" role="group" aria-label="Подходят к названию">
-    <span class="hint">Подходят</span>
+  <div v-if="suggested.length" class="suggested" role="group" :aria-label="tr('Подходят к названию', 'Fit the title')">
+    <span class="hint">{{ tr('Подходят', 'Suggested') }}</span>
     <button
       v-for="e in suggested"
       :key="e"
@@ -92,7 +93,7 @@ const open = ref(false)
     <input
       class="input custom"
       :value="emoji ?? ''"
-      placeholder="Своё эмодзи"
+      :placeholder="tr('Своё эмодзи', 'Your own emoji')"
       maxlength="8"
       @input="choose(($event.target as HTMLInputElement).value || null)"
     />

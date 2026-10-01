@@ -1,0 +1,46 @@
+{
+  "sourceLanguage": "ru",
+  "strings": {
+    "Задачи на сегодня": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's tasks"
+          }
+        }
+      }
+    },
+    "Новая задача": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New task"
+          }
+        }
+      }
+    },
+    "Открывает SDVG на экране «Сейчас».": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens SDVG on the Now screen."
+          }
+        }
+      }
+    },
+    "Открывает SDVG с новой задачей на сегодня.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens SDVG with a new task for today."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

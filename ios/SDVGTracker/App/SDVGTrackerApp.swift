@@ -37,7 +37,7 @@ struct SDVGTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            LocalizedRoot()
                 .environment(model)
                 .onAppear { model.start() }
                 .onContinueUserActivity(CSSearchableItemActionType) { activity in
@@ -64,5 +64,18 @@ struct SDVGTrackerApp: App {
         let request = BGAppRefreshTaskRequest(identifier: refreshTaskID)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         try? BGTaskScheduler.shared.submit(request)
+    }
+}
+
+/// Rebuilds the whole view tree when the interface language changes, so every tr() is read again;
+/// the selected tab and the rest of the state live in the model and survive.
+private struct LocalizedRoot: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let _ = model.language
+        RootView()
+            .id(L10n.current)
+            .environment(\.locale, L10n.current.locale)
     }
 }

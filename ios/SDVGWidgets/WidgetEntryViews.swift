@@ -15,7 +15,7 @@ struct HomeWidgetView: View {
                     Image(systemName: "circle").font(.system(size: 17)).foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Готово: \(item.title)")
+                .accessibilityLabel(tr("Готово: \(item.title)", "Mark done: \(item.title)"))
             )
         }
     }

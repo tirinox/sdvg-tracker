@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
-import { WEEKDAYS, adherenceLabel } from '../app/format'
+import { adherenceLabel, weekdayNames } from '../app/format'
+import { tr } from '../app/i18n'
 import { loadRoutineAdherence } from '../app/views'
 import type { RoutineVersion } from '../core/types'
 import type { Adherence } from '../domain/routines'
@@ -46,6 +47,11 @@ const valid = computed(
   () => form.title.trim().length > 0 && form.weekdays > 0 && (form.time_kind !== 'exact' || !!form.time),
 )
 
+/** 80&nbsp;% in Russian, 80% in English. */
+function percent(n: number): string {
+  return tr(`${n}\u00a0%`, `${n}%`)
+}
+
 function toggleDay(i: number) {
   form.weekdays ^= 1 << i
 }
@@ -70,7 +76,11 @@ async function save() {
 }
 
 async function archive() {
-  if (props.id && confirm('Убрать рутину? Прошлые дни останутся в истории.')) {
+  const question = tr(
+    'Убрать рутину? Прошлые дни останутся в истории.',
+    'Remove this routine? Past days stay in the history.',
+  )
+  if (props.id && confirm(question)) {
     await archiveRoutine(store, props.id, today.value)
     emit('close')
   }
@@ -78,9 +88,17 @@ async function archive() {
 </script>
 
 <template>
-  <Modal :title="id ? 'Регулярная задача' : 'Новая регулярная задача'" @close="emit('close')">
+  <Modal
+    :title="id ? tr('Регулярная задача', 'Routine') : tr('Новая регулярная задача', 'New routine')"
+    @close="emit('close')"
+  >
     <template v-if="loaded">
-      <input v-model="form.title" class="input title" placeholder="Например, «Пообедать»" @keydown.enter="save" />
+      <input
+        v-model="form.title"
+        class="input title"
+        :placeholder="tr('Например, «Пообедать»', 'For example, “Have lunch”')"
+        @keydown.enter="save"
+      />
       <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" :title="form.title" :auto="!id" />
       <TimingFields
         v-model:kind="form.time_kind"
@@ -89,10 +107,10 @@ async function archive() {
         v-model:duration="form.duration_min"
       />
       <div class="field">
-        <span>Дни недели</span>
+        <span>{{ tr('Дни недели', 'Days of the week') }}</span>
         <div class="chips">
           <button
-            v-for="(d, i) in WEEKDAYS"
+            v-for="(d, i) in weekdayNames()"
             :key="d"
             type="button"
             class="chip"
@@ -105,24 +123,41 @@ async function archive() {
       </div>
       <p v-if="adherence?.percent != null" class="rate" :class="{ warn: adherence.warning }">
         <strong>
-          {{ adherence.warning ? '⚠︎ Пропускается' : 'Выполняется' }}: {{ adherence.percent }}&nbsp;%
+          {{ adherence.warning ? tr('⚠︎ Пропускается', '⚠︎ Being skipped') : tr('Выполняется', 'Completion rate') }}:
+          {{ percent(adherence.percent) }}
         </strong>
         — {{ adherenceLabel(adherence) }}.
         <span class="muted">
-          Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт.
-          <template v-if="adherence.warning">Порог — {{ settings.routine_warn_below }}&nbsp;%, меняется в настройках.</template>
+          {{
+            tr(
+              'Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт.',
+              'Counted over the last 30 days, but not before the first time it was done; days skipped with “Skip” don’t count.',
+            )
+          }}
+          <template v-if="adherence.warning">
+            {{
+              tr(
+                `Порог — ${percent(settings.routine_warn_below)}, меняется в настройках.`,
+                `The warning shows below ${percent(settings.routine_warn_below)}; you can change that in Settings.`,
+              )
+            }}
+          </template>
         </span>
       </p>
       <p class="muted note">
-        Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего,
-        если сегодня уже отмечено) — прошлые дни остаются как были.
+        {{
+          tr(
+            'Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего, если сегодня уже отмечено) — прошлые дни остаются как были.',
+            'Routines don’t move to other days. Changes apply from today (or from tomorrow, if today is already marked) — past days stay as they were.',
+          )
+        }}
       </p>
     </template>
     <template #footer>
-      <button v-if="id" class="btn danger" type="button" @click="archive">Убрать рутину</button>
+      <button v-if="id" class="btn danger" type="button" @click="archive">{{ tr('Убрать рутину', 'Remove routine') }}</button>
       <span style="flex: 1" />
-      <button class="btn" type="button" @click="emit('close')">Отмена</button>
-      <button class="btn primary" type="button" :disabled="!valid" @click="save">Сохранить</button>
+      <button class="btn" type="button" @click="emit('close')">{{ tr('Отмена', 'Cancel') }}</button>
+      <button class="btn primary" type="button" :disabled="!valid" @click="save">{{ tr('Сохранить', 'Save') }}</button>
     </template>
   </Modal>
 </template>

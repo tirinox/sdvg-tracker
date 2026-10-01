@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { isOnboardingDone } from './app/connect'
+import { tr } from './app/i18n'
 import { useApp } from './app/context'
 import { useLive } from './app/useLive'
 import { claimRecordCelebration, loadRecord } from './app/views'
@@ -38,13 +39,13 @@ watch(record, async (r) => {
   }
 })
 
-const NAV = [
-  { to: '/', label: 'Сейчас', icon: '✦' },
-  { to: '/day', label: 'День', icon: '☰' },
-  { to: '/inbox', label: 'Входящие', icon: '📥' },
-  { to: '/routines', label: 'Рутины', icon: '⟳' },
-  { to: '/settings', label: 'Настройки', icon: '⚙' },
-]
+const nav = computed(() => [
+  { to: '/', label: tr('Сейчас', 'Now'), icon: '✦' },
+  { to: '/day', label: tr('День', 'Day'), icon: '☰' },
+  { to: '/inbox', label: tr('Входящие', 'Inbox'), icon: '📥' },
+  { to: '/routines', label: tr('Рутины', 'Routines'), icon: '⟳' },
+  { to: '/settings', label: tr('Настройки', 'Settings'), icon: '⚙' },
+])
 
 // Sync paused on another data set: ask once per server, the header badge asks again.
 const dismissedServer = ref<string | null>(null)
@@ -56,17 +57,17 @@ const serverChange = computed(() => {
 const sync = computed(() => {
   switch (syncStatus.value.state) {
     case 'idle':
-      return { cls: 'ok', text: 'синхронизировано' }
+      return { cls: 'ok', text: tr('синхронизировано', 'synced') }
     case 'syncing':
-      return { cls: 'busy', text: 'синхронизация…' }
+      return { cls: 'busy', text: tr('синхронизация…', 'syncing…') }
     case 'offline':
-      return { cls: 'warn', text: 'офлайн' }
+      return { cls: 'warn', text: tr('офлайн', 'offline') }
     case 'unconfigured':
-      return { cls: 'off', text: 'только это устройство' }
+      return { cls: 'off', text: tr('только это устройство', 'this device only') }
     case 'server_changed':
-      return { cls: 'bad', text: 'сервер сменился — нужно решение' }
+      return { cls: 'bad', text: tr('сервер сменился — нужно решение', 'server changed — needs a decision') }
     default:
-      return { cls: 'bad', text: 'ошибка синхронизации' }
+      return { cls: 'bad', text: tr('ошибка синхронизации', 'sync error') }
   }
 })
 </script>
@@ -76,10 +77,10 @@ const sync = computed(() => {
     <header ref="topBar" class="top">
       <RouterLink to="/" class="brand">
         <span class="logo">✓</span>
-        СДВГ-трекер
+        {{ tr('СДВГ-трекер', 'ADHD tracker') }}
       </RouterLink>
-      <nav class="tabs" aria-label="Разделы">
-        <RouterLink v-for="n in NAV" :key="n.to" :to="n.to" class="tab">
+      <nav class="tabs" :aria-label="tr('Разделы', 'Sections')">
+        <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="tab">
           <span class="icon" aria-hidden="true">{{ n.icon }}</span>
           <span class="label">{{ n.label }}</span>
         </RouterLink>
@@ -105,7 +106,7 @@ const sync = computed(() => {
       <RouterView />
     </main>
 
-    <button class="fab" type="button" aria-label="Новая задача" @click="openTask(null)">＋</button>
+    <button class="fab" type="button" :aria-label="tr('Новая задача', 'New task')" @click="openTask(null)">＋</button>
 
     <TaskEditor
       v-if="editor?.kind === 'task'"

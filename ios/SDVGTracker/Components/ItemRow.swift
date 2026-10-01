@@ -55,7 +55,7 @@ struct ItemRow: View {
                             .frame(width: 34, height: 34)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityLabel(item.skipped ? "Вернуть" : "Пропустить сегодня")
+                    .accessibilityLabel(item.skipped ? tr("Вернуть", "Undo skip") : tr("Пропустить сегодня", "Skip today"))
                 }
                 Button(action: toggleDone) {
                     let checked = item.done || checking
@@ -79,15 +79,15 @@ struct ItemRow: View {
                 .sensoryFeedback(.success, trigger: pops)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { checkFrame = $0 }
                 .disabled(!isTask && day > model.today)
-                .accessibilityLabel(item.done || checking ? "Снять отметку" : "Готово")
+                .accessibilityLabel(item.done || checking ? tr("Снять отметку", "Mark not done") : tr("Готово", "Mark done"))
             }
             if item.attention >= 4 && !item.done && isTask {
                 FlowLayout(spacing: 6) {
-                    Text("Застряла?").font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
+                    Text(tr("Застряла?", "Stuck?")).font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
                         .padding(.vertical, 4)
-                    Button("Разбить на шаги") { edit() }
-                    Button("Во входящие") { model.perform { try $0.updateTask(item.refID, ["date": nil]) } }
-                    Button("Удалить", role: .destructive) { model.perform { try $0.deleteTask(item.refID) } }
+                    Button(tr("Разбить на шаги", "Break into steps")) { edit() }
+                    Button(tr("Во входящие", "Move to Inbox")) { model.perform { try $0.updateTask(item.refID, ["date": nil]) } }
+                    Button(tr("Удалить", "Delete"), role: .destructive) { model.perform { try $0.deleteTask(item.refID) } }
                 }
                 .font(.footnote)
                 .lineLimit(1)
@@ -131,9 +131,9 @@ struct ItemRow: View {
             }
             if let a = item.adherence, a.warning, let percent = a.percent, !item.done, !item.skipped {
                 Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
-                    .accessibilityLabel("Рутина пропускается: \(Fmt.adherence(a))")
+                    .accessibilityLabel(tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))"))
             }
-            if item.skipped { Text("пропущено").font(.footnote).foregroundStyle(.secondary) }
+            if item.skipped { Text(tr("пропущено", "skipped")).font(.footnote).foregroundStyle(.secondary) }
         }
     }
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { monthLabel, plural, shortDate } from '../app/format'
+import { monthLabel, shortDate, weekdayNames } from '../app/format'
+import { tr, trn } from '../app/i18n'
 import type { HeatCell } from '../app/views'
 
 const props = defineProps<{ cells: HeatCell[] }>()
@@ -23,17 +24,18 @@ const months = computed(() =>
 )
 
 const label = (c: HeatCell) =>
-  `${shortDate(c.date)}: ${c.count} ${plural(c.count, 'дело', 'дела', 'дел')}`
+  `${shortDate(c.date)}: ${trn(c.count, ['дело', 'дела', 'дел'], ['thing', 'things'])}`
 </script>
 
 <template>
   <div class="scroll">
-    <div class="grid" role="grid" aria-label="Активность за год">
+    <div class="grid" role="grid" :aria-label="tr('Активность за год', 'Activity over the year')">
       <div class="months">
         <span v-for="(m, i) in months" :key="i">{{ m }}</span>
       </div>
       <div class="days">
-        <span>пн</span><span></span><span>ср</span><span></span><span>пт</span><span></span><span></span>
+        <span>{{ weekdayNames()[0] }}</span><span></span><span>{{ weekdayNames()[2] }}</span><span></span
+        ><span>{{ weekdayNames()[4] }}</span><span></span><span></span>
       </div>
       <div class="weeks">
         <div v-for="(w, i) in weeks" :key="i" class="week">
@@ -53,11 +55,11 @@ const label = (c: HeatCell) =>
     </div>
   </div>
   <div class="legend muted">
-    меньше
+    {{ tr('меньше', 'less') }}
     <span class="cell l0" /><span class="cell l1" /><span class="cell l2" /><span class="cell l3" /><span
       class="cell l4"
     />
-    больше
+    {{ tr('больше', 'more') }}
   </div>
 </template>
 

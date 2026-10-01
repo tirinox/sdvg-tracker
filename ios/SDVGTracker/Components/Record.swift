@@ -1,6 +1,9 @@
 import SDVGCore
 import SwiftUI
 
+/// "3 дела" / "3 things".
+private func things(_ n: Int) -> String { trn(n, ru: ("дело", "дела", "дел"), en: ("thing", "things")) }
+
 /// Previous best day on the Now screen, or today's new record once it is broken.
 struct RecordCard: View {
     var record: Rules.DayRecord
@@ -11,13 +14,13 @@ struct RecordCard: View {
             Text("🏆").font(.title)
             VStack(alignment: .leading, spacing: 3) {
                 if record.broken {
-                    Text("Новый рекорд: \(record.todayDone) \(plural(record.todayDone, "дело", "дела", "дел")) за день")
+                    Text(tr("Новый рекорд: \(things(record.todayDone)) за день", "New record: \(things(record.todayDone)) in a day"))
                         .font(.subheadline.bold())
-                    Text("Прежний — \(record.bestDone), \(date)").font(.caption).foregroundStyle(.secondary)
+                    Text(tr("Прежний — \(record.bestDone), \(date)", "Previous: \(record.bestDone), \(date)")).font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Text("Рекорд: \(record.bestDone) \(plural(record.bestDone, "дело", "дела", "дел")) за день")
+                    Text(tr("Рекорд: \(things(record.bestDone)) за день", "Record: \(things(record.bestDone)) in a day"))
                         .font(.subheadline.bold())
-                    Text("\(date) · чтобы побить, сделайте сегодня ещё \(record.toBeat)")
+                    Text(tr("\(date) · чтобы побить, сделайте сегодня ещё \(record.toBeat)", "\(date) · do \(record.toBeat) more today to beat it"))
                         .font(.caption).foregroundStyle(.secondary)
                     ProgressView(value: Double(record.todayDone), total: Double(record.bestDone + 1)).tint(Palette.warn)
                 }
@@ -55,8 +58,8 @@ struct RecordCelebration: View {
                 HStack(spacing: 12) {
                     Text("🏆").font(.largeTitle)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Новый рекорд!").font(.headline)
-                        Text("\(record.todayDone) \(plural(record.todayDone, "дело", "дела", "дел")) за день — прежний был \(record.bestDone)")
+                        Text(tr("Новый рекорд!", "New record!")).font(.headline)
+                        Text(tr("\(things(record.todayDone)) за день — прежний был \(record.bestDone)", "\(things(record.todayDone)) in a day, up from \(record.bestDone)"))
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                 }

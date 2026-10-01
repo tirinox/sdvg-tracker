@@ -61,13 +61,14 @@ struct DoneCelebrationView: View {
 
     private var toast: some View {
         let big = celebration.level == 3
-        let times = "\(celebration.moves) \(plural(celebration.moves, "раз", "раза", "раз"))"
+        let times = trn(celebration.moves, ru: ("раз", "раза", "раз"), en: ("time", "times"))
         return Button(action: onClose) {
             HStack(spacing: 12) {
                 Text(big ? "👏" : "🎆").font(.largeTitle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(big ? "Вот это победа!" : "Салют!").font(.headline)
-                    Text(big ? "Задачу переносили \(times) — и она сделана" : "Переносили \(times), а вы её сделали")
+                    Text(big ? tr("Вот это победа!", "Now that's a win!") : tr("Салют!", "Hooray!")).font(.headline)
+                    Text(big ? tr("Задачу переносили \(times) — и она сделана", "Moved \(times), and now it's done")
+                         : tr("Переносили \(times), а вы её сделали", "Moved \(times), and you did it"))
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
