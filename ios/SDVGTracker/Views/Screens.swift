@@ -98,7 +98,7 @@ struct NowScreen: View {
                     stat("\(stats?.totalDone ?? 0)", tr("всего сделано", "done in total"))
                 }
                 if let record = stats?.record, record.bestDate != nil { RecordCard(record: record) }
-                Text(tr("ГЛАВНОЕ СЕЙЧАС", "WHAT MATTERS NOW")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr("ГЛАВНОЕ СЕЙЧАС", "UP NEXT")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 if top.isEmpty {
                     Card {
                         Text((day?.total ?? 0) > 0 ? tr("Всё на сегодня сделано 🎉", "All done for today 🎉") : tr("На сегодня пока ничего нет", "Nothing for today yet"))
