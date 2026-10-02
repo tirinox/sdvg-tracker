@@ -7,6 +7,14 @@ import SDVGCore
 /// It is downloaded ahead, on an earlier launch, so it starts at once and needs no network.
 @MainActor @Observable
 final class GoodMorning {
+    /// The video plays by itself in the morning; a setting on this device, on by default.
+    /// Off, nothing is downloaded ahead; the settings button still shows one.
+    var enabled: Bool {
+        didSet {
+            defaults.set(enabled, forKey: Self.enabledKey)
+            prepare()
+        }
+    }
     /// The video on screen.
     private(set) var playing: URL?
     /// The settings button is waiting for a download, or it failed.
@@ -16,8 +24,9 @@ final class GoodMorning {
     @ObservationIgnored private let baseURL: () -> String
     @ObservationIgnored private var preparing: Task<Void, Never>?
 
-    // Per device: the file ready for the next morning, the one shown last (not to repeat it)
-    // and the (logical) day it was shown.
+    // Per device: the switch, the file ready for the next morning, the one shown last (not to
+    // repeat it) and the (logical) day it was shown.
+    private static let enabledKey = "goodmorning_enabled"
     private static let nextKey = "goodmorning_next"
     private static let lastKey = "goodmorning_last"
     private static let shownKey = "goodmorning_shown_day"
@@ -43,6 +52,7 @@ final class GoodMorning {
 
     init(baseURL: @escaping () -> String) {
         self.baseURL = baseURL
+        enabled = UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true
     }
 
     private var defaults: UserDefaults { .standard }
@@ -58,7 +68,7 @@ final class GoodMorning {
     /// has played today; otherwise makes sure one is ready for the next morning.
     func greet(now: LocalDateTime, settings: Settings) {
         let day = Dates.logicalDay(now, dayStartHour: settings.dayStartHour)
-        guard playing == nil, Dates.partOfDay(now, settings) == .morning,
+        guard enabled, playing == nil, Dates.partOfDay(now, settings) == .morning,
               defaults.string(forKey: Self.shownKey) != day, let next else {
             prepare()
             return
@@ -90,12 +100,13 @@ final class GoodMorning {
         prepare()
     }
 
-    /// Downloads a random video for the next morning unless one is ready, and clears the rest of the cache.
+    /// Downloads a random video for the next morning unless one is ready (or the video is off),
+    /// and clears the rest of the cache.
     func prepare() {
         guard preparing == nil, !baseURL().isEmpty else { return }
         preparing = Task {
             defer { preparing = nil }
-            if next == nil {
+            if enabled, next == nil {
                 do {
                     let video = try await fetchIndex().random(avoiding: [Self.lastKey].compactMap { defaults.string(forKey: $0) })
                     defaults.set(try await download(video).lastPathComponent, forKey: Self.nextKey)

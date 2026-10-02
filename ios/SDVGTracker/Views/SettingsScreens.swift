@@ -120,6 +120,8 @@ struct SettingsScreen: View {
                          "Without the total, the widgets and the Now screen show only how much is done."))
             }
             SwiftUI.Section {
+                Toggle(tr("Показывать утром", "Show in the morning"), isOn: Binding(
+                    get: { model.goodMorning.enabled }, set: { model.goodMorning.enabled = $0 }))
                 Button {
                     Task { await model.goodMorning.showRandom() }
                 } label: {
@@ -135,8 +137,8 @@ struct SettingsScreen: View {
             } header: {
                 Text(tr("Утренняя заставка", "Morning video"))
             } footer: {
-                Text(tr("Раз в день, при первом запуске утром, — случайное видео с сервера. Без сервера заставки нет.",
-                         "Once a day, on the first launch in the morning: a random video from the server. No server, no video."))
+                Text(tr("Раз в день, при первом запуске утром, — случайное видео с сервера, дела на сегодня и стрик. Только на этом устройстве; без сервера заставки нет.",
+                         "Once a day, on the first launch in the morning: a random video from the server, today’s to-do and the streak. This device only; no server, no video."))
             }
             SwiftUI.Section {
                 stepper(tr("День начинается в", "Day starts at"), s.dayStartHour, 0...12, "day_start_hour")
