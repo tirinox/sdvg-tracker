@@ -131,9 +131,14 @@ final class StoreTests: XCTestCase {
 
         try s.updateSettings(["routine_warn_below": 30])
         XCTAssertFalse(try s.loadRoutines(today: today)[0].adherence.warning)
+        // What a check would make it, before it is written: today, or a missed day counted already.
+        let checked = try s.loadRoutineAdherence(r, today: today, doneOn: today)
+        let caughtUp = try XCTUnwrap(s.loadRoutineAdherence(r, today: today, doneOn: "2026-09-19"))
+        XCTAssertEqual([caughtUp.done, caughtUp.total, caughtUp.percent], [2, 3, 67])
         try s.setRoutineCheck(r, date: today, status: .done)
         let after = try s.loadRoutines(today: today)[0].adherence
         XCTAssertEqual([after.done, after.total, after.percent], [2, 4, 50])
+        XCTAssertEqual(checked, after)
     }
 
     func testDayViewSectionsAndNow() throws {

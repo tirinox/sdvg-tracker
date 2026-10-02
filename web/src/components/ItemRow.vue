@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useApp } from '../app/context'
 import {
   adherenceLabel,
@@ -12,7 +12,7 @@ import {
   timingLabel,
 } from '../app/format'
 import { tr } from '../app/i18n'
-import type { DayItem } from '../app/views'
+import { loadRoutineAdherence, type DayItem } from '../app/views'
 import {
   completeTask,
   deleteTask,
@@ -20,6 +20,7 @@ import {
   setRoutineCheck,
   updateTask,
 } from '../db/actions'
+import type { Adherence } from '../domain/routines'
 import { celebrationLevel } from '../domain/tasks'
 import EmojiCircle from './EmojiCircle.vue'
 
@@ -47,10 +48,56 @@ const future = computed(() => day.value > today.value)
 
 /** Time for the check to play before the row is marked done and leaves or moves down. */
 const CHECK_MS = 420
+/** The same when the "being skipped" tag has a new percent to count up to. */
+const BOOST_MS = 1500
+/** The count takes longer the further the percent goes, up to this. */
+const COUNT_MS = 700
+
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // Set on tap, before the write: the check fills at once and plays its animation.
 const checking = ref(false)
 const checked = computed(() => props.item.done || checking.value)
+
+// The routine's adherence as the check makes it; the tag counts up to it at once.
+const boost = ref<Adherence | null>(null)
+/** What the "being skipped" tag shows, if anything: once the row is checked, the new rate. */
+const lagging = computed(() => {
+  if (checking.value && boost.value) return boost.value
+  const a = props.item.adherence
+  return a?.warning && !props.item.done && !props.item.skipped ? a : null
+})
+const shownPercent = ref(lagging.value?.percent ?? 0)
+// Green with a thumbs up; follows the warning once the count has got there.
+const ok = ref(false)
+let counting = 0
+
+watch(
+  () => lagging.value?.percent ?? null,
+  (target, before) => {
+    cancelAnimationFrame(counting)
+    if (target === null) return
+    const warning = lagging.value!.warning
+    const from = shownPercent.value
+    if (warning) ok.value = false
+    // A tag that was not there has nothing to count from.
+    if (before === null || reducedMotion() || from === target) {
+      shownPercent.value = target
+      ok.value = !warning
+      return
+    }
+    const ms = Math.min(COUNT_MS, 200 + 50 * Math.abs(target - from))
+    const start = performance.now()
+    const step = (t: number) => {
+      const k = Math.min(1, (t - start) / ms)
+      shownPercent.value = Math.round(from + (target - from) * (1 - (1 - k) ** 3))
+      if (k < 1) counting = requestAnimationFrame(step)
+      else ok.value = !warning
+    }
+    counting = requestAnimationFrame(step)
+  },
+)
+onBeforeUnmount(() => cancelAnimationFrame(counting))
 
 async function toggleDone(e: MouseEvent) {
   const i = props.item
@@ -59,20 +106,26 @@ async function toggleDone(e: MouseEvent) {
     await (i.kind === 'task' ? reopenTask(store, i.id) : setRoutineCheck(store, i.id, day.value, null))
     return
   }
+  const lagged = i.kind === 'routine' && lagging.value !== null
   checking.value = true
   const level = i.kind === 'task' ? celebrationLevel(i.moves) : 0
   if (level) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     celebrate({ level, moves: i.moves, x: r.left + r.width / 2, y: r.top + r.height / 2 })
   }
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    await new Promise((resolve) => setTimeout(resolve, CHECK_MS))
+  if (lagged) boost.value = await loadRoutineAdherence(store, i.id, today.value, day.value).catch(() => null)
+  // The new percent is there to be read, so it gets its time with reduced motion too.
+  if (boost.value || !reducedMotion()) {
+    await new Promise((resolve) => setTimeout(resolve, boost.value ? BOOST_MS : CHECK_MS))
   }
   try {
     await (i.kind === 'task' ? completeTask(store, i.id, today.value) : setRoutineCheck(store, i.id, day.value, 'done'))
   } finally {
     // The check stays filled from the data now; keeping the flag a bit longer lets its animation finish.
-    setTimeout(() => (checking.value = false), 400)
+    setTimeout(() => {
+      checking.value = false
+      boost.value = null
+    }, 400)
   }
 }
 
@@ -110,11 +163,17 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
             ↻ {{ item.moves }}
           </span>
           <span
-            v-if="item.adherence?.warning && !item.done && !item.skipped"
+            v-if="lagging"
             class="tag lagging"
-            :title="tr(`Рутина пропускается: ${adherenceLabel(item.adherence)}`, `Routine being skipped: ${adherenceLabel(item.adherence)}`)"
+            :class="{ ok }"
+            :title="
+              lagging.warning
+                ? tr(`Рутина пропускается: ${adherenceLabel(lagging)}`, `Routine being skipped: ${adherenceLabel(lagging)}`)
+                : tr(`Рутина снова выполняется: ${adherenceLabel(lagging)}`, `Routine back on track: ${adherenceLabel(lagging)}`)
+            "
           >
-            ⚠︎ {{ item.adherence.percent }}{{ tr('\u00a0%', '%') }}
+            <span v-if="ok" class="thumb" aria-hidden="true">👍</span><template v-else>⚠︎</template>
+            {{ shownPercent }}{{ tr('\u00a0%', '%') }}
           </span>
           <span v-if="item.skipped">{{ tr('пропущено', 'skipped') }}</span>
           <span v-if="item.priority === 'low' && !item.done && !item.skipped">↓ {{ tr('не срочно', 'not urgent') }}</span>
@@ -226,6 +285,29 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 .tag.lagging {
   background: var(--warn-soft);
   color: var(--warn);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background 0.3s,
+    color 0.3s;
+}
+/* A check took the routine out of the warning zone. */
+.tag.lagging.ok {
+  background: color-mix(in srgb, var(--ok) 14%, var(--surface));
+  color: var(--ok);
+}
+.thumb {
+  display: inline-block;
+  transform-origin: 50% 80%;
+  animation: thumb-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes thumb-pop {
+  from {
+    transform: scale(0.1) rotate(-30deg);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
 }
 .hints {
   display: flex;
@@ -363,7 +445,8 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   .check.pop,
   .check.pop svg path,
   .check.pop::after,
-  .row.checking {
+  .row.checking,
+  .thumb {
     animation: none;
   }
   .check.pop::after {

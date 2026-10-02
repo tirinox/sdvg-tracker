@@ -382,13 +382,23 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
     )
 }
 
-/** Adherence of one routine, for its editor; null for a routine without versions. */
-export async function loadRoutineAdherence(store: Store, routineId: string, today: LocalDate): Promise<Adherence | null> {
+/**
+ * Adherence of one routine, for its editor; null for a routine without versions.
+ * With `doneOn`, what it becomes once that day is marked done.
+ */
+export async function loadRoutineAdherence(
+  store: Store,
+  routineId: string,
+  today: LocalDate,
+  doneOn?: LocalDate,
+): Promise<Adherence | null> {
   const s = await store.settings()
   const [versions, checks] = await Promise.all([
     routineVersions(store, routineId),
     store.db.routine_check.where('fields.routine_id').equals(routineId).toArray(),
   ])
   const marks = checks.map((c) => ({ routine_id: routineId, date: c.fields.date!, status: c.fields.status ?? null }))
+  // A later mark of the same day wins.
+  if (doneOn) marks.push({ routine_id: routineId, date: doneOn, status: 'done' })
   return routineAdherence(today, versions, marks, s.routine_warn_below).get(routineId) ?? null
 }

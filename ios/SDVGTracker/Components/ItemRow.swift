@@ -12,6 +12,8 @@ struct ItemRow: View {
 
     @State private var pops = 0
     @State private var checkFrame = CGRect.zero
+    /// The routine's adherence as the pending check makes it; the tag counts up to it at once.
+    @State private var boost: Rules.Adherence?
 
     private var day: LocalDate { date ?? model.today }
     private var isTask: Bool { item.kind == .task }
@@ -20,6 +22,13 @@ struct ItemRow: View {
     private var checking: Bool { model.pendingDone[doneKey] != nil }
 
     private var high: Bool { item.priority == .high }
+
+    /// What the "being skipped" tag shows, if anything: once the row is checked, the new rate.
+    private var lagging: Rules.Adherence? {
+        if checking, let boost { return boost }
+        guard let a = item.adherence, a.warning, !item.done, !item.skipped else { return nil }
+        return a
+    }
 
     private var borderColor: Color {
         switch item.done ? 0 : item.attention {
@@ -113,6 +122,9 @@ struct ItemRow: View {
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
+        .onChange(of: checking) { _, on in
+            if !on { boost = nil }
+        }
     }
 
     @ViewBuilder private var meta: some View {
@@ -136,9 +148,12 @@ struct ItemRow: View {
                 default: Tag(text: "↻ \(item.moves)", fg: .secondary, bg: Color(.tertiarySystemFill))
                 }
             }
-            if let a = item.adherence, a.warning, let percent = a.percent, !item.done, !item.skipped {
-                Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
-                    .accessibilityLabel(tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))"))
+            if let a = lagging, let percent = a.percent {
+                AdherenceTag(percent: percent, warning: a.warning)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(a.warning
+                        ? tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))")
+                        : tr("Рутина снова выполняется: \(Fmt.adherence(a))", "Routine back on track: \(Fmt.adherence(a))"))
             }
             if item.skipped { Text(tr("пропущено", "skipped")).font(.footnote).foregroundStyle(.secondary) }
             if item.priority == .low && !item.done && !item.skipped {
@@ -167,11 +182,85 @@ struct ItemRow: View {
             model.doneCelebration = DoneCelebration(
                 level: level, moves: item.moves, origin: CGPoint(x: checkFrame.midX, y: checkFrame.midY))
         }
+        if lagging != nil {
+            boost = try? model.store.loadRoutineAdherence(item.refID, today: model.today, doneOn: day)
+        }
         model.markDone(item, on: day)
     }
 
     private func setCheck(_ status: CheckStatus?) {
         model.perform { [item, day] in try $0.setRoutineCheck(item.refID, date: day, status: status) }
+    }
+}
+
+/// How regularly a routine is done, on the row of one that is being skipped. When a check moves the
+/// rate, the number counts to the new one; out of the warning zone it turns green with a thumbs up.
+struct AdherenceTag: View {
+    var percent: Int
+    var warning: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown: Double
+    /// Green with a thumbs up; follows `warning` once the count has got there.
+    @State private var ok: Bool
+
+    init(percent: Int, warning: Bool) {
+        self.percent = percent
+        self.warning = warning
+        _shown = State(initialValue: Double(percent))
+        _ok = State(initialValue: !warning)
+    }
+
+    var body: some View {
+        let color = ok ? Palette.ok : Palette.warn
+        HStack(spacing: 3) {
+            ZStack {
+                if ok {
+                    Image(systemName: "hand.thumbsup.fill")
+                        .transition(.scale(scale: 0.1, anchor: .bottom).combined(with: .opacity))
+                } else {
+                    Text(verbatim: "⚠︎").transition(.opacity)
+                }
+            }
+            CountingPercent(value: shown)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(RoundedRectangle(cornerRadius: 6).fill(color.opacity(0.14)))
+        .foregroundStyle(color)
+        .onChange(of: percent) { _, target in
+            let warning = warning
+            guard !reduceMotion else {
+                shown = Double(target)
+                ok = !warning
+                return
+            }
+            // Back into the warning zone (the check was taken back): the thumbs up goes at once.
+            if warning { withAnimation(.snappy(duration: 0.2)) { ok = false } }
+            // The count takes longer the further the percent goes.
+            withAnimation(.easeOut(duration: min(0.7, 0.2 + 0.05 * abs(Double(target) - shown)))) {
+                shown = Double(target)
+            } completion: {
+                // Unless the number has been sent elsewhere meanwhile.
+                guard !warning, shown == Double(target) else { return }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.45)) { ok = true }
+            }
+        }
+    }
+}
+
+/// A whole percent; animated, it counts through the numbers in between.
+private struct CountingPercent: View, Animatable {
+    var value: Double
+
+    nonisolated var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text(verbatim: "\(Int(value.rounded()))\u{00A0}%").monospacedDigit()
     }
 }
 

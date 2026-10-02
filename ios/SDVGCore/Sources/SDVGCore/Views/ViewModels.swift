@@ -103,14 +103,19 @@ public struct RoutineListItem: Identifiable, Sendable {
 
 extension Store {
     /// Adherence of every routine as of today, or of one; see Rules.routineAdherence.
-    func adherenceByRoutine(_ db: Database, _ versions: [RoutineVersionRecord], today: LocalDate, _ s: Settings, routineID: String? = nil) throws -> [String: Rules.Adherence] {
+    func adherenceByRoutine(
+        _ db: Database, _ versions: [RoutineVersionRecord], today: LocalDate, _ s: Settings,
+        routineID: String? = nil, doneOn: LocalDate? = nil
+    ) throws -> [String: Rules.Adherence] {
         let sql = "SELECT routine_id, date, json_extract(fields, '$.status') AS status FROM routine_check"
         let rows = try routineID.map { try GRDB.Row.fetchAll(db, sql: sql + " WHERE routine_id = ?", arguments: [$0]) }
             ?? GRDB.Row.fetchAll(db, sql: sql)
-        let checks: [Rules.CheckRef] = rows.compactMap { r in
+        var checks: [Rules.CheckRef] = rows.compactMap { r in
             guard let rid: String = r["routine_id"], let d: String = r["date"] else { return nil }
             return (rid, d, (r["status"] as String?).flatMap(CheckStatus.init))
         }
+        // A later mark of the same day wins.
+        if let routineID, let doneOn { checks.append((routineID, doneOn, .done)) }
         return Rules.routineAdherence(today: today, versions: versions, checks: checks, warnBelow: s.routineWarnBelow)
     }
 
@@ -238,10 +243,12 @@ extension Store {
     }
 
     /// Adherence of one routine, for its editor; nil for a routine without versions.
-    public func loadRoutineAdherence(_ routineID: String, today: LocalDate) throws -> Rules.Adherence? {
+    /// With `doneOn`, what it becomes once that day is marked done.
+    public func loadRoutineAdherence(_ routineID: String, today: LocalDate, doneOn: LocalDate? = nil) throws -> Rules.Adherence? {
         try read { db in
             let versions = try routineVersions(db, routineID: routineID)
-            return try adherenceByRoutine(db, versions, today: today, try Rows.settings(db), routineID: routineID)[routineID]
+            return try adherenceByRoutine(
+                db, versions, today: today, try Rows.settings(db), routineID: routineID, doneOn: doneOn)[routineID]
         }
     }
 

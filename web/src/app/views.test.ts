@@ -104,8 +104,13 @@ describe('routine adherence', () => {
 
     await updateSettings(store, { routine_warn_below: 30 })
     expect((await loadRoutines(store, TODAY))[0]!.adherence.warning).toBe(false)
+    // What a check would make it, before it is written: today, or a missed day counted already.
+    const checked = await loadRoutineAdherence(store, r, TODAY, TODAY)
+    expect(await loadRoutineAdherence(store, r, TODAY, '2026-09-19')).toMatchObject({ done: 2, total: 3, percent: 67 })
     await setRoutineCheck(store, r, TODAY, 'done')
-    expect((await loadRoutines(store, TODAY))[0]!.adherence).toMatchObject({ done: 2, total: 4, percent: 50 })
+    const after = (await loadRoutines(store, TODAY))[0]!.adherence
+    expect(after).toMatchObject({ done: 2, total: 4, percent: 50 })
+    expect(checked).toEqual(after)
   })
 })
 
