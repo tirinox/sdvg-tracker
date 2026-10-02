@@ -62,7 +62,10 @@ struct ItemRow: View {
                 .buttonStyle(.plain)
 
                 if !isTask && !item.done {
-                    Button { setCheck(item.skipped ? nil : .skipped) } label: {
+                    Button {
+                        hideKeyboard()
+                        setCheck(item.skipped ? nil : .skipped)
+                    } label: {
                         Image(systemName: item.skipped ? "arrow.uturn.backward" : "forward.end")
                             .frame(width: 34, height: 34)
                     }
@@ -167,6 +170,8 @@ struct ItemRow: View {
     }
 
     private func toggleDone() {
+        // Checking things off, not typing any more.
+        hideKeyboard()
         if model.pendingDone[doneKey] == .waiting {
             model.cancelDone(doneKey)
             return
