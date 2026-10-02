@@ -174,7 +174,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   border-radius: var(--radius);
   transition: opacity 0.2s;
 }
-/* Priority: high gets a stripe, a tag and a gleam (.prio-fx, styles.css); low steps back. */
+/* Priority: high gets a stripe, a tag and a pulse (.prio-fx, styles.css); low steps back. */
 .prio-high {
   border-color: color-mix(in srgb, var(--c) 40%, var(--line));
 }

@@ -185,11 +185,11 @@ export function priorityTitle(p: Priority): string {
 }
 
 /**
- * Inline style of a row with a priority: its color for the stripe, tag and gleam, and a gleam
- * delay picked from the id, so neighbouring rows do not flash in step.
+ * Inline style of a row with a priority: its color for the stripe, tag and pulse, and a pulse
+ * delay picked from the id, so neighbouring rows do not pulse in step.
  */
 export function priorityStyle(id: string, color: number): Record<string, string> {
   let h = 0
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return { '--c': `var(--c${color})`, '--gleam-delay': `${-(h % 7) * 0.5}s` }
+  return { '--c': `var(--c${color})`, '--pulse-delay': `${-(h % 7) * 0.5}s` }
 }

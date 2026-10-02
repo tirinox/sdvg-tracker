@@ -299,7 +299,7 @@ struct InboxScreen: View {
                         if item.priority == .high {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.color(item.color).opacity(0.45))
-                                PriorityMarks(color: item.color, key: item.id, gleam: true)
+                                PriorityMarks(color: item.color, key: item.id, pulse: true)
                             }
                         }
                     }
@@ -381,7 +381,7 @@ struct RoutinesScreen: View {
                             .listRowBackground(ZStack {
                                 Color(.secondarySystemGroupedBackground)
                                 if r.version.priority == .high {
-                                    PriorityMarks(color: r.version.color, key: r.id, gleam: true, cornerRadius: 0)
+                                    PriorityMarks(color: r.version.color, key: r.id, pulse: true, cornerRadius: 0)
                                 }
                             })
                         }

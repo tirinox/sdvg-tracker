@@ -108,7 +108,7 @@ struct ItemRow: View {
             }
         }
         .overlay {
-            if high { PriorityMarks(color: item.color, key: item.id, gleam: !item.done && !item.skipped) }
+            if high { PriorityMarks(color: item.color, key: item.id, pulse: !item.done && !item.skipped) }
         }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
@@ -175,13 +175,14 @@ struct ItemRow: View {
     }
 }
 
-/// High priority, in the item's own color: a stripe on the left and a gleam passing over the row
-/// now and then (not with Reduce Motion). Neighbouring rows start their gleams at different moments.
+/// High priority, in the item's own color: a stripe on the left and a ring pulsing out of the row
+/// now and then (not with Reduce Motion). Neighbouring rows start their pulses at different moments.
 struct PriorityMarks: View {
     var color: Int
-    /// Picks the gleam's start, so rows do not flash in step.
+    /// Picks the pulse's start, so rows do not pulse in step.
     var key: String
-    var gleam: Bool
+    var pulse: Bool
+    /// 0 for a List row background: the cell clips, so the pulse glows inside the row instead.
     var cornerRadius: CGFloat = 14
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -189,23 +190,30 @@ struct PriorityMarks: View {
 
     var body: some View {
         let c = Palette.color(color)
-        ZStack(alignment: .leading) {
-            if gleam && !reduceMotion && started {
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    LinearGradient(colors: [.clear, c.opacity(0.26), .clear], startPoint: .leading, endPoint: .trailing)
-                        .frame(width: w * 0.4)
-                        .keyframeAnimator(initialValue: -0.4, repeating: true) { content, x in
-                            content.offset(x: x * w)
-                        } keyframes: { _ in
-                            LinearKeyframe(-0.4, duration: 1.9)
-                            CubicKeyframe(1.0, duration: 1.6)
+        ZStack {
+            Rectangle().fill(c).frame(width: 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            if pulse && !reduceMotion && started {
+                // t: 0 when the ring leaves the border, 1 when it has faded out.
+                Color.clear.keyframeAnimator(initialValue: 1.0, repeating: true) { content, t in
+                    content.overlay {
+                        if cornerRadius > 0 {
+                            let w = 7 * t
+                            RoundedRectangle(cornerRadius: cornerRadius + w / 2)
+                                .stroke(c.opacity(0.55 * (1 - t)), lineWidth: w)
+                                .padding(-w / 2)
+                        } else {
+                            Rectangle().fill(c.opacity(0.18 * (1 - t)))
                         }
+                    }
+                } keyframes: { _ in
+                    MoveKeyframe(0)
+                    LinearKeyframe(1, duration: 1.35, timingCurve: .easeOut)
+                    LinearKeyframe(1, duration: 1.65)
                 }
             }
-            Rectangle().fill(c).frame(width: 4)
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task {
