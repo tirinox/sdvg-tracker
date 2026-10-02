@@ -98,6 +98,8 @@ struct QuickAdd: View {
     @State private var fieldY: CGFloat = 0
     /// Where it was once the keyboard came up; nil while the keyboard is down.
     @State private var restY: CGFloat?
+    /// Tasks changed while typing: rows added above may have moved the field, so it's measured anew.
+    @State private var listChanged = false
 
     var body: some View {
         let suggestions = focused ? Rules.suggestTitles(history, query: title) : []
@@ -128,16 +130,26 @@ struct QuickAdd: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .scrollView).minY } action: { y in
             fieldY = y
-            // Scrolled well down the list: the keyboard would only cover it.
-            if let restY, restY - y > 120 { focused = false }
+            guard let rest = restY else { return }
+            if listChanged {
+                restY = y
+                listChanged = false
+            } else if abs(rest - y) > 120 {
+                // Scrolled well away, either way (on Now the list is above the field): the keyboard would only cover it.
+                focused = false
+            }
         }
         // Counted from here, so the scroll that brings the field above the keyboard doesn't hide it.
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
-            if focused { restY = fieldY }
+            if focused {
+                restY = fieldY
+                listChanged = false
+            }
         }
         .onChange(of: focused) {
             if focused { loadHistory() } else { restY = nil }
         }
+        .onChange(of: model.revision) { if restY != nil { listChanged = true } }
         .onChange(of: title) { old, new in
             if new.trimmingCharacters(in: .whitespaces).isEmpty { filled = nil }
             // A new title starts: re-read, so tasks added a moment ago are suggested too.
