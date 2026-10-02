@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useApp } from '../app/context'
-import { adherenceLabel, deadlineLabel, movesLabel, reasonLabels, shortDate, timingLabel } from '../app/format'
+import {
+  adherenceLabel,
+  deadlineLabel,
+  movesLabel,
+  priorityStyle,
+  priorityTag,
+  reasonLabels,
+  shortDate,
+  timingLabel,
+} from '../app/format'
+import { tr } from '../app/i18n'
 import type { DayItem } from '../app/views'
 import {
   completeTask,
@@ -81,15 +91,19 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
     :class="[
       `att-${item.attention}`,
       `dl-${item.deadline}`,
+      `prio-${item.priority}`,
       { done: item.done, skipped: item.skipped, checking },
     ]"
+    :style="item.priority === 'high' ? priorityStyle(item.key, item.color) : undefined"
   >
+    <span v-if="item.priority === 'high'" class="prio-fx" :class="{ still: item.done || item.skipped }" aria-hidden="true" />
     <button class="main" type="button" @click="edit">
       <EmojiCircle :emoji="item.emoji" :color="item.color" />
       <span class="text">
         <span class="title">{{ item.title }}</span>
         <span class="meta">
-          <span v-if="item.kind === 'routine'" class="tag routine" title="Регулярная">⟳</span>
+          <span v-if="item.priority === 'high'" class="prio-tag">{{ priorityTag() }}</span>
+          <span v-if="item.kind === 'routine'" class="tag routine" :title="tr('Регулярная', 'Routine')">⟳</span>
           <span v-if="timing">{{ timing }}</span>
           <span v-if="deadline && !item.done" class="tag deadline">{{ deadline }}</span>
           <span v-if="item.moves && !item.done" class="tag moves" :title="movesLabel(item.moves)">
@@ -98,13 +112,14 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
           <span
             v-if="item.adherence?.warning && !item.done && !item.skipped"
             class="tag lagging"
-            :title="`Рутина пропускается: ${adherenceLabel(item.adherence)}`"
+            :title="tr(`Рутина пропускается: ${adherenceLabel(item.adherence)}`, `Routine being skipped: ${adherenceLabel(item.adherence)}`)"
           >
-            ⚠︎ {{ item.adherence.percent }}&nbsp;%
+            ⚠︎ {{ item.adherence.percent }}{{ tr('\u00a0%', '%') }}
           </span>
-          <span v-if="item.skipped">пропущено</span>
+          <span v-if="item.skipped">{{ tr('пропущено', 'skipped') }}</span>
+          <span v-if="item.priority === 'low' && !item.done && !item.skipped">↓ {{ tr('не срочно', 'not urgent') }}</span>
           <span v-if="compact && item.deadline_date" class="muted">
-            до {{ shortDate(item.deadline_date) }}
+            {{ tr(`до ${shortDate(item.deadline_date)}`, `due ${shortDate(item.deadline_date)}`) }}
           </span>
         </span>
         <span v-if="hints.length" class="hints">
@@ -118,10 +133,10 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
         v-if="!isTask && !item.done"
         class="icon"
         type="button"
-        :title="item.skipped ? 'Вернуть' : 'Пропустить сегодня'"
+        :title="item.skipped ? tr('Вернуть', 'Undo skip') : tr('Пропустить сегодня', 'Skip today')"
         @click="toggleSkip"
       >
-        {{ item.skipped ? '↺' : '⤼' }}<span class="lbl">{{ item.skipped ? 'Вернуть' : 'Пропуск' }}</span>
+        {{ item.skipped ? '↺' : '⤼' }}<span class="lbl">{{ item.skipped ? tr('Вернуть', 'Undo') : tr('Пропуск', 'Skip') }}</span>
       </button>
       <button
         class="check"
@@ -129,7 +144,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
         type="button"
         :aria-pressed="checked"
         :disabled="!isTask && future"
-        :title="item.done ? 'Снять отметку' : 'Готово'"
+        :title="item.done ? tr('Снять отметку', 'Mark as not done') : tr('Готово', 'Mark as done')"
         @click="toggleDone"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
@@ -137,16 +152,17 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
     </div>
 
     <div v-if="item.attention >= 4 && !item.done" class="stuck">
-      Застряла?
-      <button type="button" @click="edit">Разбить на шаги</button>
-      <button type="button" @click="toInbox">Во входящие</button>
-      <button type="button" @click="remove">Удалить</button>
+      {{ tr('Застряла?', 'Stuck?') }}
+      <button type="button" @click="edit">{{ tr('Разбить на шаги', 'Break into steps') }}</button>
+      <button type="button" @click="toInbox">{{ tr('Во входящие', 'To inbox') }}</button>
+      <button type="button" @click="remove">{{ tr('Удалить', 'Delete') }}</button>
     </div>
   </li>
 </template>
 
 <style scoped>
 .row {
+  position: relative;
   list-style: none;
   display: grid;
   grid-template-columns: 1fr auto;
@@ -157,6 +173,17 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   border: 1px solid var(--line);
   border-radius: var(--radius);
   transition: opacity 0.2s;
+}
+/* Priority: high gets a stripe, a tag and a pulse (.prio-fx, styles.css); low steps back. */
+.prio-high {
+  border-color: color-mix(in srgb, var(--c) 40%, var(--line));
+}
+.prio-high .title {
+  font-weight: 700;
+}
+.prio-low .title {
+  color: var(--muted);
+  font-weight: 450;
 }
 .main {
   display: flex;

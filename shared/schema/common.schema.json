@@ -69,6 +69,15 @@
       "minimum": 1,
       "maximum": 1440
     },
+    "priority": {
+      "enum": [
+        "low",
+        "normal",
+        "high"
+      ],
+      "default": "normal",
+      "description": "Added after launch: rows written before it have no priority and read as normal"
+    },
     "sort_key": {
       "type": "string",
       "minLength": 1,

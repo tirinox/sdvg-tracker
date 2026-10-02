@@ -20,7 +20,7 @@ struct UndoBar: View {
             Text(toast.text).lineLimit(1)
             Spacer(minLength: 0)
             Button { model.undo() } label: {
-                Label("Отменить", systemImage: "arrow.uturn.backward").font(.body.weight(.semibold))
+                Label(tr("Отменить", "Undo"), systemImage: "arrow.uturn.backward").font(.body.weight(.semibold))
             }
         }
         .padding(.leading, 16)

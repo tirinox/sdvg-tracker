@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Celebration } from '../app/context'
-import { plural } from '../app/format'
+import { tr, trn } from '../app/i18n'
 
 const props = defineProps<{ celebration: Celebration }>()
 const emit = defineEmits<{ close: [] }>()
@@ -212,8 +212,8 @@ onBeforeUnmount(() => {
   clearTimeout(timer)
 })
 
-const moves = props.celebration.moves
-const times = `${moves} ${plural(moves, 'раз', 'раза', 'раз')}`
+/** «3 раза» / '3 times'; a function so it follows the interface language. */
+const times = () => trn(props.celebration.moves, ['раз', 'раза', 'раз'], ['time', 'times'])
 </script>
 
 <template>
@@ -237,9 +237,13 @@ const times = `${moves} ${plural(moves, 'раз', 'раза', 'раз')}`
     <button v-if="celebration.level >= 2" type="button" class="toast" :class="`l${celebration.level}`" @click="emit('close')">
       <span class="emoji" aria-hidden="true">{{ celebration.level === 3 ? '👏' : '🎆' }}</span>
       <span>
-        <b>{{ celebration.level === 3 ? 'Вот это победа!' : 'Салют!' }}</b>
+        <b>{{ celebration.level === 3 ? tr('Вот это победа!', 'Now that’s a win!') : tr('Салют!', 'Fireworks!') }}</b>
         <span class="sub">
-          {{ celebration.level === 3 ? `Задачу переносили ${times} — и она сделана` : `Переносили ${times}, а вы её сделали` }}
+          {{
+            celebration.level === 3
+              ? tr(`Задачу переносили ${times()} — и она сделана`, `Moved ${times()} — and now it’s done`)
+              : tr(`Переносили ${times()}, а вы её сделали`, `Moved ${times()}, and you did it`)
+          }}
         </span>
       </span>
     </button>

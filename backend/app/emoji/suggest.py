@@ -1,8 +1,8 @@
 """Emoji for a task title: the nearest descriptions in multilingual-e5-small's vector space.
 
-Every emoji has a description from Unicode CLDR (catalog.tsv: name and keywords) and may
-have task phrases (aliases.txt). An emoji scores as its closest description: a title only
-has to match one of them.
+Every emoji has descriptions from Unicode CLDR (catalog.tsv: name and keywords, in Russian
+and in English) and may have task phrases (aliases.txt). An emoji scores as its closest
+description: a title only has to match one of them.
 """
 
 import hashlib
@@ -20,11 +20,13 @@ HERE = Path(__file__).parent
 # e5 expects a role prefix. Titles and descriptions are both short phrases, so both are
 # "query" (symmetric matching): it beat "query"/"passage" on the task sets.
 PREFIX = "query: "
-# Bump when the vectors of the same texts would change (prefix, pooling, model).
-INDEX_VERSION = 1
-# A first suggestion this close is set without asking. On emoji_titles.txt 0.9 lets through
-# 32 of 50 titles, 27 of them with a fitting emoji; misses like "Кружки клеить на стулья" → 🛏️
-# score below 0.88. Model-specific, which is why clients get the decision, not the number.
+# Bump when the vectors of the same texts would change (prefix, pooling, model). The texts
+# themselves are part of the cache key too.
+INDEX_VERSION = 2
+# A first suggestion this close is set without asking. 0.9 lets through 29 of the 50 titles in
+# emoji_titles.txt, 25 of them with a fitting emoji, and 28 of emoji_titles_en.txt, 23 fitting;
+# misses like "Кружки клеить на стулья" → 🛏️ or "Glue felt pads on chair legs" → 💺 score
+# below 0.88. Model-specific, which is why clients get the decision, not the number.
 CONFIDENT = 0.9
 
 # uvicorn's logger: the one that reaches the container log.
@@ -43,8 +45,13 @@ def load_descriptions() -> tuple[list[str], list[int], list[str]]:
     texts: dict[int, list[str]] = {}
     for line in (HERE / "catalog.tsv").read_text().splitlines():
         if line and not line.startswith("#"):
-            char, name, keywords = line.split("\t")
-            texts[len(emoji)] = [f"{name}: {', '.join(keywords.split(' | '))}"]
+            char, *columns = line.split("\t")
+            # One description per language: name and keywords from the same language.
+            texts[len(emoji)] = [
+                f"{name}: {', '.join(keywords.split(' | '))}"
+                for name, keywords in zip(columns[::2], columns[1::2], strict=True)
+                if name
+            ]
             emoji.append(char)
     index = {char: i for i, char in enumerate(emoji)}
     for line in (HERE / "aliases.txt").read_text().splitlines():
@@ -60,7 +67,7 @@ def load_descriptions() -> tuple[list[str], list[int], list[str]]:
 class EmojiSuggester:
     """Loads the model and the description vectors in the background; `ready` says when done.
 
-    Encoding the ~1900 descriptions takes tens of seconds on one core, so their vectors are
+    Encoding the ~3800 descriptions takes about half a minute on one core, so their vectors are
     cached in `cache_dir` between restarts.
     """
 

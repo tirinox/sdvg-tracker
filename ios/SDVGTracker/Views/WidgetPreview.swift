@@ -12,26 +12,26 @@ struct WidgetPreviewScreen: View {
         let snapshot = try? model.store.widgetSnapshot(now: model.now, filter: filter)
         ScrollView {
             VStack(spacing: 18) {
-                Picker("Что показывать", selection: $filter) {
-                    Text("Всё").tag(WidgetFilter.all)
-                    Text("Задачи").tag(WidgetFilter.tasks)
-                    Text("Рутины").tag(WidgetFilter.routines)
+                Picker(tr("Что показывать", "What to show"), selection: $filter) {
+                    Text(tr("Всё", "All")).tag(WidgetFilter.all)
+                    Text(tr("Задачи", "Tasks")).tag(WidgetFilter.tasks)
+                    Text(tr("Рутины", "Routines")).tag(WidgetFilter.routines)
                 }
                 .pickerStyle(.segmented)
 
-                tile("Маленький", width: 158, height: 158) { HomeWidgetBody(snapshot: snapshot, size: .small) }
-                tile("Средний", width: 338, height: 158) { HomeWidgetBody(snapshot: snapshot, size: .medium) }
-                tile("Большой", width: 338, height: 354) { HomeWidgetBody(snapshot: snapshot, size: .large) }
+                tile(tr("Маленький", "Small"), width: 158, height: 158) { HomeWidgetBody(snapshot: snapshot, size: .small) }
+                tile(tr("Средний", "Medium"), width: 338, height: 158) { HomeWidgetBody(snapshot: snapshot, size: .medium) }
+                tile(tr("Большой", "Large"), width: 338, height: 354) { HomeWidgetBody(snapshot: snapshot, size: .large) }
                 HStack(alignment: .top, spacing: 12) {
-                    tile("Кольцо", width: 72, height: 72) { LockWidgetBody(snapshot: snapshot, size: .circular) }
-                    tile("Прямоугольник", width: 160, height: 72) { LockWidgetBody(snapshot: snapshot, size: .rectangular) }
+                    tile(tr("Кольцо", "Circular"), width: 72, height: 72) { LockWidgetBody(snapshot: snapshot, size: .circular) }
+                    tile(tr("Прямоугольник", "Rectangular"), width: 160, height: 72) { LockWidgetBody(snapshot: snapshot, size: .rectangular) }
                 }
-                tile("Строка", width: 240, height: 28) { LockWidgetBody(snapshot: snapshot, size: .inline) }
+                tile(tr("Строка", "Inline"), width: 240, height: 28) { LockWidgetBody(snapshot: snapshot, size: .inline) }
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Виджеты")
+        .navigationTitle(tr("Виджеты", "Widgets"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

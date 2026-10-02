@@ -37,9 +37,9 @@ struct HeatmapView: View {
             }
             .defaultScrollAnchor(.trailing)
             HStack(spacing: 3) {
-                Text("меньше")
+                Text(tr("меньше", "less"))
                 ForEach(0..<5) { RoundedRectangle(cornerRadius: 2).fill(Palette.heat[$0]).frame(width: 10, height: 10) }
-                Text("больше")
+                Text(tr("больше", "more"))
             }
             .font(.caption2)
             .foregroundStyle(.secondary)

@@ -12,6 +12,30 @@
 		5D000000000000000000003D /* SDVGWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5D0000000000000000000031 /* SDVGWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		5D000000000000000000003F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5D000000000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5D0000000000000000000038;
+			remoteInfo = SDVGWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5D000000000000000000003C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5D000000000000000000003D /* SDVGWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		5D0000000000000000000001 /* SDVGTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SDVGTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D0000000000000000000020 /* Config */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Config; sourceTree = "<group>"; };
@@ -19,8 +43,16 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		5D0000000000000000000002 /* SDVGTracker */ = {isa = PBXFileSystemSynchronizedRootGroup; path = SDVGTracker; sourceTree = "<group>"; };
-		5D0000000000000000000032 /* SDVGWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; path = SDVGWidgets; sourceTree = "<group>"; };
+		5D0000000000000000000002 /* SDVGTracker */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SDVGTracker;
+			sourceTree = "<group>";
+		};
+		5D0000000000000000000032 /* SDVGWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SDVGWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,20 +73,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		5D000000000000000000003C /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				5D000000000000000000003D /* SDVGWidgets.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXGroup section */
 		5D0000000000000000000004 = {
@@ -208,16 +226,6 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin PBXContainerItemProxy section */
-		5D000000000000000000003F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 5D000000000000000000000A /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 5D0000000000000000000038;
-			remoteInfo = SDVGWidgets;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin XCBuildConfiguration section */
 		5D0000000000000000000012 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -332,7 +340,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Config/SDVGWidgets-Info.plist;
+				INFOPLIST_FILE = "Config/SDVGWidgets-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = SDVG;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -360,7 +368,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Config/SDVGWidgets-Info.plist;
+				INFOPLIST_FILE = "Config/SDVGWidgets-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = SDVG;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApp } from '../app/context'
-import { GROUP_TITLES, dayDistance, dayTitle, shortDate } from '../app/format'
+import { dayDistance, dayTitle, groupTitle, shortDate } from '../app/format'
+import { tr } from '../app/i18n'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { dayGroups, loadDay, type DayView } from '../app/views'
@@ -22,15 +23,15 @@ const isToday = computed(() => date.value === today.value)
 const isPast = computed(() => date.value < today.value)
 const addPlaceholder = computed(() => {
   if (isToday.value) return undefined
-  const day = date.value === addDays(today.value, 1) ? 'завтра' : shortDate(date.value)
-  return `Добавить задачу на ${day}`
+  const day = date.value === addDays(today.value, 1) ? tr('завтра', 'tomorrow') : shortDate(date.value)
+  return tr(`Добавить задачу на ${day}`, `Add a task for ${day}`)
 })
 
 // One flat list of headers and rows: a row that gets done slides down into "Сделано", and a part
 // of the day left empty folds its header away, instead of rows jumping between separate lists.
 const rows = computed(() =>
   dayGroups(day.value?.items ?? []).flatMap((g) => [
-    { key: `head:${g.id}`, title: GROUP_TITLES[g.id], item: null },
+    { key: `head:${g.id}`, title: groupTitle(g.id), item: null },
     ...g.items.map((item) => ({ key: item.key, title: null, item })),
   ]),
 )
@@ -42,20 +43,22 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
   <section>
     <!-- Stays in view while scrolling, so nothing is added or checked on another day by mistake. -->
     <div v-if="!isToday" class="not-today" role="status">
-      <span><span class="icon" aria-hidden="true">📅</span>Не сегодня — {{ dayDistance(date, today) }}</span>
-      <button class="btn" type="button" @click="go(today)">К сегодня</button>
+      <span><span class="icon" aria-hidden="true">📅</span>{{ tr('Не сегодня', 'Not today') }} — {{ dayDistance(date, today) }}</span>
+      <button class="btn" type="button" @click="go(today)">{{ tr('К сегодня', 'Back to today') }}</button>
     </div>
     <header class="head">
-      <button class="btn ghost nav" type="button" aria-label="Предыдущий день" @click="go(addDays(date, -1))">‹</button>
+      <button class="btn ghost nav" type="button" :aria-label="tr('Предыдущий день', 'Previous day')" @click="go(addDays(date, -1))">‹</button>
       <div class="titles">
         <h1>{{ title.title }}</h1>
         <p class="muted">{{ title.subtitle }}</p>
       </div>
-      <button class="btn ghost nav" type="button" aria-label="Следующий день" @click="go(addDays(date, 1))">›</button>
+      <button class="btn ghost nav" type="button" :aria-label="tr('Следующий день', 'Next day')" @click="go(addDays(date, 1))">›</button>
     </header>
     <div class="sub">
       <DayCountdown v-if="isToday" />
-      <span v-if="day" class="muted">Сделано {{ day.done }} из {{ day.total }}</span>
+      <span v-if="day" class="muted">{{
+        tr(`Сделано ${day.done} из ${day.total}`, `${day.done} of ${day.total} done`)
+      }}</span>
     </div>
 
     <QuickAdd v-if="!isPast" :date="date" :placeholder="addPlaceholder" />
@@ -78,8 +81,8 @@ const go = (d: string) => router.push(d === today.value ? '/day' : `/day/${d}`)
     </TransitionGroup>
 
     <p v-if="day && !day.items.length" class="empty">
-      На этот день ничего нет.
-      <button class="btn" type="button" @click="openRoutine(null)">Добавить рутину</button>
+      {{ tr('На этот день ничего нет.', 'Nothing on this day.') }}
+      <button class="btn" type="button" @click="openRoutine(null)">{{ tr('Добавить рутину', 'Add a routine') }}</button>
     </p>
   </section>
 </template>

@@ -25,18 +25,18 @@ enum Spotlight {
 
     static func entries(_ store: Store, today: LocalDate) throws -> [Entry] {
         let app = Entry(id: "app", domain: "app", title: "SDVG",
-                        details: "Трекер задач и рутин · Tasks and routines tracker", keywords: appKeywords)
+                        details: tr("Трекер задач и рутин", "Tasks and routines tracker"), keywords: appKeywords)
         let tasks = try store.read { db in try Rows.fetch(.task, db, where: "done_on IS NULL").map(TaskRecord.init) }
             .filter { !$0.deleted && !$0.title.isEmpty }
             .map { t in
-                let head = line("Задача", t.date.map(Fmt.shortDate) ?? "Входящие", Fmt.timing(t.timing, duration: t.durationMin))
+                let head = line(tr("Задача", "Task"), t.date.map(Fmt.shortDate) ?? tr("Входящие", "Inbox"), Fmt.timing(t.timing, duration: t.durationMin))
                 return Entry(id: "task:\(t.id)", domain: "task", title: titled(t.emoji, t.title),
                              details: t.notes.isEmpty ? head : head + "\n" + t.notes)
             }
         let routines = try store.loadRoutines(today: today).map { r in
             let v = r.version
             return Entry(id: "routine:\(v.routineID)", domain: "routine", title: titled(v.emoji, v.title),
-                         details: line("Рутина", Fmt.timing(v.timing, duration: v.durationMin), Fmt.weekdays(v.weekdays)))
+                         details: line(tr("Рутина", "Routine"), Fmt.timing(v.timing, duration: v.durationMin), Fmt.weekdays(v.weekdays)))
         }
         return [app] + tasks + routines
     }

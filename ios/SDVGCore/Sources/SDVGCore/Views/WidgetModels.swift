@@ -52,8 +52,8 @@ public struct WidgetSnapshot: Sendable {
     /// "ещё 3 до рекорда" / "рекорд дня!" — nil when there is no history yet.
     public var recordText: String? {
         guard record.bestDone > 0 else { return nil }
-        if record.broken { return "рекорд дня!" }
-        return "до рекорда \(record.toBeat)"
+        if record.broken { return tr("рекорд дня!", "day record!") }
+        return tr("до рекорда \(record.toBeat)", "\(record.toBeat) more for a record")
     }
 }
 
@@ -104,9 +104,9 @@ extension Store {
         if item.deadline == .overdue || item.deadline == .today || item.deadline == .soon {
             let left = item.deadlineDate.map { Dates.daysBetween(today, $0) } ?? 0
             let text = switch item.deadline {
-            case .overdue: "просрочено"
-            case .today: "сегодня"
-            default: "\(left) дн."
+            case .overdue: tr("просрочено", "overdue")
+            case .today: tr("сегодня", "today")
+            default: tr("\(left) дн.", "\(left)d")
             }
             return .init(item: item, badge: text, badgeKind: .deadline)
         }

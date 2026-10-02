@@ -41,27 +41,30 @@ struct ServerChangeSheet: View {
             Form {
                 SwiftUI.Section {
                     Text(change.kind == .first
-                        ? "Задачи есть и на этом телефоне, и на сервере. Синхронизация на паузе, пока вы не решите, что делать с данными."
-                        : "Базу на сервере пересоздали, или это другой сервер. Синхронизация на паузе, пока вы не решите, что делать с данными.")
+                        ? tr("Задачи есть и на этом телефоне, и на сервере. Синхронизация на паузе, пока вы не решите, что делать с данными.",
+                             "There are tasks both on this phone and on the server. Sync is paused until you decide what to do with the data.")
+                        : tr("Базу на сервере пересоздали, или это другой сервер. Синхронизация на паузе, пока вы не решите, что делать с данными.",
+                             "The server’s database was recreated, or this is a different server. Sync is paused until you decide what to do with the data."))
                 }
                 SwiftUI.Section {
-                    LabeledContent("На сервере", value: describe(change.server))
-                    LabeledContent("На этом телефоне", value: describe(change.local))
+                    LabeledContent(tr("На сервере", "On the server"), value: describe(change.server))
+                    LabeledContent(tr("На этом телефоне", "On this phone"), value: describe(change.local))
                 }
                 SwiftUI.Section {
-                    choice("Взять данные сервера", "Данные этого телефона удалятся, загрузятся серверные.") {
+                    choice(tr("Взять данные сервера", "Take the server’s data"),
+                           tr("Данные этого телефона удалятся, загрузятся серверные.", "This phone’s data will be deleted and the server’s loaded.")) {
                         try await model.sync.takeServerData()
                     }
-                    choice("Объединить", "Данные этого телефона добавятся к серверным.") {
+                    choice(tr("Объединить", "Merge"), tr("Данные этого телефона добавятся к серверным.", "This phone’s data will be added to the server’s.")) {
                         try await model.sync.mergeWithServer()
                     }
                 }
             }
             .disabled(busy)
-            .navigationTitle(change.kind == .first ? "На сервере уже есть данные" : "Данные на сервере сменились")
+            .navigationTitle(change.kind == .first ? tr("На сервере уже есть данные", "The server already has data") : tr("Данные на сервере сменились", "The server’s data changed"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Позже") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Позже", "Later")) { dismiss() } }
             }
         }
         .interactiveDismissDisabled(busy)
@@ -83,7 +86,8 @@ struct ServerChangeSheet: View {
     }
 
     private func describe(_ c: SyncCounts) -> String {
-        if c.isEmpty { return "пусто" }
-        return "\(c.task) \(plural(c.task, "задача", "задачи", "задач")) · \(c.routine) \(plural(c.routine, "рутина", "рутины", "рутин"))"
+        if c.isEmpty { return tr("пусто", "empty") }
+        return trn(c.task, ru: ("задача", "задачи", "задач"), en: ("task", "tasks")) + " · "
+            + trn(c.routine, ru: ("рутина", "рутины", "рутин"), en: ("routine", "routines"))
     }
 }

@@ -3,6 +3,7 @@ import GRDB
 import Network
 import Observation
 import SDVGCore
+import WidgetKit
 
 enum Tab: Hashable { case now, day, inbox, routines, settings }
 
@@ -25,6 +26,7 @@ enum ConnectResult { case ok, badToken, offline, badURL }
 final class AppModel {
     let store: Store
     @ObservationIgnored private(set) var sync: SyncClient!
+    let goodMorning: GoodMorning
 
     var syncStatus = SyncStatus()
     var now: LocalDateTime = Dates.localNow()
@@ -43,6 +45,8 @@ final class AppModel {
     var pendingDone: [String: PendingDone] = [:]
     /// The bar offering to undo the latest done mark.
     var undoToast: UndoToast?
+    /// The interface language picked on this device; the root view rebuilds when it changes.
+    private(set) var language: LanguagePreference = L10n.preference
 
     var today: LocalDate { Dates.logicalDay(now, dayStartHour: settings.dayStartHour) }
 
@@ -57,6 +61,7 @@ final class AppModel {
     @ObservationIgnored private var doneWrites: [String: () -> Void] = [:]
     @ObservationIgnored private var undoAction: (() -> Void)?
     @ObservationIgnored private var undoHide: Task<Void, Never>?
+    @ObservationIgnored private var started = false
 
     /// How long a fresh check waits before it is written.
     static let doneDelay: Duration = .seconds(2)
@@ -68,6 +73,7 @@ final class AppModel {
 
     init(store: Store) {
         self.store = store
+        goodMorning = GoodMorning(baseURL: { [store] in (try? store.meta(AppModel.baseURLKey))?.string ?? "" })
         sync = SyncClient(store: store, config: { [store] in AppModel.serverConfig(store) }, onStatus: { status in
             Task { @MainActor [weak self] in self?.syncStatus = status }
         })
@@ -88,7 +94,10 @@ final class AppModel {
         return try Store.open(path: dir.appendingPathComponent("sdvg.sqlite").path)
     }
 
+    /// Runs once; a rebuilt root view (e.g. after a language change) must not start it again.
     func start() {
+        guard !started else { return }
+        started = true
         applyDebugLaunchConfig()
         settings = (try? store.settings()) ?? Settings()
         observation = DatabaseRegionObservation(tracking: .fullDatabase)
@@ -118,6 +127,29 @@ final class AppModel {
         showWelcome = !configured && !onboarded
         syncNow()
         scheduleSpotlight()
+        greetMorning()
+    }
+
+    /// The app is back on screen (or just launched).
+    func becameActive() {
+        syncNow()
+        guard started else { return }
+        // The clock stood still in the background: the day may have turned, and the morning
+        // summary must count what rolled over.
+        tick()
+        greetMorning()
+    }
+
+    /// What is still open today and the streak, for the morning video.
+    func morningSummary() -> MorningSummary? {
+        guard let day = try? store.loadDay(today, now: now), let stats = try? store.loadStats(today: today) else { return nil }
+        return MorningSummary(day: day, streak: stats.streak)
+    }
+
+    /// The morning video, unless an editor or the welcome sheet would cover it.
+    private func greetMorning() {
+        guard started, editor == nil, !showWelcome else { return }
+        goodMorning.greet(now: Dates.localNow(), settings: settings)
     }
 
     private func tick() {
@@ -157,6 +189,20 @@ final class AppModel {
                 print("spotlight failed:", error)
             }
         }
+    }
+
+    /// Switches the interface language and redoes everything that holds text outside the views:
+    /// widgets, notifications and Spotlight.
+    func setLanguage(_ p: LanguagePreference) {
+        guard p != language else { return }
+        L10n.set(p)
+        language = p
+        WidgetCenter.shared.reloadAllTimelines()
+        notifyDebounce?.cancel()
+        Task { [store, now] in await Notifications.reschedule(store: store, now: now) }
+        // The same entries read differently in another language, so index them again.
+        spotlightIndexed = nil
+        scheduleSpotlight()
     }
 
     private func checkRecord() {
@@ -310,6 +356,7 @@ final class AppModel {
         try? store.setMeta(Self.baseURLKey, .string(url))
         try? store.setMeta(Self.onboardingKey, true)
         syncNow()
+        goodMorning.prepare()
         await Notifications.requestAuthorization()
         return .ok
     }

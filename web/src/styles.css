@@ -225,3 +225,48 @@ h3 {
     transition: none;
   }
 }
+
+/*
+ * High priority, in the item's own color (--c, see priorityStyle in app/format.ts): a stripe on the
+ * left and a ring pulsing out of the row now and then. .prio-fx is an overlay span inside a
+ * position: relative row, so the row itself keeps its overflow (the check's ring needs it); it covers
+ * the row's border, and its overflow clips the stripe but not its own shadow, which is the pulse.
+ */
+.prio-fx {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  animation: prio-pulse 3s ease-out infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+.prio-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--c);
+}
+.prio-fx.still {
+  animation: none;
+}
+@keyframes prio-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 55%, transparent);
+  }
+  45%,
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--c) 0%, transparent);
+  }
+}
+.prio-tag {
+  border-radius: 6px;
+  padding: 0 6px;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 20px;
+  background: color-mix(in srgb, var(--c) 24%, var(--surface));
+  color: color-mix(in srgb, var(--c) 55%, var(--fg));
+  white-space: nowrap;
+}

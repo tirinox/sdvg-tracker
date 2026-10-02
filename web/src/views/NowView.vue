@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { dayTitle, plural, shortDate } from '../app/format'
+import { dayTitle, shortDate } from '../app/format'
+import { tr, trn, trWord } from '../app/i18n'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
 import { loadDay, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
@@ -21,51 +22,75 @@ const progress = computed(() =>
 )
 const record = computed(() => stats.value?.record ?? null)
 const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
+
+const THINGS: [[string, string, string], [string, string]] = [
+  ['дело', 'дела', 'дел'],
+  ['thing', 'things'],
+]
 </script>
 
 <template>
   <section class="now">
     <header class="head">
       <div>
-        <h1>Сейчас</h1>
+        <h1>{{ tr('Сейчас', 'Now') }}</h1>
         <p class="muted">{{ title.subtitle }}</p>
       </div>
       <DayCountdown />
     </header>
 
     <p v-if="syncStatus.state === 'unconfigured'" class="banner">
-      Данные пока хранятся только в этом браузере.
-      <RouterLink to="/settings">Подключить сервер</RouterLink>, чтобы синхронизировать с телефоном.
+      {{ tr('Данные пока хранятся только в этом браузере.', 'For now, your data lives only in this browser.') }}
+      <RouterLink to="/settings">{{ tr('Подключить сервер', 'Connect a server') }}</RouterLink
+      >{{ tr(', чтобы синхронизировать с телефоном.', ' to sync with your phone.') }}
     </p>
 
     <div class="stats">
       <div class="stat card">
         <span class="big">🔥 {{ stats?.streak ?? '—' }}</span>
-        <span class="muted">{{ plural(stats?.streak ?? 0, 'день', 'дня', 'дней') }} подряд</span>
+        <span class="muted">{{
+          tr(
+            `${trWord(stats?.streak ?? 0, ['день', 'дня', 'дней'], ['day', 'days'])} подряд`,
+            `${trWord(stats?.streak ?? 0, ['день', 'дня', 'дней'], ['day', 'days'])} in a row`,
+          )
+        }}</span>
       </div>
       <div class="stat card">
         <span class="big">{{ day?.done ?? 0 }}<small>/{{ day?.total ?? 0 }}</small></span>
-        <span class="muted">сегодня</span>
+        <span class="muted">{{ tr('сегодня', 'today') }}</span>
         <span class="bar"><span :style="{ width: `${progress}%` }" /></span>
       </div>
       <div class="stat card">
         <span class="big">{{ stats?.totalDone ?? 0 }}</span>
-        <span class="muted">всего сделано</span>
+        <span class="muted">{{ tr('всего сделано', 'done in total') }}</span>
       </div>
     </div>
 
     <div v-if="record?.best_date" class="record card" :class="{ broken: record.broken }">
       <span class="cup" aria-hidden="true">🏆</span>
       <div v-if="record.broken">
-        <b>Новый рекорд: {{ record.today_done }} {{ plural(record.today_done, 'дело', 'дела', 'дел') }} за день</b>
+        <b>{{
+          tr(
+            `Новый рекорд: ${trn(record.today_done, ...THINGS)} за день`,
+            `New record: ${trn(record.today_done, ...THINGS)} in a day`,
+          )
+        }}</b>
         <span class="muted">
-          Прежний — {{ record.best_done }}, {{ shortDate(record.best_date) }}
+          {{ tr('Прежний', 'Previous') }} — {{ record.best_done }}, {{ shortDate(record.best_date) }}
         </span>
       </div>
       <div v-else>
-        <b>Рекорд: {{ record.best_done }} {{ plural(record.best_done, 'дело', 'дела', 'дел') }} за день</b>
+        <b>{{
+          tr(`Рекорд: ${trn(record.best_done, ...THINGS)} за день`, `Record: ${trn(record.best_done, ...THINGS)} in a day`)
+        }}</b>
         <span class="muted">
-          {{ shortDate(record.best_date) }} · чтобы побить, сделайте сегодня ещё {{ record.to_beat }}
+          {{ shortDate(record.best_date) }} ·
+          {{
+            tr(
+              `чтобы побить, сделайте сегодня ещё ${record.to_beat}`,
+              `do ${record.to_beat} more today to beat it`,
+            )
+          }}
         </span>
       </div>
       <span v-if="!record.broken" class="bar">
@@ -73,26 +98,26 @@ const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
       </span>
     </div>
 
-    <h2 class="section-title">Главное сейчас</h2>
+    <h2 class="section-title">{{ tr('Главное сейчас', 'Up next') }}</h2>
     <TransitionGroup v-if="top.length" tag="ul" name="row" class="list" :css="false" @enter="rowEnter" @leave="rowLeave">
       <ItemRow v-for="item in top" :key="item.key" :item="item" reasons />
     </TransitionGroup>
     <p v-else-if="day && day.total" class="empty card">
-      Всё на сегодня сделано 🎉<br />
-      <span class="muted">Можно отдохнуть или заглянуть во входящие.</span>
+      {{ tr('Всё на сегодня сделано 🎉', 'All done for today 🎉') }}<br />
+      <span class="muted">{{ tr('Можно отдохнуть или заглянуть во входящие.', 'Take a break, or peek into your inbox.') }}</span>
     </p>
     <p v-else-if="day" class="empty card">
-      На сегодня пока ничего нет.<br />
-      <span class="muted">Добавьте задачу ниже или заведите рутины.</span>
+      {{ tr('На сегодня пока ничего нет.', 'Nothing for today yet.') }}<br />
+      <span class="muted">{{ tr('Добавьте задачу ниже или заведите рутины.', 'Add a task below or set up some routines.') }}</span>
     </p>
     <div class="more">
-      <RouterLink to="/day">Весь день →</RouterLink>
-      <span v-if="left" class="muted">ещё {{ left }} {{ plural(left, 'дело', 'дела', 'дел') }}</span>
+      <RouterLink to="/day">{{ tr('Весь день →', 'Whole day →') }}</RouterLink>
+      <span v-if="left" class="muted">{{ tr(`ещё ${trn(left, ...THINGS)}`, `${trn(left, ...THINGS)} to go`) }}</span>
     </div>
 
     <QuickAdd :date="today" />
 
-    <h2 class="section-title">Активность</h2>
+    <h2 class="section-title">{{ tr('Активность', 'Activity') }}</h2>
     <div class="card heat">
       <Heatmap v-if="stats" :cells="stats.heatmap" />
     </div>

@@ -4,14 +4,15 @@
 //   npx tsx scripts/import.ts --url http://localhost:8420 --file ../private/tasks.json [--force]
 //
 // File: { "routines": [Item & { weekdays?: ["mon", ...], done?: true }], "tasks": [Item] }
-//   Item = { title, emoji?, color?, part?: "morning" | "day" | "evening", time?: "HH:MM", duration? }
+//   Item = { title, emoji?, color?, part?: "morning" | "day" | "evening", time?: "HH:MM", duration?,
+//            priority?: "low" | "normal" | "high" }
 // Ids derive from the titles, so importing the same file twice updates rather than duplicates.
 import 'fake-indexeddb/auto'
 import { readFileSync } from 'node:fs'
 import { generateNKeysBetween } from 'fractional-indexing'
 import { v5 as uuidv5 } from 'uuid'
 import { routineCheckId } from '../src/core/ids'
-import type { PartOfDay, RoutineVersion, Task, TimeKind } from '../src/core/types'
+import type { PartOfDay, Priority, RoutineVersion, Task, TimeKind } from '../src/core/types'
 import { localNow, logicalDay } from '../src/domain/dates'
 import type { LocalChange } from '../src/db/store'
 import { Store } from '../src/db/store'
@@ -24,6 +25,7 @@ interface Item {
   part?: PartOfDay
   time?: string
   duration?: number
+  priority?: Priority
 }
 interface RoutineItem extends Item {
   weekdays?: string[]
@@ -99,6 +101,7 @@ routines.forEach((item, i) => {
     color: item.color ?? 0,
     ...timing(item),
     duration_min: item.duration ?? null,
+    priority: item.priority ?? 'normal',
     weekdays: weekdayMask(item.weekdays),
     archived: false,
     created_at: createdAt,
@@ -139,6 +142,7 @@ tasks.forEach((item, i) => {
     first_date: today,
     ...timing(item),
     duration_min: item.duration ?? null,
+    priority: item.priority ?? 'normal',
     deadline_date: null,
     deadline_time: null,
     done_on: null,

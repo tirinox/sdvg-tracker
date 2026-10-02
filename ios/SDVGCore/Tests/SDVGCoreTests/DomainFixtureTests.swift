@@ -28,6 +28,16 @@ private func timing(_ i: JSONValue) -> Timing {
     ])
 }
 
+/// A list item of item_order / now_pick: only what ordering looks at.
+private func orderItem(_ j: JSONValue) -> DayItem {
+    DayItem(
+        kind: .task, refID: j["id"]!.string!, title: "", emoji: nil, color: 0,
+        timing: j["time"]?.string.map { Timing(kind: .exact, time: $0) } ?? Timing(kind: .none),
+        durationMin: nil, priority: Priority(j["priority"]), section: .anytime,
+        done: j["done"]!.bool!, skipped: j["skipped"]!.bool!, moves: 0, attention: 0, deadline: .none,
+        deadlineDate: nil, deadlineTime: nil, score: j["score"]?.int ?? 0, reasons: [], sortKey: j["sort_key"]!.string!)
+}
+
 /// One adapter per shared/domain-fixtures file: fixture input -> implementation -> expect shape.
 private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
     "logical_day": { i in
@@ -102,6 +112,13 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
             now: i["now"]!.string!, settings: settings(i["settings"]), timing: timing(item),
             deadline: Rules.DeadlineStatus(rawValue: item["deadline_status"]!.string!)!, moves: item["moves"]!.int!)
         return ["score": .int(r.score), "reasons": .array(r.reasons.map { .string($0.rawValue) })]
+    },
+    "item_order": { i in
+        ["order": .array(i["items"]!.array!.map(orderItem).sorted(by: compareItems).map { .string($0.refID) })]
+    },
+    "now_pick": { i in
+        let day = DayView(date: "", items: i["items"]!.array!.map(orderItem))
+        return ["ids": .array(pickNow(day, max: i["max"]!.int!, min: i["min"]!.int!).map { .string($0.refID) })]
     },
     "heatmap_levels": { i in
         ["levels": .array(Rules.heatmapLevels(i["counts"]!.array!.map { $0.int! }).map(JSONValue.int))]

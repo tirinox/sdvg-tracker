@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, shallowRef, useId, watch } from 'vue'
 import { useApp } from '../app/context'
+import { tr } from '../app/i18n'
 import { loadTitleHistory } from '../app/views'
 import { suggestTitles, type TitleHistory, type TitleSuggestion } from '../domain/suggest'
 import EmojiCircle from './EmojiCircle.vue'
@@ -101,7 +102,7 @@ defineExpose({ focus: () => input.value?.focus() })
       @blur="open = false"
       @keydown="onKeydown"
     />
-    <ul v-if="items.length" :id="listId" ref="list" class="list" role="listbox" aria-label="Из прошлых задач">
+    <ul v-if="items.length" :id="listId" ref="list" class="list" role="listbox" :aria-label="tr('Из прошлых задач', 'From past tasks')">
       <li
         v-for="(s, i) in items"
         :id="`${listId}-${i}`"
@@ -120,8 +121,8 @@ defineExpose({ focus: () => input.value?.focus() })
           class="fill"
           type="button"
           tabindex="-1"
-          title="Вставить в поле, чтобы изменить"
-          aria-label="Вставить в поле"
+          :title="tr('Вставить в поле, чтобы изменить', 'Put in the field to edit')"
+          :aria-label="tr('Вставить в поле', 'Put in the field')"
           @mousedown.prevent
           @click.stop="choose('fill', s)"
         >

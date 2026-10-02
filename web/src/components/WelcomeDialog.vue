@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useApp } from '../app/context'
 import { connectServer, skipOnboarding, type ConnectResult } from '../app/connect'
+import { tr } from '../app/i18n'
 import Modal from './Modal.vue'
 
 const emit = defineEmits<{ close: [] }>()
@@ -24,42 +25,53 @@ async function later() {
 </script>
 
 <template>
-  <Modal title="Добро пожаловать 👋" @close="emit('close')">
+  <Modal :title="tr('Добро пожаловать 👋', 'Welcome 👋')" @close="emit('close')">
     <p class="lead">
-      Трекер работает и без сети — всё хранится на этом устройстве. Чтобы задачи были одинаковыми на
-      телефоне и компьютере, подключите свой сервер.
+      {{
+        tr(
+          'Трекер работает и без сети — всё хранится на этом устройстве. Чтобы задачи были одинаковыми на телефоне и компьютере, подключите свой сервер.',
+          'The tracker works offline too — everything is stored on this device. To have the same tasks on your phone and computer, connect your own server.',
+        )
+      }}
     </p>
     <label class="field">
-      <span>Токен сервера — значение <code>API_TOKEN</code> из файла <code>.env</code></span>
+      <span>
+        {{ tr('Токен сервера — значение', 'Server token —') }} <code>API_TOKEN</code>
+        {{ tr('из файла', 'from') }} <code>.env</code>
+      </span>
       <input
         v-model="token"
         class="input"
         type="password"
         autocomplete="off"
-        placeholder="Вставьте токен"
+        :placeholder="tr('Вставьте токен', 'Paste the token')"
         @keydown.enter="connect"
       />
     </label>
     <details>
-      <summary class="muted">Сервер на другом адресе</summary>
+      <summary class="muted">{{ tr('Сервер на другом адресе', 'Server at a different address') }}</summary>
       <label class="field">
-        <span>Адрес (пусто — этот же сайт)</span>
+        <span>{{ tr('Адрес (пусто — этот же сайт)', 'Address (empty — this same site)') }}</span>
         <input v-model="baseUrl" class="input" placeholder="http://192.168.1.10:8420" />
       </label>
     </details>
-    <p v-if="state === 'ok'" class="ok">Подключено ✓ Загружаем ваши задачи…</p>
-    <p v-else-if="state === 'bad-token'" class="bad">Неверный токен — проверьте значение в .env.</p>
-    <p v-else-if="state === 'offline'" class="bad">Сервер не отвечает. Он запущен? (<code>make up</code>)</p>
+    <p v-if="state === 'ok'" class="ok">{{ tr('Подключено ✓ Загружаем ваши задачи…', 'Connected ✓ Loading your tasks…') }}</p>
+    <p v-else-if="state === 'bad-token'" class="bad">
+      {{ tr('Неверный токен — проверьте значение в .env.', 'Wrong token — check the value in .env.') }}
+    </p>
+    <p v-else-if="state === 'offline'" class="bad">
+      {{ tr('Сервер не отвечает. Он запущен?', 'The server isn’t responding. Is it running?') }} (<code>make up</code>)
+    </p>
 
     <template #footer>
-      <button class="btn ghost" type="button" @click="later">Пока без сервера</button>
+      <button class="btn ghost" type="button" @click="later">{{ tr('Пока без сервера', 'No server for now') }}</button>
       <button
         class="btn primary"
         type="button"
         :disabled="!token.trim() || state === 'checking'"
         @click="connect"
       >
-        {{ state === 'checking' ? 'Проверяю…' : 'Подключить' }}
+        {{ state === 'checking' ? tr('Проверяю…', 'Checking…') : tr('Подключить', 'Connect') }}
       </button>
     </template>
   </Modal>

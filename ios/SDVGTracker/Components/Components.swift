@@ -88,7 +88,7 @@ struct Card<Content: View>: View {
 struct QuickAdd: View {
     @Environment(AppModel.self) private var model
     var date: LocalDate?
-    var placeholder = "Добавить задачу"
+    var placeholder = tr("Добавить задачу", "Add a task")
     @State private var title = ""
     @State private var history: [Rules.TitleGroup] = []
     /// A suggestion put into the field with ↖; its look is kept while the title is being edited.
@@ -116,7 +116,7 @@ struct QuickAdd: View {
                     Image(systemName: "plus").frame(width: 40, height: 40)
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Новая задача подробно")
+                .accessibilityLabel(tr("Новая задача подробно", "New task with details"))
             }
             if !suggestions.isEmpty {
                 TitleSuggestions(items: suggestions, onPick: pick, onFill: { filled = $0; title = $0.title })

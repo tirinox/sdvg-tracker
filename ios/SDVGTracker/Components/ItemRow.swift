@@ -19,11 +19,13 @@ struct ItemRow: View {
     /// Checked on tap, before the write: the row stays for a moment and a second tap takes it back.
     private var checking: Bool { model.pendingDone[doneKey] != nil }
 
+    private var high: Bool { item.priority == .high }
+
     private var borderColor: Color {
         switch item.done ? 0 : item.attention {
         case 2: Palette.warn.opacity(0.55)
         case 3, 4: Palette.danger.opacity(0.7)
-        default: Color(.separator).opacity(0.5)
+        default: high ? Palette.color(item.color).opacity(0.45) : Color(.separator).opacity(0.5)
         }
     }
 
@@ -35,7 +37,8 @@ struct ItemRow: View {
                         EmojiCircle(emoji: item.emoji, color: item.color)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.title)
-                                .font(.body.weight(.medium))
+                                .font(.body.weight(high ? .bold : item.priority == .low ? .regular : .medium))
+                                .foregroundStyle(item.priority == .low ? .secondary : .primary)
                                 .strikethrough(item.done)
                                 .multilineTextAlignment(.leading)
                             meta
@@ -58,7 +61,7 @@ struct ItemRow: View {
                             .frame(width: 34, height: 34)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityLabel(item.skipped ? "Вернуть" : "Пропустить сегодня")
+                    .accessibilityLabel(item.skipped ? tr("Вернуть", "Undo skip") : tr("Пропустить сегодня", "Skip today"))
                 }
                 Button(action: toggleDone) {
                     let checked = item.done || checking
@@ -82,15 +85,15 @@ struct ItemRow: View {
                 .sensoryFeedback(.success, trigger: pops)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { checkFrame = $0 }
                 .disabled(!isTask && day > model.today)
-                .accessibilityLabel(item.done || checking ? "Снять отметку" : "Готово")
+                .accessibilityLabel(item.done || checking ? tr("Снять отметку", "Mark not done") : tr("Готово", "Mark done"))
             }
             if item.attention >= 4 && !item.done && isTask {
                 FlowLayout(spacing: 6) {
-                    Text("Застряла?").font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
+                    Text(tr("Застряла?", "Stuck?")).font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
                         .padding(.vertical, 4)
-                    Button("Разбить на шаги") { edit() }
-                    Button("Во входящие") { model.perform { try $0.updateTask(item.refID, ["date": nil]) } }
-                    Button("Удалить", role: .destructive) { model.perform { try $0.deleteTask(item.refID) } }
+                    Button(tr("Разбить на шаги", "Break into steps")) { edit() }
+                    Button(tr("Во входящие", "Move to Inbox")) { model.perform { try $0.updateTask(item.refID, ["date": nil]) } }
+                    Button(tr("Удалить", "Delete"), role: .destructive) { model.perform { try $0.deleteTask(item.refID) } }
                 }
                 .font(.footnote)
                 .lineLimit(1)
@@ -107,6 +110,9 @@ struct ItemRow: View {
                 RoundedRectangle(cornerRadius: 14).fill(Palette.ok.opacity(checking ? 0.14 : 0))
             }
         }
+        .overlay {
+            if high { PriorityMarks(color: item.color, key: item.id, pulse: !item.done && !item.skipped) }
+        }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
         .opacity(item.done || item.skipped ? 0.55 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
@@ -116,6 +122,7 @@ struct ItemRow: View {
         let timing = Fmt.timing(item.timing, duration: item.durationMin)
         let deadline = Fmt.deadline(item, today: model.today)
         HStack(spacing: 6) {
+            if high { Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24)) }
             if !isTask { Image(systemName: "repeat").font(.caption2).foregroundStyle(.tertiary) }
             if !timing.isEmpty { Text(timing).font(.footnote).foregroundStyle(.secondary) }
             if !deadline.isEmpty && !item.done {
@@ -134,9 +141,12 @@ struct ItemRow: View {
             }
             if let a = item.adherence, a.warning, let percent = a.percent, !item.done, !item.skipped {
                 Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
-                    .accessibilityLabel("Рутина пропускается: \(Fmt.adherence(a))")
+                    .accessibilityLabel(tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))"))
             }
-            if item.skipped { Text("пропущено").font(.footnote).foregroundStyle(.secondary) }
+            if item.skipped { Text(tr("пропущено", "skipped")).font(.footnote).foregroundStyle(.secondary) }
+            if item.priority == .low && !item.done && !item.skipped {
+                Text(Fmt.lowPriority).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -167,5 +177,54 @@ struct ItemRow: View {
 
     private func setCheck(_ status: CheckStatus?) {
         model.perform { [item, day] in try $0.setRoutineCheck(item.refID, date: day, status: status) }
+    }
+}
+
+/// High priority, in the item's own color: a stripe on the left and a ring pulsing out of the row
+/// now and then (not with Reduce Motion). Neighbouring rows start their pulses at different moments.
+struct PriorityMarks: View {
+    var color: Int
+    /// Picks the pulse's start, so rows do not pulse in step.
+    var key: String
+    var pulse: Bool
+    /// 0 for a List row background: the cell clips, so the pulse glows inside the row instead.
+    var cornerRadius: CGFloat = 14
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var started = false
+
+    var body: some View {
+        let c = Palette.color(color)
+        ZStack {
+            Rectangle().fill(c).frame(width: 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            if pulse && !reduceMotion && started {
+                // t: 0 when the ring leaves the border, 1 when it has faded out.
+                Color.clear.keyframeAnimator(initialValue: 1.0, repeating: true) { content, t in
+                    content.overlay {
+                        if cornerRadius > 0 {
+                            let w = 7 * t
+                            RoundedRectangle(cornerRadius: cornerRadius + w / 2)
+                                .stroke(c.opacity(0.55 * (1 - t)), lineWidth: w)
+                                .padding(-w / 2)
+                        } else {
+                            Rectangle().fill(c.opacity(0.18 * (1 - t)))
+                        }
+                    }
+                } keyframes: { _ in
+                    MoveKeyframe(0)
+                    LinearKeyframe(1, duration: 1.35, timingCurve: .easeOut)
+                    LinearKeyframe(1, duration: 1.65)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .task {
+            let h = key.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
+            try? await Task.sleep(for: .milliseconds(h % 7 * 500))
+            started = true
+        }
     }
 }

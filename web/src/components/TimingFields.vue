@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { durationLabel, partTitle, sectionTitle } from '../app/format'
+import { tr } from '../app/i18n'
 import type { PartOfDay, TimeKind } from '../core/types'
 
 const kind = defineModel<TimeKind>('kind', { required: true })
@@ -6,24 +8,17 @@ const part = defineModel<PartOfDay | null>('part', { required: true })
 const time = defineModel<string | null>('time', { required: true })
 const duration = defineModel<number | null>('duration', { required: true })
 
-type Choice = { label: string; kind: TimeKind; part?: PartOfDay }
+/** Labels are functions so they follow the interface language. */
+type Choice = { id: string; label: () => string; kind: TimeKind; part?: PartOfDay }
 const CHOICES: Choice[] = [
-  { label: 'В любое время', kind: 'none' },
-  { label: '🌅 Утро', kind: 'part', part: 'morning' },
-  { label: '☀️ День', kind: 'part', part: 'day' },
-  { label: '🌙 Вечер', kind: 'part', part: 'evening' },
-  { label: '⏰ Точное время', kind: 'exact' },
+  { id: 'none', label: () => sectionTitle('anytime'), kind: 'none' },
+  { id: 'morning', label: () => `🌅 ${partTitle('morning')}`, kind: 'part', part: 'morning' },
+  { id: 'day', label: () => `☀️ ${partTitle('day')}`, kind: 'part', part: 'day' },
+  { id: 'evening', label: () => `🌙 ${partTitle('evening')}`, kind: 'part', part: 'evening' },
+  { id: 'exact', label: () => tr('⏰ Точное время', '⏰ Exact time'), kind: 'exact' },
 ]
 
-const DURATIONS = [
-  { min: 5, label: '5 мин' },
-  { min: 10, label: '10 мин' },
-  { min: 15, label: '15 мин' },
-  { min: 30, label: '30 мин' },
-  { min: 60, label: '1 ч' },
-  { min: 120, label: '2 ч' },
-  { min: 180, label: '3 ч' },
-]
+const DURATIONS = [5, 10, 15, 30, 60, 120, 180]
 
 /** Tapping the selected duration again clears it. */
 const pickDuration = (min: number) => (duration.value = duration.value === min ? null : min)
@@ -39,36 +34,36 @@ function pick(c: Choice) {
 
 <template>
   <div class="field">
-    <span>Когда</span>
+    <span>{{ tr('Когда', 'When') }}</span>
     <div class="chips">
       <button
         v-for="c in CHOICES"
-        :key="c.label"
+        :key="c.id"
         type="button"
         class="chip"
         :aria-pressed="selected(c)"
         @click="pick(c)"
       >
-        {{ c.label }}
+        {{ c.label() }}
       </button>
     </div>
   </div>
   <label v-if="kind === 'exact'" class="field">
-    <span>Время</span>
+    <span>{{ tr('Время', 'Time') }}</span>
     <input v-model="time" class="input time" type="time" required />
   </label>
   <div class="field">
-    <span>Длительность</span>
+    <span>{{ tr('Длительность', 'Duration') }}</span>
     <div class="chips">
       <button
-        v-for="d in DURATIONS"
-        :key="d.min"
+        v-for="min in DURATIONS"
+        :key="min"
         type="button"
         class="chip"
-        :aria-pressed="duration === d.min"
-        @click="pickDuration(d.min)"
+        :aria-pressed="duration === min"
+        @click="pickDuration(min)"
       >
-        {{ d.label }}
+        {{ durationLabel(min) }}
       </button>
       <input
         class="input custom"
@@ -76,8 +71,8 @@ function pick(c: Choice) {
         min="1"
         max="1440"
         :value="duration ?? ''"
-        placeholder="мин"
-        aria-label="Своя длительность в минутах"
+        :placeholder="tr('мин', 'min')"
+        :aria-label="tr('Своя длительность в минутах', 'Custom duration in minutes')"
         @input="duration = Number(($event.target as HTMLInputElement).value) || null"
       />
     </div>

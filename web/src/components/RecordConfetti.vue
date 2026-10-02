@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { plural } from '../app/format'
+import { tr, trn } from '../app/i18n'
 
 const props = defineProps<{ done: number; previous: number }>()
 const emit = defineEmits<{ close: [] }>()
@@ -96,10 +96,14 @@ onBeforeUnmount(() => {
     <button type="button" class="toast" @click="emit('close')">
       <span class="cup" aria-hidden="true">🏆</span>
       <span>
-        <b>Новый рекорд!</b>
+        <b>{{ tr('Новый рекорд!', 'New record!') }}</b>
         <span class="sub">
-          {{ props.done }} {{ plural(props.done, 'дело', 'дела', 'дел') }} за день — прежний был
-          {{ props.previous }}
+          {{
+            tr(
+              `${trn(props.done, ['дело', 'дела', 'дел'], ['thing', 'things'])} за день — прежний был ${props.previous}`,
+              `${trn(props.done, ['дело', 'дела', 'дел'], ['thing', 'things'])} done in a day — the old record was ${props.previous}`,
+            )
+          }}
         </span>
       </span>
     </button>

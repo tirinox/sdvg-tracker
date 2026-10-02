@@ -1,0 +1,56 @@
+{
+  "sourceLanguage": "ru",
+  "strings": {
+    "Добавь задачу в ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a task in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Задачи в ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasks in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Новая задача в ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New task in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Открой ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open ${applicationName}"
+          }
+        }
+      }
+    },
+    "Что сегодня в ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's on today in ${applicationName}"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

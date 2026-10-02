@@ -2,11 +2,13 @@
 // fixed key, so seeding twice (or on two devices) merges into the same rows, and clearDemo can
 // find everything again on any client.
 import { v5 as uuidv5 } from 'uuid'
+import { tr } from '../app/i18n'
 import { routineCheckId, taskMoveId } from '../core/ids'
 import type {
   LocalDate,
   LocalDateTime,
   PartOfDay,
+  Priority,
   RoutineSnapshot,
   RoutineVersion,
   Task,
@@ -39,35 +41,38 @@ interface RoutineSpec {
   time?: string
   duration?: number
   weekdays?: number
+  priority?: Priority
   /** Title before a mid-history edit, to demonstrate versions. */
   oldTitle?: string
 }
 
-const ROUTINES: RoutineSpec[] = [
-  { key: 'water', title: 'Стакан воды после пробуждения', emoji: '💧', color: 6, kind: 'exact', time: '07:00', duration: 5 },
-  { key: 'pills', title: 'Принять таблетки', emoji: '💊', color: 0, kind: 'exact', time: '07:30', duration: 5 },
-  { key: 'teeth-am', title: 'Почистить зубы', emoji: '🪥', color: 7, kind: 'part', part: 'morning' },
-  { key: 'shower', title: 'Принять душ', emoji: '🚿', color: 6, kind: 'part', part: 'morning', duration: 15 },
-  { key: 'bed', title: 'Застелить кровать', emoji: '🛏️', color: 9, kind: 'part', part: 'morning' },
-  { key: 'breakfast', title: 'Позавтракать', emoji: '🥣', color: 2, kind: 'exact', time: '08:30', duration: 20 },
-  { key: 'vitamins', title: 'Витамины', emoji: '🍊', color: 1, kind: 'part', part: 'morning' },
-  { key: 'stretch', title: 'Растяжка 10 минут', emoji: '🧘', color: 4, kind: 'part', part: 'morning', duration: 10 },
-  { key: 'plan', title: 'Посмотреть план на день', emoji: '🗓️', color: 8, kind: 'exact', time: '09:00', duration: 10 },
-  { key: 'walk', title: 'Прогулка с коляской', emoji: '🚼', color: 4, kind: 'part', part: 'day', duration: 60, oldTitle: 'Прогулка' },
-  { key: 'lunch', title: 'Пообедать', emoji: '🍲', color: 2, kind: 'exact', time: '13:00', duration: 30 },
-  { key: 'water-day', title: 'Выпить воды', emoji: '🥤', color: 6, kind: 'part', part: 'day' },
-  { key: 'mail', title: 'Разобрать почту и сообщения', emoji: '📬', color: 8, kind: 'part', part: 'day', duration: 15, weekdays: WORKDAYS },
-  { key: 'english', title: 'Английский 15 минут', emoji: '🇬🇧', color: 7, kind: 'part', part: 'day', duration: 15, weekdays: WORKDAYS },
-  { key: 'gym', title: 'Спортзал', emoji: '🏋️', color: 0, kind: 'exact', time: '18:30', duration: 60, weekdays: MON_WED_FRI },
-  { key: 'flowers', title: 'Полить цветы', emoji: '🪴', color: 4, kind: 'part', part: 'day', weekdays: MON_THU },
-  { key: 'trash', title: 'Вынести мусор', emoji: '🗑️', color: 11, kind: 'part', part: 'evening', weekdays: TUE_FRI },
-  { key: 'dinner', title: 'Поужинать', emoji: '🍝', color: 1, kind: 'exact', time: '19:30', duration: 30 },
-  { key: 'dishes', title: 'Помыть посуду', emoji: '🧽', color: 5, kind: 'part', part: 'evening', duration: 15 },
-  { key: 'tidy', title: '15 минут уборки', emoji: '🧹', color: 3, kind: 'part', part: 'evening', duration: 15 },
-  { key: 'clothes', title: 'Приготовить одежду на завтра', emoji: '👕', color: 9, kind: 'part', part: 'evening' },
-  { key: 'tomorrow', title: 'Проверить календарь на завтра', emoji: '📅', color: 8, kind: 'part', part: 'evening', duration: 5 },
-  { key: 'read', title: 'Чтение 20 минут', emoji: '📖', color: 10, kind: 'part', part: 'evening', duration: 20 },
-  { key: 'teeth-pm', title: 'Почистить зубы перед сном', emoji: '🪥', color: 7, kind: 'exact', time: '23:00', duration: 5 },
+// The specs are built on each call, so titles come out in the interface language of that moment;
+// nothing matches on them (ids come from keys and positions).
+const routineSpecs = (): RoutineSpec[] => [
+  { key: 'water', title: tr('Стакан воды после пробуждения', 'Glass of water after waking up'), emoji: '💧', color: 6, kind: 'exact', time: '07:00', duration: 5 },
+  { key: 'pills', title: tr('Принять таблетки', 'Take meds'), emoji: '💊', color: 0, kind: 'exact', time: '07:30', duration: 5, priority: 'high' },
+  { key: 'teeth-am', title: tr('Почистить зубы', 'Brush teeth'), emoji: '🪥', color: 7, kind: 'part', part: 'morning' },
+  { key: 'shower', title: tr('Принять душ', 'Shower'), emoji: '🚿', color: 6, kind: 'part', part: 'morning', duration: 15 },
+  { key: 'bed', title: tr('Застелить кровать', 'Make the bed'), emoji: '🛏️', color: 9, kind: 'part', part: 'morning' },
+  { key: 'breakfast', title: tr('Позавтракать', 'Have breakfast'), emoji: '🥣', color: 2, kind: 'exact', time: '08:30', duration: 20 },
+  { key: 'vitamins', title: tr('Витамины', 'Vitamins'), emoji: '🍊', color: 1, kind: 'part', part: 'morning' },
+  { key: 'stretch', title: tr('Растяжка 10 минут', 'Stretch for 10 minutes'), emoji: '🧘', color: 4, kind: 'part', part: 'morning', duration: 10 },
+  { key: 'plan', title: tr('Посмотреть план на день', 'Look over the plan for the day'), emoji: '🗓️', color: 8, kind: 'exact', time: '09:00', duration: 10 },
+  { key: 'walk', title: tr('Прогулка с коляской', 'Stroller walk'), emoji: '🚼', color: 4, kind: 'part', part: 'day', duration: 60, oldTitle: tr('Прогулка', 'Walk') },
+  { key: 'lunch', title: tr('Пообедать', 'Have lunch'), emoji: '🍲', color: 2, kind: 'exact', time: '13:00', duration: 30 },
+  { key: 'water-day', title: tr('Выпить воды', 'Drink some water'), emoji: '🥤', color: 6, kind: 'part', part: 'day' },
+  { key: 'mail', title: tr('Разобрать почту и сообщения', 'Go through email and messages'), emoji: '📬', color: 8, kind: 'part', part: 'day', duration: 15, weekdays: WORKDAYS },
+  { key: 'english', title: tr('Английский 15 минут', 'French for 15 minutes'), emoji: tr('🇬🇧', '🇫🇷'), color: 7, kind: 'part', part: 'day', duration: 15, weekdays: WORKDAYS },
+  { key: 'gym', title: tr('Спортзал', 'Gym'), emoji: '🏋️', color: 0, kind: 'exact', time: '18:30', duration: 60, weekdays: MON_WED_FRI },
+  { key: 'flowers', title: tr('Полить цветы', 'Water the plants'), emoji: '🪴', color: 4, kind: 'part', part: 'day', weekdays: MON_THU },
+  { key: 'trash', title: tr('Вынести мусор', 'Take out the trash'), emoji: '🗑️', color: 11, kind: 'part', part: 'evening', weekdays: TUE_FRI },
+  { key: 'dinner', title: tr('Поужинать', 'Have dinner'), emoji: '🍝', color: 1, kind: 'exact', time: '19:30', duration: 30 },
+  { key: 'dishes', title: tr('Помыть посуду', 'Do the dishes'), emoji: '🧽', color: 5, kind: 'part', part: 'evening', duration: 15 },
+  { key: 'tidy', title: tr('15 минут уборки', '15 minutes of tidying'), emoji: '🧹', color: 3, kind: 'part', part: 'evening', duration: 15, priority: 'low' },
+  { key: 'clothes', title: tr('Приготовить одежду на завтра', 'Lay out clothes for tomorrow'), emoji: '👕', color: 9, kind: 'part', part: 'evening' },
+  { key: 'tomorrow', title: tr('Проверить календарь на завтра', 'Check tomorrow’s calendar'), emoji: '📅', color: 8, kind: 'part', part: 'evening', duration: 5 },
+  { key: 'read', title: tr('Чтение 20 минут', 'Read for 20 minutes'), emoji: '📖', color: 10, kind: 'part', part: 'evening', duration: 20 },
+  { key: 'teeth-pm', title: tr('Почистить зубы перед сном', 'Brush teeth before bed'), emoji: '🪥', color: 7, kind: 'exact', time: '23:00', duration: 5 },
 ]
 
 interface TaskSpec {
@@ -85,66 +90,67 @@ interface TaskSpec {
   deadline?: number
   deadlineTime?: string
   notes?: string
+  priority?: Priority
 }
 
-const OPEN_TASKS: TaskSpec[] = [
-  { title: 'Починить колесо коляски', emoji: '🛠️', color: 1, moves: 12, notes: 'Нужен шестигранник на 5' },
-  { title: 'Записаться к стоматологу', emoji: '🦷', color: 7, moves: 9, deadline: 3 },
-  { title: 'Заполнить налоговый вычет', emoji: '🧾', color: 11, moves: 7, deadline: -1 },
-  { title: 'Позвонить в поликлинику', emoji: '📞', color: 0, kind: 'exact', time: '10:30', duration: 15, moves: 2 },
-  { title: 'Оплатить интернет', emoji: '💳', color: 8, deadline: 0, moves: 1 },
-  { title: 'Ответить Лене про выходные', emoji: '💬', color: 10, kind: 'part', part: 'day', moves: 3 },
-  { title: 'Купить подгузники', emoji: '🛒', color: 4, kind: 'part', part: 'day' },
-  { title: 'Отнести куртку в химчистку', emoji: '🧥', color: 9, moves: 5 },
-  { title: 'Разобрать фото с телефона', emoji: '📸', color: 10, moves: 14 },
-  { title: 'Продлить страховку машины', emoji: '🚗', color: 7, deadline: 2, moves: 4 },
-  { title: 'Подготовить отчёт для работы', emoji: '📊', color: 8, kind: 'exact', time: '11:00', duration: 90, deadline: 1, deadlineTime: '18:00' },
-  { title: 'Созвон с командой', emoji: '👥', color: 7, kind: 'exact', time: '15:00', duration: 30 },
-  { title: 'Поменять лампочку в коридоре', emoji: '💡', color: 2, moves: 6 },
-  { title: 'Вернуть книгу в библиотеку', emoji: '📚', color: 3, deadline: -2, moves: 8 },
-  { title: 'Заказать витамины', emoji: '📦', color: 1, kind: 'part', part: 'evening' },
-  { title: 'Написать маме', emoji: '❤️', color: 0, kind: 'part', part: 'evening', moves: 1 },
-  { title: 'Разморозить морозилку', emoji: '🧊', color: 6, moves: 10 },
-  { title: 'Проверить показания счётчиков', emoji: '🔢', color: 11, deadline: 4 },
-  { title: 'Передать показания воды', emoji: '🚰', color: 6, deadline: 5, moves: 2 },
-  { title: 'Сдать анализы', emoji: '🧪', color: 0, kind: 'part', part: 'morning', moves: 3, deadline: 6 },
-  { title: 'Постирать шторы', emoji: '🪟', color: 5, moves: 4 },
-  { title: 'Настроить резервную копию ноутбука', emoji: '💾', color: 8, moves: 11 },
-  { title: 'Выбросить старые батарейки', emoji: '🔋', color: 3, moves: 2 },
-  { title: 'Купить подарок на ДР Саше', emoji: '🎁', color: 10, deadline: 9 },
-  { title: 'Забрать посылку', emoji: '📮', color: 1, kind: 'part', part: 'day', deadline: 2 },
-  { title: 'Почистить кофемашину', emoji: '☕', color: 2, moves: 1 },
-  { title: 'Обновить резюме', emoji: '📝', color: 8, moves: 6 },
-  { title: 'Записать ребёнка к педиатру', emoji: '👶', color: 4, kind: 'part', part: 'morning', deadline: 7 },
-  { title: 'Разобрать шкаф с одеждой', emoji: '👚', color: 9, moves: 3 },
-  { title: 'Отменить ненужные подписки', emoji: '✂️', color: 11, moves: 5 },
-  { title: 'Приготовить обед на завтра', emoji: '🥘', color: 2, kind: 'part', part: 'evening' },
-  { title: 'Сделать дыхательную гимнастику', emoji: '🌬️', color: 5, kind: 'exact', time: '21:00', duration: 10 },
+const openTaskSpecs = (): TaskSpec[] => [
+  { title: tr('Починить колесо коляски', 'Fix the stroller wheel'), emoji: '🛠️', color: 1, moves: 12, notes: tr('Нужен шестигранник на 5', 'Need a 5 mm hex key') },
+  { title: tr('Записаться к стоматологу', 'Book a dentist appointment'), emoji: '🦷', color: 7, moves: 9, deadline: 3, priority: 'high' },
+  { title: tr('Заполнить налоговый вычет', 'File the tax return'), emoji: '🧾', color: 11, moves: 7, deadline: -1 },
+  { title: tr('Позвонить в поликлинику', 'Call the clinic'), emoji: '📞', color: 0, kind: 'exact', time: '10:30', duration: 15, moves: 2 },
+  { title: tr('Оплатить интернет', 'Pay the internet bill'), emoji: '💳', color: 8, deadline: 0, moves: 1 },
+  { title: tr('Ответить Лене про выходные', 'Reply to Emma about the weekend'), emoji: '💬', color: 10, kind: 'part', part: 'day', moves: 3 },
+  { title: tr('Купить подгузники', 'Buy diapers'), emoji: '🛒', color: 4, kind: 'part', part: 'day' },
+  { title: tr('Отнести куртку в химчистку', 'Take the jacket to the dry cleaner'), emoji: '🧥', color: 9, moves: 5 },
+  { title: tr('Разобрать фото с телефона', 'Sort the photos on my phone'), emoji: '📸', color: 10, moves: 14, priority: 'low' },
+  { title: tr('Продлить страховку машины', 'Renew the car insurance'), emoji: '🚗', color: 7, deadline: 2, moves: 4 },
+  { title: tr('Подготовить отчёт для работы', 'Prepare the work report'), emoji: '📊', color: 8, kind: 'exact', time: '11:00', duration: 90, deadline: 1, deadlineTime: '18:00', priority: 'high' },
+  { title: tr('Созвон с командой', 'Team call'), emoji: '👥', color: 7, kind: 'exact', time: '15:00', duration: 30 },
+  { title: tr('Поменять лампочку в коридоре', 'Change the hallway light bulb'), emoji: '💡', color: 2, moves: 6 },
+  { title: tr('Вернуть книгу в библиотеку', 'Return the library book'), emoji: '📚', color: 3, deadline: -2, moves: 8 },
+  { title: tr('Заказать витамины', 'Order vitamins'), emoji: '📦', color: 1, kind: 'part', part: 'evening' },
+  { title: tr('Написать маме', 'Text Mom'), emoji: '❤️', color: 0, kind: 'part', part: 'evening', moves: 1 },
+  { title: tr('Разморозить морозилку', 'Defrost the freezer'), emoji: '🧊', color: 6, moves: 10 },
+  { title: tr('Проверить показания счётчиков', 'Check the meter readings'), emoji: '🔢', color: 11, deadline: 4 },
+  { title: tr('Передать показания воды', 'Submit the water meter reading'), emoji: '🚰', color: 6, deadline: 5, moves: 2 },
+  { title: tr('Сдать анализы', 'Get blood work done'), emoji: '🧪', color: 0, kind: 'part', part: 'morning', moves: 3, deadline: 6 },
+  { title: tr('Постирать шторы', 'Wash the curtains'), emoji: '🪟', color: 5, moves: 4 },
+  { title: tr('Настроить резервную копию ноутбука', 'Set up laptop backups'), emoji: '💾', color: 8, moves: 11 },
+  { title: tr('Выбросить старые батарейки', 'Recycle the old batteries'), emoji: '🔋', color: 3, moves: 2 },
+  { title: tr('Купить подарок на ДР Саше', 'Buy Sam a birthday present'), emoji: '🎁', color: 10, deadline: 9 },
+  { title: tr('Забрать посылку', 'Pick up the parcel'), emoji: '📮', color: 1, kind: 'part', part: 'day', deadline: 2 },
+  { title: tr('Почистить кофемашину', 'Clean the coffee machine'), emoji: '☕', color: 2, moves: 1, priority: 'low' },
+  { title: tr('Обновить резюме', 'Update my resume'), emoji: '📝', color: 8, moves: 6 },
+  { title: tr('Записать ребёнка к педиатру', 'Book the kid’s pediatrician visit'), emoji: '👶', color: 4, kind: 'part', part: 'morning', deadline: 7 },
+  { title: tr('Разобрать шкаф с одеждой', 'Sort out the wardrobe'), emoji: '👚', color: 9, moves: 3 },
+  { title: tr('Отменить ненужные подписки', 'Cancel unused subscriptions'), emoji: '✂️', color: 11, moves: 5 },
+  { title: tr('Приготовить обед на завтра', 'Make tomorrow’s lunch'), emoji: '🥘', color: 2, kind: 'part', part: 'evening' },
+  { title: tr('Сделать дыхательную гимнастику', 'Do breathing exercises'), emoji: '🌬️', color: 5, kind: 'exact', time: '21:00', duration: 10 },
   // Planned ahead
-  { title: 'Встреча с Димой', emoji: '☕', color: 3, day: 1, kind: 'exact', time: '12:00', duration: 60 },
-  { title: 'Поменять резину', emoji: '🛞', color: 11, day: 3, deadline: 10 },
-  { title: 'Уборка на балконе', emoji: '🧺', color: 4, day: 5 },
+  { title: tr('Встреча с Димой', 'Coffee with Dan'), emoji: '☕', color: 3, day: 1, kind: 'exact', time: '12:00', duration: 60 },
+  { title: tr('Поменять резину', 'Swap the tires'), emoji: '🛞', color: 11, day: 3, deadline: 10 },
+  { title: tr('Уборка на балконе', 'Clean up the balcony'), emoji: '🧺', color: 4, day: 5 },
   // Inbox
-  { title: 'Придумать, куда поехать летом', emoji: '🏖️', color: 6, day: null },
-  { title: 'Посмотреть курс по фотографии', emoji: '🎓', color: 10, day: null },
-  { title: 'Переклеить обои в детской', emoji: '🎨', color: 1, day: null },
-  { title: 'Найти секцию плавания', emoji: '🏊', color: 7, day: null },
-  { title: 'Разобраться с настройками роутера', emoji: '📡', color: 8, day: null },
+  { title: tr('Придумать, куда поехать летом', 'Decide where to go this summer'), emoji: '🏖️', color: 6, day: null },
+  { title: tr('Посмотреть курс по фотографии', 'Look into a photography course'), emoji: '🎓', color: 10, day: null },
+  { title: tr('Переклеить обои в детской', 'Redo the wallpaper in the kids’ room'), emoji: '🎨', color: 1, day: null },
+  { title: tr('Найти секцию плавания', 'Find swimming lessons'), emoji: '🏊', color: 7, day: null },
+  { title: tr('Разобраться с настройками роутера', 'Figure out the router settings'), emoji: '📡', color: 8, day: null },
 ]
 
-const PAST_TITLES: [string, string, number][] = [
-  ['Купить продукты', '🛒', 4],
-  ['Оплатить коммуналку', '💳', 8],
-  ['Постирать бельё', '🧺', 5],
-  ['Забрать посылку', '📮', 1],
-  ['Позвонить бабушке', '📞', 0],
-  ['Сходить в аптеку', '💊', 0],
-  ['Заправить машину', '⛽', 11],
-  ['Погладить рубашки', '👔', 9],
-  ['Ответить на письма', '📧', 8],
-  ['Приготовить ужин', '🍳', 2],
-  ['Помыть полы', '🧽', 5],
-  ['Записаться на стрижку', '💇', 10],
+const pastTitles = (): [string, string, number][] => [
+  [tr('Купить продукты', 'Buy groceries'), '🛒', 4],
+  [tr('Оплатить коммуналку', 'Pay the utility bills'), '💳', 8],
+  [tr('Постирать бельё', 'Do the laundry'), '🧺', 5],
+  [tr('Забрать посылку', 'Pick up the parcel'), '📮', 1],
+  [tr('Позвонить бабушке', 'Call Grandma'), '📞', 0],
+  [tr('Сходить в аптеку', 'Go to the pharmacy'), '💊', 0],
+  [tr('Заправить машину', 'Fill up the car'), '⛽', 11],
+  [tr('Погладить рубашки', 'Iron the shirts'), '👔', 9],
+  [tr('Ответить на письма', 'Answer emails'), '📧', 8],
+  [tr('Приготовить ужин', 'Cook dinner'), '🍳', 2],
+  [tr('Помыть полы', 'Mop the floors'), '🧽', 5],
+  [tr('Записаться на стрижку', 'Book a haircut'), '💇', 10],
 ]
 
 /** Deterministic PRNG so the demo looks the same everywhere. */
@@ -173,6 +179,7 @@ function version(spec: RoutineSpec, from: LocalDate, title: string): RoutineVers
     part_of_day: spec.kind === 'part' ? spec.part! : null,
     time: spec.kind === 'exact' ? spec.time! : null,
     duration_min: spec.duration ?? null,
+    priority: spec.priority ?? 'normal',
     weekdays: spec.weekdays ?? DAILY,
     archived: false,
     created_at: iso(from, '06:00'),
@@ -193,10 +200,13 @@ export async function generateDemo(store: Store, today: LocalDate, now: LocalDat
   const changes: LocalChange[] = []
   const start = addDays(today, -HISTORY_DAYS)
   const editDay = addDays(today, -30)
+  const routines = routineSpecs()
+  const openTasks = openTaskSpecs()
+  const past = pastTitles()
 
   // Routines and their versions.
   const versions: (RoutineVersion & { id: string; hlc: string; spec: RoutineSpec })[] = []
-  ROUTINES.forEach((spec, i) => {
+  routines.forEach((spec, i) => {
     changes.push({
       entity: 'routine',
       id: routineId(spec.key),
@@ -252,7 +262,7 @@ export async function generateDemo(store: Store, today: LocalDate, now: LocalDat
     if (isToday || d === sickDay) continue
     const count = Math.floor(rand() * 4 * quality) + (quality > 0.5 ? 1 : 0)
     for (let i = 0; i < count && pastTask < MAX_PAST_TASKS; i++, pastTask++) {
-      const [title, emoji, color] = PAST_TITLES[Math.floor(rand() * PAST_TITLES.length)]!
+      const [title, emoji, color] = past[Math.floor(rand() * past.length)]!
       const moves = rand() < 0.3 ? 1 + Math.floor(rand() * 3) : 0
       const id = demoId(`past_task:${pastTask}`)
       const first = addDays(d, -moves)
@@ -262,7 +272,7 @@ export async function generateDemo(store: Store, today: LocalDate, now: LocalDat
   }
 
   // Open tasks for today, ahead and in the inbox.
-  OPEN_TASKS.forEach((spec, i) => {
+  openTasks.forEach((spec, i) => {
     const id = demoId(`open_task:${i}`)
     const moves = spec.moves ?? 0
     const date = spec.day === null ? null : addDays(today, spec.day ?? 0)
@@ -296,6 +306,7 @@ function task(
     part_of_day: kind === 'part' ? spec.part! : null,
     time: kind === 'exact' ? spec.time! : null,
     duration_min: spec.duration ?? null,
+    priority: spec.priority ?? 'normal',
     deadline_date: spec.deadline === undefined || !date ? null : addDays(date, spec.deadline),
     deadline_time: spec.deadlineTime ?? null,
     done_on: doneOn,
@@ -321,7 +332,7 @@ function move(taskId: string, from: LocalDate, kind: 'auto' | 'manual'): LocalCh
 export async function clearDemo(store: Store): Promise<number> {
   const changes: LocalChange[] = []
   const taskIds = [
-    ...OPEN_TASKS.map((_, i) => demoId(`open_task:${i}`)),
+    ...openTaskSpecs().map((_, i) => demoId(`open_task:${i}`)),
     ...Array.from({ length: MAX_PAST_TASKS }, (_, i) => demoId(`past_task:${i}`)),
   ]
   for (const row of await store.db.task.bulkGet(taskIds)) {
@@ -329,7 +340,7 @@ export async function clearDemo(store: Store): Promise<number> {
       changes.push({ entity: 'task', id: row.id, fields: { deleted: true, done_on: null } })
     }
   }
-  const routineIds = new Set(ROUTINES.map((r) => routineId(r.key)))
+  const routineIds = new Set(routineSpecs().map((r) => routineId(r.key)))
   const versions = await store.db.routine_version.where('fields.routine_id').anyOf([...routineIds]).toArray()
   for (const v of versions) {
     if (v.fields.archived) continue
@@ -347,5 +358,5 @@ export async function clearDemo(store: Store): Promise<number> {
   return changes.length
 }
 
-export const DEMO_ROUTINE_COUNT = ROUTINES.length
-export const DEMO_OPEN_TASK_COUNT = OPEN_TASKS.length
+export const DEMO_ROUTINE_COUNT = routineSpecs().length
+export const DEMO_OPEN_TASK_COUNT = openTaskSpecs().length

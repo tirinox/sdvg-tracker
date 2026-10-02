@@ -8,15 +8,15 @@ struct RootView: View {
         @Bindable var model = model
         TabView(selection: $model.tab) {
             NavigationStack { NowScreen() }
-                .tabItem { Label("Сейчас", systemImage: "sparkles") }.tag(Tab.now)
+                .tabItem { Label(tr("Сейчас", "Now"), systemImage: "sparkles") }.tag(Tab.now)
             NavigationStack { DayScreen() }
-                .tabItem { Label("День", systemImage: "list.bullet") }.tag(Tab.day)
+                .tabItem { Label(tr("День", "Day"), systemImage: "list.bullet") }.tag(Tab.day)
             NavigationStack { InboxScreen() }
-                .tabItem { Label("Входящие", systemImage: "tray") }.tag(Tab.inbox)
+                .tabItem { Label(tr("Входящие", "Inbox"), systemImage: "tray") }.tag(Tab.inbox)
             NavigationStack { RoutinesScreen() }
-                .tabItem { Label("Рутины", systemImage: "repeat") }.tag(Tab.routines)
+                .tabItem { Label(tr("Рутины", "Routines"), systemImage: "repeat") }.tag(Tab.routines)
             NavigationStack { SettingsScreen() }
-                .tabItem { Label("Настройки", systemImage: "gearshape") }.tag(Tab.settings)
+                .tabItem { Label(tr("Настройки", "Settings"), systemImage: "gearshape") }.tag(Tab.settings)
         }
         .sheet(item: $model.editor) { target in
             switch target {
@@ -45,6 +45,11 @@ struct RootView: View {
                 DoneCelebrationView(celebration: done) { model.doneCelebration = nil }.id(done.id)
             }
         }
+        .overlay {
+            if let url = model.goodMorning.playing {
+                GoodMorningVideo(url: url) { model.goodMorning.finished() }.id(url)
+            }
+        }
     }
 }
 
@@ -53,11 +58,11 @@ struct SyncBadge: View {
 
     var body: some View {
         let (color, text): (Color, String) = switch model.syncStatus.state {
-        case .idle: (Palette.ok, "синхронизировано")
-        case .syncing: (.accentColor, "синхронизация…")
-        case .offline: (Palette.warn, "офлайн")
-        case .unconfigured: (.gray, "только это устройство")
-        default: (Palette.danger, "ошибка синхронизации")
+        case .idle: (Palette.ok, tr("синхронизировано", "synced"))
+        case .syncing: (.accentColor, tr("синхронизация…", "syncing…"))
+        case .offline: (Palette.warn, tr("офлайн", "offline"))
+        case .unconfigured: (.gray, tr("только это устройство", "this device only"))
+        default: (Palette.danger, tr("ошибка синхронизации", "sync error"))
         }
         Button { model.tab = .settings } label: {
             Circle().fill(color).frame(width: 9, height: 9)
@@ -83,38 +88,40 @@ struct NowScreen: View {
                 }
                 if model.syncStatus.state == .unconfigured {
                     Card {
-                        Text("Данные пока хранятся только на этом телефоне. ")
-                            + Text("Подключите сервер").foregroundColor(.accentColor)
-                            + Text(" в настройках, чтобы синхронизировать с компьютером.")
+                        Text(tr("Данные пока хранятся только на этом телефоне. ", "Your data lives only on this phone for now. "))
+                            + Text(tr("Подключите сервер", "Connect a server")).foregroundColor(.accentColor)
+                            + Text(tr(" в настройках, чтобы синхронизировать с компьютером.", " in Settings to sync with your computer."))
                     }
                     .font(.subheadline)
                     .onTapGesture { model.tab = .settings }
                 }
                 HStack(spacing: 8) {
-                    stat("🔥 \(stats?.streak ?? 0)", plural(stats?.streak ?? 0, "день подряд", "дня подряд", "дней подряд"))
-                    stat("\(day?.done ?? 0)/\(day?.total ?? 0)", "сегодня",
+                    stat("🔥 \(stats?.streak ?? 0)", trWord(stats?.streak ?? 0, ru: ("день подряд", "дня подряд", "дней подряд"),
+                                                            en: ("day in a row", "days in a row")))
+                    stat("\(day?.done ?? 0)/\(day?.total ?? 0)", tr("сегодня", "today"),
                          progress: day.map { $0.total > 0 ? Double($0.done) / Double($0.total) : 0 })
-                    stat("\(stats?.totalDone ?? 0)", "всего сделано")
+                    stat("\(stats?.totalDone ?? 0)", tr("всего сделано", "done in total"))
                 }
                 if let record = stats?.record, record.bestDate != nil { RecordCard(record: record) }
-                Text("ГЛАВНОЕ СЕЙЧАС").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr("ГЛАВНОЕ СЕЙЧАС", "UP NEXT")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 if top.isEmpty {
                     Card {
-                        Text((day?.total ?? 0) > 0 ? "Всё на сегодня сделано 🎉" : "На сегодня пока ничего нет")
+                        Text((day?.total ?? 0) > 0 ? tr("Всё на сегодня сделано 🎉", "All done for today 🎉") : tr("На сегодня пока ничего нет", "Nothing for today yet"))
                             .frame(maxWidth: .infinity)
                     }
                 } else {
                     ForEach(top) { ItemRow(item: $0, showHint: true).transition(.row) }
                 }
                 if let day, day.total - day.done > 0 {
-                    Button("Весь день → ещё \(day.total - day.done) \(plural(day.total - day.done, "дело", "дела", "дел"))") {
+                    let left = trn(day.total - day.done, ru: ("дело", "дела", "дел"), en: ("thing", "things"))
+                    Button(tr("Весь день → ещё \(left)", "Whole day → \(left) more")) {
                         model.dayDate = nil
                         model.tab = .day
                     }
                     .font(.subheadline)
                 }
                 QuickAdd(date: model.today)
-                Text("АКТИВНОСТЬ").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr("АКТИВНОСТЬ", "ACTIVITY")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 if let stats { Card { HeatmapView(cells: stats.heatmap) } }
             }
             .padding()
@@ -122,7 +129,7 @@ struct NowScreen: View {
             .animation(.snappy(duration: 0.45), value: top.map(\.id))
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Сейчас")
+        .navigationTitle(tr("Сейчас", "Now"))
         .toolbar { ToolbarItem(placement: .topBarTrailing) { SyncBadge() } }
         .refreshable { await model.sync.sync() }
     }
@@ -151,7 +158,7 @@ struct DayScreen: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Button { go(Dates.addDays(date, -1)) } label: { Image(systemName: "chevron.left").padding(8) }
-                        .accessibilityLabel("Предыдущий день")
+                        .accessibilityLabel(tr("Предыдущий день", "Previous day"))
                     Spacer()
                     VStack {
                         Text(title.title).font(.title2.bold())
@@ -159,18 +166,18 @@ struct DayScreen: View {
                     }
                     Spacer()
                     Button { go(Dates.addDays(date, 1)) } label: { Image(systemName: "chevron.right").padding(8) }
-                        .accessibilityLabel("Следующий день")
+                        .accessibilityLabel(tr("Следующий день", "Next day"))
                 }
                 HStack {
                     if date == model.today { DayCountdown() }
                     Spacer()
-                    if let day { Text("Сделано \(day.done) из \(day.total)").font(.subheadline).foregroundStyle(.secondary) }
+                    if let day { Text(tr("Сделано \(day.done) из \(day.total)", "\(day.done) of \(day.total) done")).font(.subheadline).foregroundStyle(.secondary) }
                 }
                 if date == model.today {
                     QuickAdd(date: date)
                 } else if date > model.today {
-                    let when = date == Dates.addDays(model.today, 1) ? "завтра" : Fmt.shortDate(date)
-                    QuickAdd(date: date, placeholder: "Добавить задачу на \(when)")
+                    let when = date == Dates.addDays(model.today, 1) ? tr("завтра", "tomorrow") : Fmt.shortDate(date)
+                    QuickAdd(date: date, placeholder: tr("Добавить задачу на \(when)", "Add a task for \(when)"))
                 }
                 ForEach(rows) { row in
                     switch row {
@@ -182,7 +189,7 @@ struct DayScreen: View {
                     }
                 }
                 if day?.items.isEmpty == true {
-                    Text("На этот день ничего нет.").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30)
+                    Text(tr("На этот день ничего нет.", "Nothing on this day.")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30)
                 }
             }
             .padding()
@@ -235,11 +242,11 @@ private struct NotTodayBadge: View {
         Button(action: back) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar.badge.exclamationmark")
-                Text("Не сегодня — \(distance)")
+                Text(tr("Не сегодня — \(distance)", "Not today: \(distance)"))
                     .fontWeight(.semibold)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
-                Text("К сегодня")
+                Text(tr("К сегодня", "Back to today"))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(Palette.warn.opacity(0.18)))
@@ -253,8 +260,8 @@ private struct NotTodayBadge: View {
             .overlay(Capsule().strokeBorder(Palette.warn.opacity(0.4)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Не сегодня — \(distance)")
-        .accessibilityHint("Вернуться к сегодняшнему дню")
+        .accessibilityLabel(tr("Не сегодня — \(distance)", "Not today: \(distance)"))
+        .accessibilityHint(tr("Вернуться к сегодняшнему дню", "Go back to today"))
     }
 }
 
@@ -266,31 +273,48 @@ struct InboxScreen: View {
         let items = (try? model.store.loadInbox(now: model.now)) ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Всё, что пока без дня. Когда будете готовы — отправьте на сегодня или завтра.")
+                Text(tr("Всё, что пока без дня. Когда будете готовы — отправьте на сегодня или завтра.",
+                         "Everything without a day yet. When you’re ready, send it to today or tomorrow."))
                     .font(.subheadline).foregroundStyle(.secondary)
-                QuickAdd(date: nil, placeholder: "Записать мысль или задачу…")
+                QuickAdd(date: nil, placeholder: tr("Записать мысль или задачу…", "Jot down a thought or a task…"))
                 ForEach(items) { item in
                     HStack(spacing: 8) {
                         Button { model.openTask(item.refID) } label: {
                             HStack(spacing: 10) {
                                 EmojiCircle(emoji: item.emoji, color: item.color, size: 34)
-                                Text(item.title).font(.body.weight(.medium)).multilineTextAlignment(.leading)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.title)
+                                        .font(.body.weight(item.priority == .high ? .bold : item.priority == .low ? .regular : .medium))
+                                        .foregroundStyle(item.priority == .low ? .secondary : .primary)
+                                        .multilineTextAlignment(.leading)
+                                    if item.priority == .high {
+                                        Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24))
+                                    }
+                                }
                                 Spacer(minLength: 0)
                             }
                         }
                         .buttonStyle(.plain)
-                        Button("Сегодня") { plan(item, model.today) }.buttonStyle(.bordered).controlSize(.small)
-                        Button("Завтра") { plan(item, Dates.addDays(model.today, 1)) }.buttonStyle(.bordered).controlSize(.small)
+                        Button(tr("Сегодня", "Today")) { plan(item, model.today) }.buttonStyle(.bordered).controlSize(.small)
+                        Button(tr("Завтра", "Tomorrow")) { plan(item, Dates.addDays(model.today, 1)) }.buttonStyle(.bordered).controlSize(.small)
                     }
                     .padding(10)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground)))
+                    .overlay {
+                        if item.priority == .high {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14).strokeBorder(Palette.color(item.color).opacity(0.45))
+                                PriorityMarks(color: item.color, key: item.id, pulse: true)
+                            }
+                        }
+                    }
                 }
-                if items.isEmpty { Text("Входящие пусты ✨").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30) }
+                if items.isEmpty { Text(tr("Входящие пусты ✨", "Inbox is empty ✨")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30) }
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Входящие")
+        .navigationTitle(tr("Входящие", "Inbox"))
     }
 
     private func plan(_ item: DayItem, _ date: LocalDate) {
@@ -307,11 +331,13 @@ struct RoutinesScreen: View {
         let lagging = routines.filter(\.adherence.warning).count
         List {
             SwiftUI.Section {
-                Text("\(routines.count) \(plural(routines.count, "регулярная задача", "регулярные задачи", "регулярных задач")). Они повторяются по расписанию и не переносятся.")
+                Text(tr("\(routines.count) \(plural(routines.count, "регулярная задача", "регулярные задачи", "регулярных задач")). Они повторяются по расписанию и не переносятся.",
+                         "\(routines.count) \(routines.count == 1 ? "routine" : "routines"). They repeat on a schedule and never move to another day."))
                     .font(.subheadline).foregroundStyle(.secondary)
                 if lagging > 0 {
                     Label(
-                        "\(lagging) \(plural(lagging, "рутина пропускается", "рутины пропускаются", "рутин пропускаются")): за последние 30 дней сделано меньше \(model.settings.routineWarnBelow)\u{00A0}%.",
+                        tr("\(lagging) \(plural(lagging, "рутина пропускается", "рутины пропускаются", "рутин пропускаются")): за последние 30 дней сделано меньше \(model.settings.routineWarnBelow)\u{00A0}%.",
+                           "\(lagging) \(lagging == 1 ? "routine is" : "routines are") being skipped: done less than \(model.settings.routineWarnBelow)% of the last 30 days."),
                         systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.warn)
                 }
@@ -319,18 +345,26 @@ struct RoutinesScreen: View {
             ForEach(DaySection.allCases, id: \.self) { section in
                 let items = routines.filter { $0.section == section }
                 if !items.isEmpty {
-                    SwiftUI.Section(Fmt.sectionTitles[section]!) {
+                    SwiftUI.Section(Fmt.sectionTitle(section)) {
                         ForEach(items) { r in
                             Button { model.openRoutine(r.id) } label: {
                                 HStack(spacing: 12) {
                                     EmojiCircle(emoji: r.version.emoji, color: r.version.color, size: 34)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(r.version.title).foregroundStyle(.primary)
-                                        Text([Fmt.timing(r.version.timing, duration: r.version.durationMin), Fmt.weekdays(r.version.weekdays)]
-                                            .filter { !$0.isEmpty }.joined(separator: " · "))
-                                            .font(.footnote).foregroundStyle(.secondary)
+                                        let p = r.version.priority
+                                        Text(r.version.title)
+                                            .fontWeight(p == .high ? .bold : nil)
+                                            .foregroundStyle(p == .low ? .secondary : .primary)
+                                        HStack(spacing: 6) {
+                                            if p == .high {
+                                                Tag(text: Fmt.priorityTag, fg: Palette.text(r.version.color), bg: Palette.color(r.version.color).opacity(0.24))
+                                            }
+                                            Text(([p == .low ? Fmt.lowPriority : ""] + [Fmt.timing(r.version.timing, duration: r.version.durationMin), Fmt.weekdays(r.version.weekdays)])
+                                                .filter { !$0.isEmpty }.joined(separator: " · "))
+                                                .font(.footnote).foregroundStyle(.secondary)
+                                        }
                                         if let from = r.pendingFrom {
-                                            Text("изменения с \(Fmt.shortDate(from))").font(.footnote.weight(.semibold)).foregroundStyle(Color.accentColor)
+                                            Text(tr("изменения с \(Fmt.shortDate(from))", "changes from \(Fmt.shortDate(from))")).font(.footnote.weight(.semibold)).foregroundStyle(Color.accentColor)
                                         }
                                     }
                                     Spacer(minLength: 0)
@@ -343,21 +377,27 @@ struct RoutinesScreen: View {
                                             }
                                         }
                                         .monospacedDigit()
-                                        .accessibilityLabel("\(r.adherence.warning ? "Пропускается" : "Выполняется"): \(percent)\u{00A0}%, \(Fmt.adherence(r.adherence))")
+                                        .accessibilityLabel("\(r.adherence.warning ? tr("Пропускается", "Being skipped") : tr("Выполняется", "On track")): \(percent)\u{00A0}%, \(Fmt.adherence(r.adherence))")
                                     }
                                 }
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .listRowBackground(ZStack {
+                                Color(.secondarySystemGroupedBackground)
+                                if r.version.priority == .high {
+                                    PriorityMarks(color: r.version.color, key: r.id, pulse: true, cornerRadius: 0)
+                                }
+                            })
                         }
                     }
                 }
             }
         }
-        .navigationTitle("Рутины")
+        .navigationTitle(tr("Рутины", "Routines"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { model.openRoutine(nil) } label: { Image(systemName: "plus") }.accessibilityLabel("Добавить рутину")
+                Button { model.openRoutine(nil) } label: { Image(systemName: "plus") }.accessibilityLabel(tr("Добавить рутину", "Add routine"))
             }
         }
     }

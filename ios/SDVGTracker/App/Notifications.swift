@@ -27,9 +27,11 @@ enum Notifications {
             // Morning summary.
             let morning = "\(date)T\(String(format: "%02d", settings.partMorningFrom)):00"
             if morning > now, !open.isEmpty {
+                let things = trn(open.count, ru: ("дело", "дела", "дел"), en: ("thing", "things"))
                 requests.append(request(
                     id: "\(prefix)summary.\(date)", at: morning,
-                    title: "Доброе утро ☀️", body: "Сегодня \(open.count) \(plural(open.count, "дело", "дела", "дел")). Начнём с первого?"))
+                    title: tr("Доброе утро ☀️", "Good morning ☀️"),
+                    body: tr("Сегодня \(things). Начнём с первого?", "\(things) for today. Start with the first one?")))
             }
             for item in open {
                 guard let time = item.timing.time else { continue }
@@ -39,7 +41,7 @@ enum Notifications {
                 guard at > now else { continue }
                 requests.append(request(
                     id: "\(prefix)\(item.id).\(date)", at: at,
-                    title: "\(item.emoji ?? "⏰") \(item.title)", body: "Пора: \(time)"))
+                    title: "\(item.emoji ?? "⏰") \(item.title)", body: tr("Пора: \(time)", "Time for it: \(time)")))
             }
         }
         // iOS keeps at most 64 pending requests per app.

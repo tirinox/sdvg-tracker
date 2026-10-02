@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { tr } from '../app/i18n'
 
 defineProps<{ title: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -13,7 +14,7 @@ onMounted(() => dialog.value?.showModal())
     <form class="body" method="dialog" @submit.prevent>
       <header>
         <h2>{{ title }}</h2>
-        <button class="btn ghost" type="button" aria-label="Закрыть" @click="dialog?.close()">✕</button>
+        <button class="btn ghost" type="button" :aria-label="tr('Закрыть', 'Close')" @click="dialog?.close()">✕</button>
       </header>
       <slot />
       <footer><slot name="footer" /></footer>

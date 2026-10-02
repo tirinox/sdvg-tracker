@@ -148,7 +148,10 @@ describe('demo data', { timeout: 60_000 }, () => {
     const now = pickNow(day)
     expect(now.length).toBeGreaterThanOrEqual(5)
     expect(now.length).toBeLessThanOrEqual(7)
-    expect(now[0]!.score).toBeGreaterThanOrEqual(now.at(-1)!.score)
+    // High priority leads, whatever the score; the rest go by score.
+    expect(now[0]!.priority).toBe('high')
+    const rest = now.filter((i) => i.priority !== 'high')
+    expect(rest[0]!.score).toBeGreaterThanOrEqual(rest.at(-1)!.score)
 
     const stats = await loadStats(store, TODAY)
     expect(stats.streak).toBeGreaterThanOrEqual(20)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useApp } from '../app/context'
+import { tr } from '../app/i18n'
 import { createTask, type NewTask } from '../db/actions'
 import type { TitleSuggestion } from '../domain/suggest'
 import { autoEmoji } from '../sync/emoji'
@@ -49,8 +50,8 @@ function fill(s: TitleSuggestion) {
   <div class="quick">
     <TitleInput
       v-model="title"
-      :placeholder="placeholder ?? 'Добавить задачу и нажать Enter'"
-      aria-label="Новая задача"
+      :placeholder="placeholder ?? tr('Добавить задачу и нажать Enter', 'Add a task and press Enter')"
+      :aria-label="tr('Новая задача', 'New task')"
       fill-button
       @enter="add"
       @pick="pick"
@@ -59,7 +60,7 @@ function fill(s: TitleSuggestion) {
     <button
       class="btn"
       type="button"
-      title="Подробнее"
+      :title="tr('Подробнее', 'More details')"
       @click="openTask(null, { title, date, ...look })"
     >
       ＋

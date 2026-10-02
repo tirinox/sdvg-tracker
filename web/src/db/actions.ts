@@ -38,6 +38,7 @@ export type NewTask = Pick<Task, 'title'> &
       | 'part_of_day'
       | 'time'
       | 'duration_min'
+      | 'priority'
       | 'deadline_date'
       | 'deadline_time'
     >
@@ -54,6 +55,7 @@ export async function createTask(store: Store, input: NewTask): Promise<string> 
     part_of_day: null,
     time: null,
     duration_min: null,
+    priority: 'normal',
     deadline_date: null,
     deadline_time: null,
     ...input,
@@ -187,7 +189,7 @@ export type RoutineContent = Pick<RoutineVersion, 'title'> &
   Partial<
     Pick<
       RoutineVersion,
-      'emoji' | 'color' | 'time_kind' | 'part_of_day' | 'time' | 'duration_min' | 'weekdays'
+      'emoji' | 'color' | 'time_kind' | 'part_of_day' | 'time' | 'duration_min' | 'priority' | 'weekdays'
     >
   >
 
@@ -225,6 +227,7 @@ export async function createRoutine(
     part_of_day: null,
     time: null,
     duration_min: null,
+    priority: 'normal',
     weekdays: 127,
     ...input,
     routine_id: routineId,

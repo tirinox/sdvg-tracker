@@ -25,13 +25,13 @@ struct AppearancePicker: View {
         HStack(spacing: 14) {
             Button { showEmojis.toggle() } label: { EmojiCircle(emoji: emoji, color: color, size: 52) }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Выбрать эмодзи")
+                .accessibilityLabel(tr("Выбрать эмодзи", "Choose emoji"))
             FlowLayout(spacing: 7) {
                 ForEach(0..<12) { i in
                     Circle().fill(Palette.color(i)).frame(width: 24, height: 24)
                         .overlay(Circle().strokeBorder(Color.primary, lineWidth: color == i ? 2 : 0))
                         .onTapGesture { color = i }
-                        .accessibilityLabel("Цвет \(i + 1)")
+                        .accessibilityLabel(tr("Цвет \(i + 1)", "Color \(i + 1)"))
                         .accessibilityAddTraits(color == i ? .isSelected : [])
                 }
             }
@@ -40,17 +40,17 @@ struct AppearancePicker: View {
         .task(id: title.trimmingCharacters(in: .whitespacesAndNewlines)) { await suggest() }
         if !suggested.isEmpty {
             HStack(spacing: 2) {
-                Text("Подходят").font(.footnote).foregroundStyle(.secondary).padding(.trailing, 6)
+                Text(tr("Подходят", "Suggested")).font(.footnote).foregroundStyle(.secondary).padding(.trailing, 6)
                 ForEach(suggested, id: \.self) { e in
                     Button { choose(e) } label: { emojiCell(e) }
                         .buttonStyle(.plain)
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Подходят к названию")
+            .accessibilityLabel(tr("Подходят к названию", "Suggested for the title"))
         }
         if showEmojis {
-            TextField("Своё эмодзи", text: Binding(get: { emoji ?? "" }, set: { choose($0.isEmpty ? nil : String($0.prefix(8))) }))
+            TextField(tr("Своё эмодзи", "Your own emoji"), text: Binding(get: { emoji ?? "" }, set: { choose($0.isEmpty ? nil : String($0.prefix(8))) }))
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 6) {
                 ForEach(Self.emojis, id: \.self) { e in
                     emojiCell(e).onTapGesture { choose(e); showEmojis = false }
@@ -88,21 +88,37 @@ struct AppearancePicker: View {
     }
 }
 
+struct PriorityPicker: View {
+    @Binding var priority: Priority
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(tr("Приоритет", "Priority")).font(.footnote).foregroundStyle(.secondary)
+            FlowLayout {
+                ForEach(Priority.allCases, id: \.self) { p in
+                    Chip(label: Fmt.priority(p), selected: priority == p) { priority = p }
+                }
+            }
+        }
+    }
+}
+
 struct TimingPicker: View {
     @Binding var timing: Timing
     @Binding var duration: Int?
 
-    private static let choices: [(String, TimeKind, PartOfDay?)] = [
-        ("В любое время", .none, nil), ("🌅 Утро", .part, .morning), ("☀️ День", .part, .day),
-        ("🌙 Вечер", .part, .evening), ("⏰ Точное время", .exact, nil),
-    ]
-    private static let durations: [(Int, String)] = [
-        (5, "5 мин"), (10, "10 мин"), (15, "15 мин"), (30, "30 мин"), (60, "1 ч"), (120, "2 ч"), (180, "3 ч"),
-    ]
+    private static var choices: [(String, TimeKind, PartOfDay?)] {
+        [
+            (Fmt.sectionTitle(.anytime), .none, nil), ("🌅 " + Fmt.partTitle(.morning), .part, .morning),
+            ("☀️ " + Fmt.partTitle(.day), .part, .day), ("🌙 " + Fmt.partTitle(.evening), .part, .evening),
+            (tr("⏰ Точное время", "⏰ Exact time"), .exact, nil),
+        ]
+    }
+    private static var durations: [(Int, String)] { [5, 10, 15, 30, 60, 120, 180].map { ($0, Fmt.duration($0)) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Когда").font(.footnote).foregroundStyle(.secondary)
+            Text(tr("Когда", "When")).font(.footnote).foregroundStyle(.secondary)
             FlowLayout {
                 ForEach(Self.choices, id: \.0) { label, kind, part in
                     Chip(label: label, selected: timing.kind == kind && (kind != .part || timing.part == part)) {
@@ -114,10 +130,10 @@ struct TimingPicker: View {
             }
         }
         if timing.kind == .exact {
-            DatePicker("Время", selection: timeBinding, displayedComponents: .hourAndMinute)
+            DatePicker(tr("Время", "Time"), selection: timeBinding, displayedComponents: .hourAndMinute)
         }
         VStack(alignment: .leading, spacing: 8) {
-            Text("Длительность").font(.footnote).foregroundStyle(.secondary)
+            Text(tr("Длительность", "Duration")).font(.footnote).foregroundStyle(.secondary)
             FlowLayout {
                 ForEach(Self.durations, id: \.0) { min, label in
                     Chip(label: label, selected: duration == min) { duration = duration == min ? nil : min }
@@ -178,7 +194,7 @@ struct TaskEditor: View {
         NavigationStack {
             Form {
                 SwiftUI.Section {
-                    TextField("Что нужно сделать?", text: $draft.title, axis: .vertical).font(.title3.weight(.semibold))
+                    TextField(tr("Что нужно сделать?", "What needs doing?"), text: $draft.title, axis: .vertical).font(.title3.weight(.semibold))
                         .focused($titleFocused)
                     if !suggestions.isEmpty {
                         TitleSuggestions(items: suggestions) { s in
@@ -188,71 +204,73 @@ struct TaskEditor: View {
                     }
                     AppearancePicker(emoji: $draft.emoji, color: $draft.color, title: draft.title, auto: id == nil)
                 }
-                SwiftUI.Section("День") {
+                SwiftUI.Section(tr("День", "Day")) {
                     FlowLayout {
-                        Chip(label: "Сегодня", selected: draft.date == today) { draft.date = today }
-                        Chip(label: "Завтра", selected: draft.date == Dates.addDays(today, 1)) { draft.date = Dates.addDays(today, 1) }
-                        Chip(label: "📥 Во входящие", selected: draft.date == nil) { draft.date = nil }
+                        Chip(label: tr("Сегодня", "Today"), selected: draft.date == today) { draft.date = today }
+                        Chip(label: tr("Завтра", "Tomorrow"), selected: draft.date == Dates.addDays(today, 1)) { draft.date = Dates.addDays(today, 1) }
+                        Chip(label: tr("📥 Во входящие", "📥 To inbox"), selected: draft.date == nil) { draft.date = nil }
                     }
                     if draft.date != nil {
-                        DatePicker("Дата", selection: dateBinding($draft.date, default: today), displayedComponents: .date)
+                        DatePicker(tr("Дата", "Date"), selection: dateBinding($draft.date, default: today), displayedComponents: .date)
                     }
                 }
                 SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
-                SwiftUI.Section("Дедлайн") {
-                    Toggle("Есть дедлайн", isOn: Binding(
+                SwiftUI.Section { PriorityPicker(priority: $draft.priority) }
+                SwiftUI.Section(tr("Дедлайн", "Deadline")) {
+                    Toggle(tr("Есть дедлайн", "Has a deadline"), isOn: Binding(
                         get: { draft.deadlineDate != nil },
                         set: { draft.deadlineDate = $0 ? Dates.addDays(today, 3) : nil }))
                     if draft.deadlineDate != nil {
-                        DatePicker("Дата", selection: dateBinding($draft.deadlineDate, default: today), displayedComponents: .date)
-                        Toggle("До определённого времени", isOn: Binding(
+                        DatePicker(tr("Дата", "Date"), selection: dateBinding($draft.deadlineDate, default: today), displayedComponents: .date)
+                        Toggle(tr("До определённого времени", "By a specific time"), isOn: Binding(
                             get: { draft.deadlineTime != nil },
                             set: { draft.deadlineTime = $0 ? "18:00" : nil }))
                         if draft.deadlineTime != nil {
-                            TextField("ЧЧ:ММ", text: Binding(get: { draft.deadlineTime ?? "" }, set: { draft.deadlineTime = $0 }))
+                            TextField(tr("ЧЧ:ММ", "HH:MM"), text: Binding(get: { draft.deadlineTime ?? "" }, set: { draft.deadlineTime = $0 }))
                                 .keyboardType(.numbersAndPunctuation)
                         }
                     }
                 }
-                SwiftUI.Section("Заметки") {
-                    TextField("Шаги, ссылки, мысли…", text: $draft.notes, axis: .vertical).lineLimit(2...6)
+                SwiftUI.Section(tr("Заметки", "Notes")) {
+                    TextField(tr("Шаги, ссылки, мысли…", "Steps, links, thoughts…"), text: $draft.notes, axis: .vertical).lineLimit(2...6)
                 }
                 if moves > 0 {
                     SwiftUI.Section {
-                        Text("↻ Задачу переносили уже \(moves) \(plural(moves, "раз", "раза", "раз")). Может, разбить её на шаги поменьше?")
+                        Text(tr("↻ Задачу переносили уже \(moves) \(plural(moves, "раз", "раза", "раз")). Может, разбить её на шаги поменьше?",
+                                 "↻ This task has been moved \(moves == 1 ? "once" : "\(moves) times") already. Maybe break it into smaller steps?"))
                             .foregroundStyle(Palette.warn)
                     }
                 }
                 if let id {
-                    SwiftUI.Section("Копия задачи") {
+                    SwiftUI.Section(tr("Копия задачи", "Copy of the task")) {
                         let target = copyDate ?? Dates.addDays(today, 1)
-                        DatePicker("День", selection: dateBinding($copyDate, default: Dates.addDays(today, 1)),
+                        DatePicker(tr("День", "Day"), selection: dateBinding($copyDate, default: Dates.addDays(today, 1)),
                                    in: calendarDate(today)..., displayedComponents: .date)
-                        Button("⧉ Копировать на \(dayLabel(target))") { copy(to: target) }
+                        Button(tr("⧉ Копировать на \(dayLabel(target))", "⧉ Copy to \(dayLabel(target))")) { copy(to: target) }
                             .disabled(!valid || target < today)
                         if let copied {
                             HStack {
-                                Label("Копия на \(dayLabel(copied.date)) готова", systemImage: "checkmark.circle.fill")
+                                Label(tr("Копия на \(dayLabel(copied.date)) готова", "Copied to \(dayLabel(copied.date))"), systemImage: "checkmark.circle.fill")
                                     .foregroundStyle(Palette.ok)
                                 Spacer()
-                                Button("Отменить") { undoCopy() }.buttonStyle(.borderless)
+                                Button(tr("Отменить", "Undo")) { undoCopy() }.buttonStyle(.borderless)
                             }
                         }
                     }
                     SwiftUI.Section {
                         if !done {
-                            Button("↷ Перенести на завтра") { save(); model.perform { try $0.postponeTask(id, today: today) }; dismiss() }
+                            Button(tr("↷ Перенести на завтра", "↷ Move to tomorrow")) { save(); model.perform { try $0.postponeTask(id, today: today) }; dismiss() }
                                 .disabled(!valid)
                         }
-                        Button("Удалить задачу", role: .destructive) { model.perform { try $0.deleteTask(id) }; dismiss() }
+                        Button(tr("Удалить задачу", "Delete task"), role: .destructive) { model.perform { try $0.deleteTask(id) }; dismiss() }
                     }
                 }
             }
-            .navigationTitle(id == nil ? "Новая задача" : "Задача")
+            .navigationTitle(id == nil ? tr("Новая задача", "New task") : tr("Задача", "Task"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save(); dismiss() }.disabled(!valid) }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Отмена", "Cancel")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(tr("Сохранить", "Save")) { save(); dismiss() }.disabled(!valid) }
             }
             .onAppear {
                 guard let id else {
@@ -285,7 +303,7 @@ struct TaskEditor: View {
     }
 
     private func dayLabel(_ d: LocalDate) -> String {
-        d == model.today ? "сегодня" : d == Dates.addDays(model.today, 1) ? "завтра" : Fmt.shortDate(d)
+        d == model.today ? tr("сегодня", "today") : d == Dates.addDays(model.today, 1) ? tr("завтра", "tomorrow") : Fmt.shortDate(d)
     }
 
     /// Copies the form as it is now; the task itself changes only on "Сохранить".
@@ -316,10 +334,11 @@ struct RoutineEditor: View {
         NavigationStack {
             Form {
                 SwiftUI.Section {
-                    TextField("Например, «Пообедать»", text: $draft.title).font(.title3.weight(.semibold))
+                    TextField(tr("Например, «Пообедать»", "E.g. “Have lunch”"), text: $draft.title).font(.title3.weight(.semibold))
                     AppearancePicker(emoji: $draft.emoji, color: $draft.color, title: draft.title, auto: id == nil)
                 }
                 SwiftUI.Section { TimingPicker(timing: $draft.timing, duration: $draft.durationMin) }
+                SwiftUI.Section { PriorityPicker(priority: $draft.priority) }
                 SwiftUI.Section {
                     FlowLayout {
                         ForEach(0..<7) { i in
@@ -327,9 +346,10 @@ struct RoutineEditor: View {
                         }
                     }
                 } header: {
-                    Text("Дни недели")
+                    Text(tr("Дни недели", "Days of the week"))
                 } footer: {
-                    Text("Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего, если сегодня уже отмечено) — прошлые дни остаются как были.")
+                    Text(tr("Регулярные задачи не переносятся. Изменения действуют с сегодняшнего дня (или с завтрашнего, если сегодня уже отмечено) — прошлые дни остаются как были.",
+                             "Routines don’t move to the next day. Changes apply from today (or from tomorrow if today is already marked); past days stay as they were."))
                 }
                 if let a = adherence, let percent = a.percent {
                     SwiftUI.Section {
@@ -337,18 +357,20 @@ struct RoutineEditor: View {
                             Text("\(percent)\u{00A0}%").monospacedDigit().fontWeight(.semibold)
                                 .foregroundStyle(a.warning ? Palette.warn : .secondary)
                         } label: {
-                            Text(a.warning ? "⚠︎ Пропускается" : "Выполняется")
+                            Text(a.warning ? tr("⚠︎ Пропускается", "⚠︎ Being skipped") : tr("Выполняется", "On track"))
                                 .foregroundStyle(a.warning ? Palette.warn : .primary)
                             Text(Fmt.adherence(a))
                         }
                     } footer: {
-                        Text("Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт."
-                            + (a.warning ? " Порог — \(model.settings.routineWarnBelow)\u{00A0}%, меняется в настройках." : ""))
+                        Text(tr("Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт.",
+                                "Counted over the last 30 days, but not before the first time it was done; days marked “Skip” don’t count.")
+                            + (a.warning ? tr(" Порог — \(model.settings.routineWarnBelow)\u{00A0}%, меняется в настройках.",
+                                              " The threshold is \(model.settings.routineWarnBelow)%, change it in Settings.") : ""))
                     }
                 }
                 if let id {
                     SwiftUI.Section {
-                        Button("Убрать рутину", role: .destructive) {
+                        Button(tr("Убрать рутину", "Remove routine"), role: .destructive) {
                             let today = model.today
                             model.perform { try $0.archiveRoutine(id, today: today) }
                             dismiss()
@@ -356,12 +378,12 @@ struct RoutineEditor: View {
                     }
                 }
             }
-            .navigationTitle(id == nil ? "Новая рутина" : "Рутина")
+            .navigationTitle(id == nil ? tr("Новая рутина", "New routine") : tr("Рутина", "Routine"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Отмена", "Cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save(); dismiss() }
+                    Button(tr("Сохранить", "Save")) { save(); dismiss() }
                         .disabled(draft.title.trimmingCharacters(in: .whitespaces).isEmpty || draft.weekdays == 0)
                 }
             }

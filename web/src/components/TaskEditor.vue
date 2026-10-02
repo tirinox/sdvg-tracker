@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
-import { plural, relativeDay, shortDate } from '../app/format'
+import { relativeDay, shortDate } from '../app/format'
+import { tr, trn } from '../app/i18n'
 import type { Task } from '../core/types'
 import {
   copyTask,
@@ -18,6 +19,7 @@ import type { TitleSuggestion } from '../domain/suggest'
 import { autoEmoji } from '../sync/emoji'
 import AppearanceFields from './AppearanceFields.vue'
 import Modal from './Modal.vue'
+import PriorityField from './PriorityField.vue'
 import TimingFields from './TimingFields.vue'
 import TitleInput from './TitleInput.vue'
 
@@ -35,6 +37,7 @@ const form = reactive({
   part_of_day: null as Task['part_of_day'],
   time: null as string | null,
   duration_min: null as number | null,
+  priority: 'normal' as Task['priority'],
   deadline_date: null as string | null,
   deadline_time: null as string | null,
   ...props.defaults,
@@ -62,7 +65,8 @@ onMounted(async () => {
 function pick(t: Task) {
   const { title, notes, emoji, color, date, time_kind, part_of_day, time } = t
   const { duration_min, deadline_date, deadline_time } = t
-  return { title, notes, emoji, color, date, time_kind, part_of_day, time, duration_min, deadline_date, deadline_time }
+  const priority = t.priority ?? 'normal'
+  return { title, notes, emoji, color, date, time_kind, part_of_day, time, duration_min, priority, deadline_date, deadline_time }
 }
 
 const inbox = computed({
@@ -136,7 +140,7 @@ async function undoCopy() {
 }
 
 async function remove() {
-  if (props.id && confirm('Удалить задачу?')) {
+  if (props.id && confirm(tr('Удалить задачу?', 'Delete this task?'))) {
     await deleteTask(store, props.id)
     emit('close')
   }
@@ -144,13 +148,13 @@ async function remove() {
 </script>
 
 <template>
-  <Modal :title="id ? 'Задача' : 'Новая задача'" @close="emit('close')">
+  <Modal :title="id ? tr('Задача', 'Task') : tr('Новая задача', 'New task')" @close="emit('close')">
     <template v-if="loaded">
       <TitleInput
         ref="titleInput"
         v-model="form.title"
         class="title"
-        placeholder="Что нужно сделать?"
+        :placeholder="tr('Что нужно сделать?', 'What needs doing?')"
         :plain="Boolean(id)"
         @enter="save"
         @pick="applySuggestion"
@@ -158,10 +162,10 @@ async function remove() {
       <AppearanceFields v-model:emoji="form.emoji" v-model:color="form.color" :title="form.title" :auto="!id" />
 
       <div class="field">
-        <span>День</span>
+        <span>{{ tr('День', 'Day') }}</span>
         <div class="chips">
           <button type="button" class="chip" :aria-pressed="form.date === today" @click="form.date = today">
-            Сегодня
+            {{ tr('Сегодня', 'Today') }}
           </button>
           <button
             type="button"
@@ -169,9 +173,11 @@ async function remove() {
             :aria-pressed="form.date === addDays(today, 1)"
             @click="form.date = addDays(today, 1)"
           >
-            Завтра
+            {{ tr('Завтра', 'Tomorrow') }}
           </button>
-          <button type="button" class="chip" :aria-pressed="inbox" @click="inbox = true">📥 Во входящие</button>
+          <button type="button" class="chip" :aria-pressed="inbox" @click="inbox = true">
+            📥 {{ tr('Во входящие', 'To Inbox') }}
+          </button>
           <input v-if="!inbox" v-model="form.date" class="input date" type="date" :min="today" />
         </div>
       </div>
@@ -183,57 +189,77 @@ async function remove() {
         v-model:duration="form.duration_min"
       />
 
+      <PriorityField v-model="form.priority" />
+
       <div class="pair">
         <label class="field">
-          <span>Дедлайн (необязательно)</span>
+          <span>{{ tr('Дедлайн (необязательно)', 'Deadline (optional)') }}</span>
           <input v-model="form.deadline_date" class="input" type="date" />
         </label>
         <label v-if="form.deadline_date" class="field">
-          <span>до времени</span>
+          <span>{{ tr('до времени', 'by time') }}</span>
           <input v-model="form.deadline_time" class="input" type="time" />
         </label>
       </div>
 
       <label class="field">
-        <span>Заметки</span>
-        <textarea v-model="form.notes" class="input" rows="2" placeholder="Шаги, ссылки, мысли…" />
+        <span>{{ tr('Заметки', 'Notes') }}</span>
+        <textarea
+          v-model="form.notes"
+          class="input"
+          rows="2"
+          :placeholder="tr('Шаги, ссылки, мысли…', 'Steps, links, thoughts…')"
+        />
       </label>
 
       <p v-if="moves" class="moves">
-        ↻ Задачу переносили уже {{ moves }} {{ plural(moves, 'раз', 'раза', 'раз') }}. Может, разбить её на
-        шаги поменьше?
+        ↻
+        {{
+          tr(
+            `Задачу переносили уже ${trn(moves, ['раз', 'раза', 'раз'], ['time', 'times'])}. Может, разбить её на шаги поменьше?`,
+            `This task has been moved ${trn(moves, ['раз', 'раза', 'раз'], ['time', 'times'])} already. Maybe break it into smaller steps?`,
+          )
+        }}
       </p>
 
       <div v-if="id" class="field">
-        <span>Копия задачи</span>
+        <span>{{ tr('Копия задачи', 'Copy of the task') }}</span>
         <div class="chips">
-          <input v-model="copyDate" class="input date" type="date" :min="today" aria-label="День для копии" />
+          <input
+            v-model="copyDate"
+            class="input date"
+            type="date"
+            :min="today"
+            :aria-label="tr('День для копии', 'Day for the copy')"
+          />
           <button type="button" class="btn" :disabled="!canCopy" @click="copy">
-            ⧉ Копировать на {{ copyDate ? dayLabel(copyDate) : '…' }}
+            ⧉ {{ tr('Копировать на', 'Copy to') }} {{ copyDate ? dayLabel(copyDate) : '…' }}
           </button>
         </div>
         <p v-if="copied" class="copied" role="status">
-          ✓ Копия на {{ dayLabel(copied.date) }} готова
-          <button type="button" class="btn ghost" @click="undoCopy">Отменить</button>
+          ✓ {{ tr(`Копия на ${dayLabel(copied.date)} готова`, `Copy for ${dayLabel(copied.date)} is ready`) }}
+          <button type="button" class="btn ghost" @click="undoCopy">{{ tr('Отменить', 'Undo') }}</button>
         </p>
       </div>
     </template>
 
     <template #footer>
-      <button v-if="id" class="btn danger" type="button" @click="remove">Удалить</button>
+      <button v-if="id" class="btn danger" type="button" @click="remove">{{ tr('Удалить', 'Delete') }}</button>
       <span style="flex: 1" />
       <button
         v-if="id && !done"
         class="btn"
         type="button"
         :disabled="!valid"
-        title="Перенести на следующий день — это посчитается как перенос"
+        :title="
+          tr('Перенести на следующий день — это посчитается как перенос', 'Move to the next day — this counts as a move')
+        "
         @click="postpone"
       >
-        ↷ На завтра
+        ↷ {{ tr('На завтра', 'Move to tomorrow') }}
       </button>
-      <button class="btn" type="button" @click="emit('close')">Отмена</button>
-      <button class="btn primary" type="button" :disabled="!valid" @click="save">Сохранить</button>
+      <button class="btn" type="button" @click="emit('close')">{{ tr('Отмена', 'Cancel') }}</button>
+      <button class="btn primary" type="button" :disabled="!valid" @click="save">{{ tr('Сохранить', 'Save') }}</button>
     </template>
   </Modal>
 </template>

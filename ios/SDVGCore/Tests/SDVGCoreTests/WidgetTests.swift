@@ -8,6 +8,11 @@ final class WidgetTests: XCTestCase {
     let now = "2026-09-22T14:40"
     let day = "2026-09-22"
 
+    override func setUp() {
+        super.setUp()
+        L10n.current = .ru
+    }
+
     private func filled() throws -> Store {
         let s = try Store.open(path: nil)
         var call = TaskDraft(title: "Созвон", date: day)
@@ -52,6 +57,13 @@ final class WidgetTests: XCTestCase {
         XCTAssertEqual(byTitle["Коляска"]?.badgeKind, .deadline)
         XCTAssertEqual(byTitle["Коляска"]?.badge, "просрочено")
         XCTAssertEqual(byTitle["Прогулка"]?.badge, nil)
+    }
+
+    func testBadgesInEnglish() throws {
+        L10n.current = .en
+        defer { L10n.current = .ru }
+        let snap = try filled().widgetSnapshot(now: now)
+        XCTAssertEqual(snap.items.first { $0.item.title == "Коляска" }?.badge, "overdue")
     }
 
     func testCurrentPartAndNextPart() throws {

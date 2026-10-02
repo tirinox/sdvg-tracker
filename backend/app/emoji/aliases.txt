@@ -2,6 +2,8 @@
 # CLDR says what an emoji shows ("зуб"), a task says what to do ("записаться к стоматологу").
 # One emoji per line, then phrases separated by ";"; each phrase is matched on its own.
 # An emoji may appear on several lines. Every emoji here must be in catalog.tsv.
+# Russian phrases first, then the same in English for English titles: without them English
+# titles score well below Russian ones and CONFIDENT almost never lets one through.
 
 # Еда и питьё
 🍽️ поесть; обед; ужин; пообедать; поужинать; приём пищи; дневник питания
@@ -204,3 +206,207 @@
 🛜 wi-fi; роутер; настроить роутер; интернет
 📡 роутер; антенна; сигнал; спутник
 🆕 новое; новый проект; начать
+
+# English
+
+# Food and drink
+🍽️ eat; lunch; dinner; have lunch; have dinner; meal; food diary
+🥣 breakfast; have breakfast; porridge; cereal
+🍳 make breakfast; fry eggs; omelette
+🥘 cook; cooking; cook lunch; meal prep for the week
+🍲 soup; make soup; hot meal
+🥗 salad; snack; healthy eating
+🍎 fruit snack; fruit; apple
+🥪 snack; sandwich; packed lunch
+🍱 lunchbox; pack lunch for work; food container
+💧 drink water; glass of water; hydrate; water intake
+🥤 drink; soda; sugary drinks; no sugary drinks
+☕ coffee; have a coffee; coffee machine; coffee meeting
+🍵 tea; have tea
+🍼 feed the baby; baby bottle; formula
+🛒 buy; shopping; groceries; go to the store; shopping list; order groceries
+🛍️ shopping; buy clothes; mall
+🧊 defrost the fridge; ice; freezer
+
+# Health
+💊 take pills; medicine; pill; vitamins; take medication; supplements
+💉 shot; vaccine; vaccination
+🩺 doctor; see a doctor; clinic; GP; checkup; health screening
+🦷 dentist; teeth; dentist appointment
+🪥 brush teeth; toothbrush; oral hygiene
+🧪 lab tests; get tests done; blood test; lab
+🩸 blood work; give blood; donor
+🩹 band-aid; bandage; dress a wound
+🏥 hospital; clinic; hospital stay
+🧠 therapist; psychologist; therapy; psychiatrist; mental health
+🌡️ take temperature; temperature; thermometer
+❤️‍🩹 check blood pressure; blood pressure; heart
+😴 go to bed; sleep; nap; go to bed on time
+🛌 rest; take a break; lie down; get enough sleep
+👁️ eye doctor; eyes; eyesight; eye drops
+💆 massage; relax; self-massage
+🧴 lotion; moisturizer; skincare; hair mask
+🧼 wash hands; soap; wash face
+🚿 shower; take a shower
+🛁 bath; take a bath
+💇 haircut; get a haircut; hairdresser; barber
+💅 manicure; nails; pedicure
+🪒 shave; shaving
+
+# Sport and body
+🏋️ gym; workout; strength training; fitness; pull-ups; push-ups; exercises
+🏃 run; jog; go for a run
+🚶 walk; go for a walk; steps; go outside
+🧘 meditation; yoga; stretching; breathing exercises; meditate; mindfulness; pause; break
+🤸 stretching; morning exercises; gymnastics; warm-up
+🚴 bike; bike ride; cycling
+🏊 pool; swimming; swim
+⚽ football; soccer
+🎾 tennis
+🧗 climbing gym; bouldering
+💪 sport; training; resistance band; strength; abs
+
+# Home and chores
+🧹 cleaning; clean up; sweep; tidy up; declutter
+🧽 wash the dishes; dishes; scrub; clean
+🧺 laundry; do laundry; hang the laundry; washing
+👕 clothes; ironing; lay out clothes; sort the closet
+🗑️ take out the trash; trash; throw away
+♻️ sort the recycling; recycling; recycle
+🛏️ make the bed; bed linen; change the sheets
+🪴 water the plants; plants; repot a plant
+🧯 fire extinguisher; fire safety
+🔧 fix; repair; plumber; tighten
+🛠️ fix; repair; handyman; tools; assemble furniture
+🔨 put up a shelf; nail; repair
+💡 change a light bulb; light; electrician; idea
+🪟 wash the windows; windows; curtains; blinds
+🚪 door; lock; keys; hallway
+🛋️ sofa; living room; furniture
+🧸 toys; tidy up toys; kids' room
+🔑 keys; copy keys; password; access
+📦 parcel; order; delivery; send a parcel; marketplace
+📮 pick up a parcel; post office; mail a letter; pickup point
+🧾 receipt; bill; invoice; taxes; tax refund; paperwork
+🔋 batteries; charge; battery; charge the phone
+🔌 socket; charger; electricity
+🚰 water meter reading; water meters; plumbing
+🔢 meter readings; meters; numbers
+🏠 home; apartment; around the house; housework
+🧷 mend; button; safety pin
+🧵 sew; mend clothes; thread
+🪣 mop the floor; bucket; mopping
+
+# Pets
+🐈 cat; feed the cat; litter box; clean the litter box; take the cat to the vet
+🐕 dog; walk the dog; feed the dog
+🐾 pet; feed the pet; vet; animal
+🐟 fish; aquarium; feed the fish
+
+# Family and people
+👶 baby; child; pediatrician
+🚼 stroller; walk with the stroller; baby stuff; diapers
+🧒 kid; kindergarten; kid's school
+👪 family; family dinner; parents
+❤️ love; text mom; loved ones; care
+🎁 gift; buy a present; birthday; congratulate
+🎂 birthday; cake; celebration
+🤝 meeting; agree on; negotiation; meet someone
+👥 team call; team; meeting; standup
+💬 reply; write; message; chat; messenger
+📞 call; phone call; call back
+📱 phone; smartphone; SIM card; change number; mobile
+✉️ letter; write a letter; envelope
+📧 email; mail; inbox; answer emails; sort email
+📬 mailbox; check the mail; inbox
+
+# Work and study
+💻 work; laptop; code; programming; work on the code; computer
+🧑‍💻 development; write code; programmer; side project
+🖥️ server; computer; monitor; deploy; server migration
+☁️ cloud; server; hosting; deploy to the cloud
+🤖 bot; telegram bot; automation; AI; neural network
+🐛 bug; fix a bug; debugging; debug
+💾 backup; back up; save; archive
+📊 report; spreadsheet; statistics; presentation; analytics; budget tracker
+📈 growth; metrics; chart; progress; tracker
+📋 to-do list; checklist; plan; tasks; move tasks
+📝 note down; note; write; resume; lecture notes; make a list; fill out a form
+✍️ write a text; sign; essay; post
+📓 journal; keep a journal; diary; planner
+📅 calendar; date; schedule; check the calendar
+🗓️ plan the day; planning; week; weekly schedule
+⏰ alarm; reminder; get up on time; wake up
+⏳ deadline; due date; wait; timer
+📚 study; textbook; lectures; course; books; library; flashcards; anki
+📖 reading; read; read a book
+🎓 course; learning; degree; exam; university
+✏️ homework; exercises; notebook
+🎧 listen; audiobook; podcast; music on headphones; recording
+🎵 music; song; listen to music
+🎸 guitar; music practice
+🎹 piano; keyboard
+📺 watch a lecture; video; TV series; TV; movie
+🎬 movie; cinema; video editing
+📷 photo; photos; photographer; take a photo
+📸 sort photos; phone photos; selfie
+🎨 draw; drawing; art; design; hobby; project
+🗣️ speaking practice; language lesson; speak; pronunciation
+🇬🇧 English; English language
+🇯🇵 Japanese; Japanese language; kanji
+🇨🇳 Chinese; Chinese language
+🇩🇪 German; German language
+🇫🇷 French; French language
+🇪🇸 Spanish; Spanish language
+🇮🇹 Italian; Italian language
+🇹🇷 Turkish; Turkish language; Turkey
+🇵🇹 Portuguese; Portuguese language
+🇰🇷 Korean; Korean language
+💼 work; office; job interview; briefcase; work stuff
+🏢 office; company; go to the office
+🧑‍🏫 lesson; tutor; teacher; class
+
+# Money and documents
+💳 pay; payment; card; transfer money; pay for; online banking
+💰 money; finances; budget; income; expenses; salary; send money
+💸 spending; expenses; transfer; log expenses
+🏦 bank; loan; mortgage; deposit; bank account
+🪪 passport; documents; ID; driver's license; government services
+📄 document; certificate; application; contract
+🖨️ print; printer; scan; scanning
+✂️ cancel subscription; cut; cut down
+🔒 security; passwords; two-factor authentication; lock
+🛡️ insurance; protection; antivirus
+
+# Transport and travel
+🚗 car; car insurance; car inspection; fill up the car; car wash
+🛞 tires; change tires; tire shop; wheel
+⛽ gas station; get gas; gas; fuel
+🚌 bus; public transport
+🚕 taxi; call a taxi
+✈️ flight; plane; tickets; business trip; travel; airport
+🧳 suitcase; pack; trip; vacation
+🏖️ vacation; sea; beach; where to go this summer
+🗺️ route; plan a trip; map
+🏨 hotel; book accommodation
+
+# Leisure, mood, misc
+🎮 games; play; video games
+🧩 puzzle; brain teaser; figure out
+🎯 goal; goals; focus; priorities
+✅ do; done; check mark; check; complete
+⭐ important; favorite; main thing
+🔥 urgent; on fire; crunch; important
+😌 calm; relax; screen break
+💭 think; thoughts; reflection; feelings
+🌱 habit; growth; fresh start; self-improvement
+🌙 evening; evening routine; before bed
+☀️ morning; morning routine; get some sun
+🎉 celebration; party; celebrate
+🍷 wine; party; glass of wine
+🎟️ tickets; concert; theater; event
+⛪ church
+🌐 internet; website; browser; internet provider
+🛜 wi-fi; router; set up the router; internet
+📡 router; antenna; signal; satellite
+🆕 new; new project; start

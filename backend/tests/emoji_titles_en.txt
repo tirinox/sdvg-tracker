@@ -1,0 +1,52 @@
+# English task titles and the emoji that fit each (any of them), written before the model
+# saw them. test_emoji.py holds the suggestions to a pass rate over the whole list.
+Buy milk and eggs | 🛒 🥛 🥚
+Book an eye exam | 👁️ 🩺 🏥 👓
+Wash the car | 🚗 🧽 🧼
+Trim the cat's claws | 🐈 🐱 ✂️ 😺
+Pick up prescription at the pharmacy | 💊 🏥 ⚕️
+Pick up kids from school | 🧒 👶 🏫 🎒
+Call the bank about my card | 🏦 📞 💳
+Pay rent | 💳 🏠 💰 🧾 💸
+Gather documents for the visa | 🪪 📄 🛂 ✈️
+Finish the slides for Friday | 📊 💻 📈
+Prepare for the job interview | 💼 🤝 📝
+Vacuum the living room | 🧹 🧽
+Clean out the fridge | 🧊 🧹 🧽 🥶
+Walk the dog | 🐕 🐶 🦮 🚶
+Feed the fish | 🐟 🐠
+Run 5k | 🏃 👟
+Yoga class | 🧘 🤸
+Cook dinner | 🍳 🥘 🍲 🍽️ 🧑‍🍳
+Bake banana bread | 🍞 🍌 🥧 🧁 🥘
+Order pizza | 🍕 📦
+Buy train tickets | 🚆 🚂 🎟️ 🚄
+Book a hotel | 🏨 🛎️
+Pack the suitcase | 🧳
+Renew passport | 🪪 📄 🛂
+Write a review of the course | ✍️ 📝 💬
+Watch the webinar | 📺 💻 🎓
+Spanish homework | 🇪🇸 📚 ✏️ 📝
+Learn 20 new words | 📚 📖 🔤 🧠
+Practice guitar | 🎸 🎵
+Fix the kitchen faucet | 🔧 🛠️ 🚰
+Hang the picture | 🖼️ 🔨
+Donate old clothes | 📦 ❤️ 👕 🎁
+Send money to my brother | 💸 💳 💰
+Check the account balance | 💳 🏦 💰
+Change passwords | 🔑 🔒 🔐
+Back up my phone | 💾 📱 ☁️
+Debug the production issue | 🐛 💻 🔥 🖥️
+Write a blog post | ✍️ 📝 💻
+Reply to emails | 📧 ✉️ 💬 📬
+Wish grandma a happy birthday | 🎂 🎁 🎉 📞 ❤️
+Go to the movies | 🎬 🍿 🎟️
+Iron shirts | 👔 👕 🧺
+Do the laundry | 🧺 🫧 🧼 👕
+Plant tomato seedlings | 🍅 🌱 🪴
+Go to bed before midnight | 😴 🛌 🌙
+Take vitamin D | 💊 ☀️
+Meditate for 10 minutes | 🧘
+Morning workout | 🤸 🏋️ 💪 🏃
+Return library books | 📚 📖
+Pay the parking ticket | 💳 🧾 💰 🚓 🅿️

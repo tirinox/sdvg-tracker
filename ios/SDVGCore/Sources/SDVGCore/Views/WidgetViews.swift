@@ -33,9 +33,15 @@ struct WidgetRow: View {
     var body: some View {
         HStack(spacing: 8) {
             EmojiCircle(emoji: item.item.emoji, color: item.item.color, size: 26)
+                // High priority: a stripe in the item's color, out in the margin so rows stay aligned.
+                .overlay(alignment: .leading) {
+                    if item.item.priority == .high {
+                        Capsule().fill(Palette.color(item.item.color)).frame(width: 3, height: 22).offset(x: -7)
+                    }
+                }
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.item.title)
-                    .font(.caption)
+                    .font(.caption.weight(item.item.priority == .high ? .bold : .regular))
                     .lineLimit(1)
                     .strikethrough(item.item.done)
                     .foregroundStyle(item.item.done ? .secondary : .primary)
@@ -74,7 +80,7 @@ struct WidgetEmpty: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: "checkmark.circle").font(.title2).foregroundStyle(Palette.ok)
-            Text("На сегодня всё").font(.caption).foregroundStyle(.secondary)
+            Text(tr("На сегодня всё", "All done for today")).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -100,7 +106,7 @@ public struct HomeWidgetBody: View {
             case .medium: medium(snapshot)
             }
         } else {
-            Text("Откройте приложение").font(.caption).foregroundStyle(.secondary)
+            Text(tr("Откройте приложение", "Open the app")).font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -108,14 +114,25 @@ public struct HomeWidgetBody: View {
     private func small(_ s: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text("Сейчас").font(.caption2).foregroundStyle(.secondary)
+                Text(tr("Сейчас", "Now")).font(.caption2).foregroundStyle(.secondary)
                 Spacer()
                 Text(s.progressText).font(.caption2).foregroundStyle(.secondary)
             }
             if let first = s.items.first {
                 EmojiCircle(emoji: first.item.emoji, color: first.item.color, size: 30)
-                Text(first.item.title).font(.footnote.weight(.medium)).lineLimit(3)
-                WidgetBadge(item: first)
+                Text(first.item.title).font(.footnote.weight(first.item.priority == .high ? .bold : .medium)).lineLimit(3)
+                HStack(spacing: 4) {
+                    if first.item.priority == .high {
+                        Text("!!")
+                            .font(.caption2.weight(.heavy))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 5).fill(Palette.color(first.item.color).opacity(0.24)))
+                            .foregroundStyle(Palette.text(first.item.color))
+                            .accessibilityLabel(Fmt.priorityTag)
+                    }
+                    WidgetBadge(item: first)
+                }
             } else {
                 WidgetEmpty()
             }
@@ -142,7 +159,7 @@ public struct HomeWidgetBody: View {
     /// The current part of the day as a short timeline.
     private func large(_ s: WidgetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            WidgetHeader(snapshot: s, trailing: "\(Fmt.sectionTitles[s.part] ?? ""): \(s.partDone)/\(s.partTotal)")
+            WidgetHeader(snapshot: s, trailing: "\(Fmt.sectionTitle(s.part)): \(s.partDone)/\(s.partTotal)")
             ProgressView(value: s.partTotal > 0 ? Double(s.partDone) / Double(s.partTotal) : 0)
                 .tint(Palette.ok)
             if s.partItems.isEmpty {
@@ -152,10 +169,10 @@ public struct HomeWidgetBody: View {
             }
             Spacer(minLength: 0)
             HStack {
-                if s.moreInPart > 0 { Text("и ещё \(s.moreInPart)") }
+                if s.moreInPart > 0 { Text(tr("и ещё \(s.moreInPart)", "and \(s.moreInPart) more")) }
                 Spacer()
                 if let next = s.nextPart, s.nextPartCount > 0 {
-                    Text("дальше \(Fmt.sectionTitles[next]?.lowercased() ?? "") (\(s.nextPartCount))")
+                    Text(tr("дальше \(Fmt.sectionTitle(next).lowercased()) (\(s.nextPartCount))", "next: \(Fmt.sectionTitle(next).lowercased()) (\(s.nextPartCount))"))
                 }
             }
             .font(.caption2)
@@ -188,18 +205,18 @@ public struct LockWidgetBody: View {
             if let s {
                 Text("🔥 \(s.streak) · \(s.progressText)\(s.items.first?.badge.map { " · \($0)" } ?? "")")
             } else {
-                Text("Трекер")
+                Text(tr("Трекер", "Tracker"))
             }
         case .rectangular:
             VStack(alignment: .leading, spacing: 1) {
                 if let s, let first = s.items.first {
-                    Text(first.badge ?? Fmt.sectionTitles[s.part] ?? "").font(.caption2).foregroundStyle(.secondary)
+                    Text(first.badge ?? Fmt.sectionTitle(s.part)).font(.caption2).foregroundStyle(.secondary)
                     Text(first.item.title).font(.footnote.weight(.medium)).lineLimit(2)
                     if s.items.count > 1 {
-                        Text("потом: \(s.items[1].item.title)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text(tr("потом: \(s.items[1].item.title)", "then: \(s.items[1].item.title)")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
                 } else {
-                    Text("На сегодня всё").font(.footnote)
+                    Text(tr("На сегодня всё", "All done for today")).font(.footnote)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

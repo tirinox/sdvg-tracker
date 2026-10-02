@@ -38,6 +38,14 @@ def test_catalog_leaves_out_noise():
     assert "🇩🇬" not in emoji
 
 
+def test_descriptions_in_both_languages():
+    emoji, owners, texts = load_descriptions()
+    tooth = [t for o, t in zip(owners, texts, strict=True) if emoji[o] == "🦷"]
+    assert "зуб: белый, дантист, зуб, зубной, зубы, стоматолог" in tooth
+    assert "tooth: dentist, pearly, teeth, tooth, white" in tooth
+    assert {"записаться к стоматологу", "dentist appointment"} <= set(tooth)
+
+
 # API, with a stand-in for the model
 
 
@@ -158,6 +166,10 @@ def test_token_ids_match_the_reference_tokenizer():
         ("Лечь спать вовремя", "😴 🛌"),
         ("Помыть посуду", "🧽 🍽️"),
         ("Walk the dog", "🐕 🐶 🦮"),
+        ("Take out the trash", "🗑️ 🚮"),
+        ("Call mom", "📞 ☎️ 📱"),
+        ("Book a dentist appointment", "🦷"),
+        ("Go for a run", "🏃"),
     ],
 )
 def test_suggests_a_fitting_emoji(suggester, title, acceptable):
@@ -171,10 +183,12 @@ def plain(emoji: str) -> str:
 
 
 @needs_model
-def test_pass_rate_on_task_titles(suggester):
-    """First suggestion fits 74% of emoji_titles.txt, one of the top three 90% (at writing)."""
+@pytest.mark.parametrize("titles", ["emoji_titles.txt", "emoji_titles_en.txt"])
+def test_pass_rate_on_task_titles(suggester, titles):
+    """First suggestion fits 74% of emoji_titles.txt and 76% of emoji_titles_en.txt, one of
+    the top three 90% of each (at writing)."""
     first = top3 = total = 0
-    for line in (Path(__file__).parent / "emoji_titles.txt").read_text().splitlines():
+    for line in (Path(__file__).parent / titles).read_text().splitlines():
         if line.strip() and not line.startswith("#"):
             title, acceptable = line.split("|")
             fits = {plain(e) for e in acceptable.split()}
@@ -237,4 +251,6 @@ def test_api_with_the_model(suggester, cache_dir, tmp_path):
         assert resp.status_code == 200
         assert resp.json()["suggestions"][0]["emoji"] == "🐕"
         assert resp.json()["pick"] == "🐕"
+        assert suggest(client, text="Walk the dog").json()["pick"] == "🐕"
         assert suggest(client, text="Кружки клеить на стулья").json()["pick"] is None
+        assert suggest(client, text="Glue felt pads on chair legs").json()["pick"] is None
