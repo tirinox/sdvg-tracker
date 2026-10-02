@@ -10,14 +10,19 @@ struct GoodMorningVideo: View {
     var onClose: () -> Void
 
     static let fade: Double = 0.2
+    /// From the first letter of the greeting to the first line of the summary.
+    static let summaryAfter: Double = 1.6
 
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var player: AVPlayer
     @State private var shown = false
     @State private var closing = false
     /// The greeting is written once the video is in, today's summary comes in under it.
     @State private var writingFrom: Date?
     @State private var summary: MorningSummary?
+    /// The shade at the bottom that keeps the summary readable; it comes in with the summary.
+    @State private var shaded = false
 
     init(url: URL, onClose: @escaping () -> Void) {
         self.url = url
@@ -29,13 +34,23 @@ struct GoodMorningVideo: View {
         PlayerLayer(player: player) { start() }
             .background(.black)
             .ignoresSafeArea()
+            .overlay {
+                LinearGradient(stops: [
+                    .init(color: .clear, location: 0.45),
+                    .init(color: .black.opacity(0.3), location: 0.65),
+                    .init(color: .black.opacity(0.7), location: 1),
+                ], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+                .opacity(shaded ? 1 : 0)
+                .allowsHitTesting(false)
+            }
             .overlay(alignment: .bottom) {
                 if let writingFrom {
                     VStack(spacing: 14) {
                         GoodMorningTitle(from: writingFrom)
                             .padding(.horizontal, 16)
                         if let summary {
-                            GoodMorningSummaryView(summary: summary, from: writingFrom + 1.6)
+                            GoodMorningSummaryView(summary: summary, from: writingFrom + Self.summaryAfter)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -73,8 +88,18 @@ struct GoodMorningVideo: View {
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
         player.play()
         summary = model.morningSummary()
-        writingFrom = .now + 0.4
+        let writing = Date.now + 0.4
+        writingFrom = writing
         withAnimation(.easeInOut(duration: Self.fade)) { shown = true }
+        guard summary != nil else { return }
+        if reduceMotion {
+            shaded = true
+        } else {
+            Task {
+                try? await Task.sleep(for: .seconds(writing.timeIntervalSinceNow + Self.summaryAfter))
+                withAnimation(.easeInOut(duration: 0.6)) { shaded = true }
+            }
+        }
     }
 
     private func close() {
