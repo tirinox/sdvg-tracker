@@ -11,11 +11,13 @@ struct GoodMorningVideo: View {
 
     static let fade: Double = 0.2
 
+    @Environment(AppModel.self) private var model
     @State private var player: AVPlayer
     @State private var shown = false
     @State private var closing = false
-    /// The greeting is written once the video is in.
+    /// The greeting is written once the video is in, today's summary comes in under it.
     @State private var writingFrom: Date?
+    @State private var summary: MorningSummary?
 
     init(url: URL, onClose: @escaping () -> Void) {
         self.url = url
@@ -29,9 +31,15 @@ struct GoodMorningVideo: View {
             .ignoresSafeArea()
             .overlay(alignment: .bottom) {
                 if let writingFrom {
-                    GoodMorningTitle(from: writingFrom)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 56)
+                    VStack(spacing: 14) {
+                        GoodMorningTitle(from: writingFrom)
+                            .padding(.horizontal, 16)
+                        if let summary {
+                            GoodMorningSummaryView(summary: summary, from: writingFrom + 1.6)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 48)
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -64,6 +72,7 @@ struct GoodMorningVideo: View {
         guard !shown, !closing else { return }
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
         player.play()
+        summary = model.morningSummary()
         writingFrom = .now + 0.4
         withAnimation(.easeInOut(duration: Self.fade)) { shown = true }
     }

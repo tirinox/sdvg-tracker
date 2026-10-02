@@ -133,7 +133,17 @@ final class AppModel {
     /// The app is back on screen (or just launched).
     func becameActive() {
         syncNow()
+        guard started else { return }
+        // The clock stood still in the background: the day may have turned, and the morning
+        // summary must count what rolled over.
+        tick()
         greetMorning()
+    }
+
+    /// What is still open today and the streak, for the morning video.
+    func morningSummary() -> MorningSummary? {
+        guard let day = try? store.loadDay(today, now: now), let stats = try? store.loadStats(today: today) else { return nil }
+        return MorningSummary(day: day, streak: stats.streak)
     }
 
     /// The morning video, unless an editor or the welcome sheet would cover it.
