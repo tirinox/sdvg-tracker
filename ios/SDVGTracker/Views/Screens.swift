@@ -45,6 +45,11 @@ struct RootView: View {
                 DoneCelebrationView(celebration: done) { model.doneCelebration = nil }.id(done.id)
             }
         }
+        .overlay {
+            if let url = model.goodMorning.playing {
+                GoodMorningVideo(url: url) { model.goodMorning.finished() }.id(url)
+            }
+        }
     }
 }
 

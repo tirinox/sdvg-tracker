@@ -4,7 +4,7 @@ COMPOSE := docker compose
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
         test-live test-ios test-ios-live ios-build ios-open ios-install seed seed-clear import lint fmt backend-dev web-dev \
         emoji-model emoji-catalog \
-        backup reset-db restore deploy deploy-logs connect-prod
+        backup reset-db restore deploy deploy-logs connect-prod videos videos-deploy
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -174,6 +174,16 @@ connect-prod: ## Server address and token for the clients (token goes to clipboa
 	echo "Address: $(DEPLOY_URL)"; \
 	if command -v pbcopy >/dev/null; then printf %s "$$token" | pbcopy && echo "Token copied to clipboard"; \
 	else echo "Token:   $$token"; fi
+
+videos: ## Name new videos in video/ goodmorning-NNN.mp4 and write video/index.json
+	python3 scripts/goodmorning.py video
+
+# video/ is not in git: it goes to the server beside the checkout, nginx serves it at /video/.
+# Deletions come last, so the old index never points at a missing file.
+videos-deploy: videos ## Upload video/ to the server: the iOS app's morning videos
+	rsync -rtz --delete-after --chmod=D755,F644 --exclude .DS_Store video/ $(DEPLOY_HOST):$(DEPLOY_DIR)/video/
+	@curl -fsS -m 10 $(DEPLOY_URL)/video/index.json \
+		| python3 -c 'import json, sys; print(len(json.load(sys.stdin)["videos"]), "videos online")'
 
 backup: ## Snapshot the database into backups/ (consistent while running; the server's cron runs this)
 	@mkdir -p $(BACKUP_DIR)

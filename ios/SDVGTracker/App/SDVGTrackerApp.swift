@@ -48,7 +48,7 @@ struct SDVGTrackerApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: model.syncNow()
+            case .active: model.becameActive()
             case .background:
                 // A check still waiting for its write must not be lost if the app is suspended.
                 model.flushPendingDone()

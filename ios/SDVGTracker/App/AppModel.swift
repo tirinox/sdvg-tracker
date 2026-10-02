@@ -26,6 +26,7 @@ enum ConnectResult { case ok, badToken, offline, badURL }
 final class AppModel {
     let store: Store
     @ObservationIgnored private(set) var sync: SyncClient!
+    let goodMorning: GoodMorning
 
     var syncStatus = SyncStatus()
     var now: LocalDateTime = Dates.localNow()
@@ -72,6 +73,7 @@ final class AppModel {
 
     init(store: Store) {
         self.store = store
+        goodMorning = GoodMorning(baseURL: { [store] in (try? store.meta(AppModel.baseURLKey))?.string ?? "" })
         sync = SyncClient(store: store, config: { [store] in AppModel.serverConfig(store) }, onStatus: { status in
             Task { @MainActor [weak self] in self?.syncStatus = status }
         })
@@ -125,6 +127,19 @@ final class AppModel {
         showWelcome = !configured && !onboarded
         syncNow()
         scheduleSpotlight()
+        greetMorning()
+    }
+
+    /// The app is back on screen (or just launched).
+    func becameActive() {
+        syncNow()
+        greetMorning()
+    }
+
+    /// The morning video, unless an editor or the welcome sheet would cover it.
+    private func greetMorning() {
+        guard started, editor == nil, !showWelcome else { return }
+        goodMorning.greet(now: Dates.localNow(), settings: settings)
     }
 
     private func tick() {
@@ -331,6 +346,7 @@ final class AppModel {
         try? store.setMeta(Self.baseURLKey, .string(url))
         try? store.setMeta(Self.onboardingKey, true)
         syncNow()
+        goodMorning.prepare()
         await Notifications.requestAuthorization()
         return .ok
     }

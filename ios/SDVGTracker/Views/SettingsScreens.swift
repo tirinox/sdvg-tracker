@@ -120,6 +120,25 @@ struct SettingsScreen: View {
                          "Without the total, the widgets and the Now screen show only how much is done."))
             }
             SwiftUI.Section {
+                Button {
+                    Task { await model.goodMorning.showRandom() }
+                } label: {
+                    HStack {
+                        Text(tr("Показать случайную заставку", "Show a random video"))
+                        if model.goodMorning.loading { Spacer(); ProgressView() }
+                    }
+                }
+                .disabled(model.baseURL.isEmpty || model.goodMorning.loading)
+                if model.goodMorning.failed {
+                    Text(tr("Не удалось загрузить видео с сервера.", "Couldn’t load a video from the server.")).foregroundStyle(Palette.danger)
+                }
+            } header: {
+                Text(tr("Утренняя заставка", "Morning video"))
+            } footer: {
+                Text(tr("Раз в день, при первом запуске утром, — случайное видео с сервера. Без сервера заставки нет.",
+                         "Once a day, on the first launch in the morning: a random video from the server. No server, no video."))
+            }
+            SwiftUI.Section {
                 stepper(tr("День начинается в", "Day starts at"), s.dayStartHour, 0...12, "day_start_hour")
                 stepper(tr("Утро с", "Morning from"), s.partMorningFrom, 0...23, "part_morning_from")
                 stepper(tr("День с", "Afternoon from"), s.partDayFrom, 0...23, "part_day_from")

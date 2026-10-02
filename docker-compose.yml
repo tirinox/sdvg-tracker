@@ -30,6 +30,8 @@ services:
         condition: service_healthy
     ports:
       - "${PORT:-8420}:80"
+    volumes:
+      - ./video:/srv/video:ro
     restart: unless-stopped
 
 volumes:
