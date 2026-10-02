@@ -14,6 +14,8 @@ struct GoodMorningVideo: View {
     @State private var player: AVPlayer
     @State private var shown = false
     @State private var closing = false
+    /// The greeting is written once the video is in.
+    @State private var writingFrom: Date?
 
     init(url: URL, onClose: @escaping () -> Void) {
         self.url = url
@@ -25,6 +27,13 @@ struct GoodMorningVideo: View {
         PlayerLayer(player: player) { start() }
             .background(.black)
             .ignoresSafeArea()
+            .overlay(alignment: .bottom) {
+                if let writingFrom {
+                    GoodMorningTitle(from: writingFrom)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 56)
+                }
+            }
             .overlay(alignment: .topTrailing) {
                 Button(action: close) {
                     Image(systemName: "xmark")
@@ -55,6 +64,7 @@ struct GoodMorningVideo: View {
         guard !shown, !closing else { return }
         try? AVAudioSession.sharedInstance().setCategory(.ambient)
         player.play()
+        writingFrom = .now + 0.4
         withAnimation(.easeInOut(duration: Self.fade)) { shown = true }
     }
 
