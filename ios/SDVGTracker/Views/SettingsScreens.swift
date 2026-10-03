@@ -70,13 +70,10 @@ struct WelcomeScreen: View {
 
 struct SettingsScreen: View {
     @Environment(AppModel.self) private var model
-    @Environment(ServerChangePrompt.self) private var prompt: ServerChangePrompt?
 
     var body: some View {
         let _ = model.revision
         let s = model.settings
-        let pending = (try? model.store.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM outbox") }) ?? 0
-        let rejected = (try? model.store.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM rejected") }) ?? 0
         Form {
             SwiftUI.Section {
                 Picker(tr("Язык", "Language"), selection: Binding(get: { model.language }, set: { model.setLanguage($0) })) {
@@ -90,22 +87,8 @@ struct SettingsScreen: View {
                 Text(tr("Только на этом устройстве.", "This device only."))
             }
             SwiftUI.Section {
-                ConnectForm()
-            } header: {
-                Text(tr("Синхронизация", "Sync"))
-            } footer: {
-                Text(tr("Приложение работает и без сервера. Адрес — компьютер, где запущен make up (например, http://192.168.1.10:8420).",
-                         "The app works without a server too. The address is the computer running make up (e.g. http://192.168.1.10:8420)."))
-            }
-            SwiftUI.Section {
-                LabeledContent(tr("Состояние", "Status"), value: stateText)
-                LabeledContent(tr("Последняя синхронизация", "Last sync"), value: model.syncStatus.lastSyncAt?.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(L10n.current.locale)) ?? "—")
-                LabeledContent(tr("Ждут отправки", "Waiting to send"), value: "\(pending ?? 0)")
-                if (rejected ?? 0) > 0 { LabeledContent(tr("Отклонены сервером", "Rejected by the server"), value: "\(rejected ?? 0)") }
-                if model.syncStatus.state == .serverChanged, let prompt {
-                    Button(tr("Решить, что делать с данными…", "Decide what to do with the data…")) { prompt.ask() }
-                } else {
-                    Button(tr("Синхронизировать сейчас", "Sync now")) { model.syncNow() }
+                NavigationLink { SyncSettingsScreen() } label: {
+                    LabeledContent(tr("Синхронизация", "Sync"), value: model.syncStatus.state.text(model.syncStatus.error))
                 }
             }
             SwiftUI.Section {
@@ -166,23 +149,59 @@ struct SettingsScreen: View {
         .navigationTitle(tr("Настройки", "Settings"))
     }
 
-    private var stateText: String {
-        switch model.syncStatus.state {
-        case .idle: tr("синхронизировано", "synced")
-        case .syncing: tr("синхронизация…", "syncing…")
-        case .offline: tr("сервер недоступен — работаем офлайн", "server unreachable, working offline")
-        case .unauthorized: tr("неверный токен", "wrong token")
-        case .unconfigured: tr("сервер не подключён", "no server connected")
-        case .serverChanged: tr("на паузе: данные на сервере сменились", "paused: the server’s data changed")
-        case .error: tr("ошибка: \(model.syncStatus.error ?? "")", "error: \(model.syncStatus.error ?? "")")
-        }
-    }
-
     private func stepper(_ label: String, _ value: Int, _ range: ClosedRange<Int>, _ key: String) -> some View {
         Stepper("\(label) \(value):00", value: binding(value, key), in: range)
     }
 
     private func binding(_ value: Int, _ key: String) -> Binding<Int> {
         Binding(get: { value }, set: { v in model.perform { try $0.updateSettings([key: .int(v)]) } })
+    }
+}
+
+/// Server address, token and sync status: a submenu of the settings.
+struct SyncSettingsScreen: View {
+    @Environment(AppModel.self) private var model
+    @Environment(ServerChangePrompt.self) private var prompt: ServerChangePrompt?
+
+    var body: some View {
+        let _ = model.revision
+        let pending = (try? model.store.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM outbox") }) ?? 0
+        let rejected = (try? model.store.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM rejected") }) ?? 0
+        Form {
+            SwiftUI.Section {
+                ConnectForm()
+            } header: {
+                Text(tr("Сервер", "Server"))
+            } footer: {
+                Text(tr("Приложение работает и без сервера. Адрес — компьютер, где запущен make up (например, http://192.168.1.10:8420).",
+                         "The app works without a server too. The address is the computer running make up (e.g. http://192.168.1.10:8420)."))
+            }
+            SwiftUI.Section {
+                LabeledContent(tr("Состояние", "Status"), value: model.syncStatus.state.text(model.syncStatus.error))
+                LabeledContent(tr("Последняя синхронизация", "Last sync"), value: model.syncStatus.lastSyncAt?.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(L10n.current.locale)) ?? "—")
+                LabeledContent(tr("Ждут отправки", "Waiting to send"), value: "\(pending ?? 0)")
+                if (rejected ?? 0) > 0 { LabeledContent(tr("Отклонены сервером", "Rejected by the server"), value: "\(rejected ?? 0)") }
+                if model.syncStatus.state == .serverChanged, let prompt {
+                    Button(tr("Решить, что делать с данными…", "Decide what to do with the data…")) { prompt.ask() }
+                } else {
+                    Button(tr("Синхронизировать сейчас", "Sync now")) { model.syncNow() }
+                }
+            }
+        }
+        .navigationTitle(tr("Синхронизация", "Sync"))
+    }
+}
+
+extension SyncState {
+    func text(_ error: String?) -> String {
+        switch self {
+        case .idle: tr("синхронизировано", "synced")
+        case .syncing: tr("синхронизация…", "syncing…")
+        case .offline: tr("сервер недоступен — работаем офлайн", "server unreachable, working offline")
+        case .unauthorized: tr("неверный токен", "wrong token")
+        case .unconfigured: tr("сервер не подключён", "no server connected")
+        case .serverChanged: tr("на паузе: данные на сервере сменились", "paused: the server’s data changed")
+        case .error: tr("ошибка: \(error ?? "")", "error: \(error ?? "")")
+        }
     }
 }
