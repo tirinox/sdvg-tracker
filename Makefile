@@ -2,7 +2,7 @@
 COMPOSE := docker compose
 
 .PHONY: help env token connect install up down build logs ps test test-backend test-web \
-        test-live test-ios test-ios-live ios-build ios-open ios-install seed seed-clear import lint fmt backend-dev web-dev \
+        test-live test-ios test-ios-live ios-build ios-open ios-install ios-daily-on ios-daily-off seed seed-clear import lint fmt backend-dev web-dev \
         emoji-model emoji-catalog \
         backup reset-db restore deploy deploy-logs connect-prod videos videos-deploy
 
@@ -101,8 +101,9 @@ ios-open: ## Open the iOS project in Xcode (git override so Xcode can fetch GRDB
 # it keeps its database in Application Support and the widgets see no data.
 IOS_TEAM ?= 7L32PPK723
 IOS_DEVICE ?=
+IOS_LAUNCH ?= 1
 
-ios-install: ## Build, install and launch on a connected iPhone (IOS_DEVICE=<udid>, IOS_TEAM=<team id>)
+ios-install: ## Build, install and launch on a connected iPhone (IOS_DEVICE=<udid>, IOS_TEAM=<team id>, IOS_LAUNCH=0)
 	@udid="$(IOS_DEVICE)"; \
 	if [ -z "$$udid" ]; then \
 		tmp=$$(mktemp); xcrun devicectl list devices --json-output $$tmp >/dev/null 2>&1; \
@@ -122,8 +123,15 @@ ios-install: ## Build, install and launch on a connected iPhone (IOS_DEVICE=<udi
 	xcrun devicectl device install app --device $$udid ios/build/device/Build/Products/Debug-iphoneos/SDVGTracker.app \
 		>/dev/null || { echo "Install failed"; exit 1; }; \
 	echo "Installed"; \
+	[ "$(IOS_LAUNCH)" = 0 ] && exit 0; \
 	xcrun devicectl device process launch --device $$udid com.tirinox.sdvgtracker >/dev/null 2>&1 \
 		&& echo "Launched" || echo "Installed, but not launched: unlock the phone and open the app"
+
+ios-daily-on: ## Install on the iPhone once a day by itself (launchd, hourly tries until the phone is reachable)
+	@scripts/ios-daily.sh on
+
+ios-daily-off: ## Stop the daily install
+	@scripts/ios-daily.sh off
 
 test-ios-live: ## iOS sync client against a real backend on a throwaway database
 	@cd backend && uv sync -q
