@@ -91,6 +91,10 @@ struct QuickAdd: View {
     var placeholder = tr("Добавить задачу", "Add a task")
     @State private var title = ""
     @State private var history: [Rules.TitleGroup] = []
+    /// Open tasks, routines and what is done today: the title is checked against them (Rules.checkTitle).
+    @State private var listed: [Rules.ListedItem] = []
+    /// Adding a taken title was refused; the notice shakes.
+    @State private var nudges = 0
     /// A suggestion put into the field with ↖; its look is kept while the title is being edited.
     @State private var filled: Rules.TitleSuggestion?
     @FocusState private var focused: Bool
@@ -102,7 +106,8 @@ struct QuickAdd: View {
     @State private var listChanged = false
 
     var body: some View {
-        let suggestions = focused ? Rules.suggestTitles(history, query: title) : []
+        let suggestions = focused ? Rules.suggestTitles(Rules.withoutTaken(history, listed), query: title) : []
+        let check = Rules.checkTitle(listed, title: title)
         VStack(spacing: 6) {
             HStack(spacing: 8) {
                 TextField(placeholder, text: $title)
@@ -119,6 +124,10 @@ struct QuickAdd: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel(tr("Новая задача подробно", "New task with details"))
+            }
+            if !check.isClear {
+                TitleCheckNotice(check: check, nudges: nudges, onNumbered: { title = $0; add() }, onOpen: { title = "" })
+                    .padding(.trailing, 48)
             }
             if !suggestions.isEmpty {
                 TitleSuggestions(items: suggestions, onPick: pick, onFill: { filled = $0; title = $0.title })
@@ -149,7 +158,10 @@ struct QuickAdd: View {
         .onChange(of: focused) {
             if focused { loadHistory() } else { restY = nil }
         }
-        .onChange(of: model.revision) { if restY != nil { listChanged = true } }
+        .onChange(of: model.revision) {
+            if restY != nil { listChanged = true }
+            if !title.isEmpty { loadListed() }
+        }
         .onChange(of: title) { old, new in
             if new.trimmingCharacters(in: .whitespaces).isEmpty { filled = nil }
             // A new title starts: re-read, so tasks added a moment ago are suggested too.
@@ -166,22 +178,35 @@ struct QuickAdd: View {
         return d
     }
 
+    /// Not under a title that is taken or done today: the notice says why, and offers a numbered one for the latter.
     private func add() {
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
-        model.createTask(draft(t))
-        title = ""
+        loadListed()
+        switch Rules.checkTitle(listed, title: t) {
+        case .free:
+            model.createTask(draft(t))
+            title = ""
+        case .taken:
+            nudges += 1
+        case .doneToday:
+            break
+        }
     }
 
-    /// A suggestion is added right away, looking like the last time.
+    /// A suggestion is added right away, looking like the last time; if it was done today, it waits in the field.
     private func pick(_ s: Rules.TitleSuggestion) {
-        var d = TaskDraft(date: date)
-        d.apply(s)
-        model.createTask(d)
-        title = ""
+        filled = s
+        title = s.title
+        add()
     }
 
     private func loadHistory() {
         history = (try? model.store.loadTitleHistory(today: model.today)) ?? []
+        loadListed()
+    }
+
+    private func loadListed() {
+        listed = (try? model.store.loadListed(today: model.today)) ?? []
     }
 }

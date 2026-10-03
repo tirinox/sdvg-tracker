@@ -1,0 +1,513 @@
+{
+  "description": "Checks the title of a new task against what is already listed, as the user types and when it is added. Listed: every task that is not deleted and is either open (not done) or done today, whatever day it is planned for or in the inbox, and every routine whose latest version is not archived; a routine is done today when today's check has status done (skipped is open). `done_today` marks the ones done today, the rest are open. Titles are compared normalized as in title_suggestions (NFC, lowercase, ё → е, runs of non-letters/digits → one space, trim); an empty normalized title is free with nothing similar. If any listed item has the same normalized title: when one of them is open, the title is `taken` by the first open one in list order (the new task is not created); otherwise it is `done_today` (item: the first of them) and the task is offered under the next numbered title. Numbered title: a trimmed title ending in `(N)`, N being 1 to 9 ASCII digits, with a non-blank base before it (blanks between the base and `(` are dropped), has base and number N; any other title is its own trimmed base with number 0. The next title is `{base} ({n})`, base taken from the matched item's title, n = 1 + the highest number among listed items whose base is the same normalized; while the normalized next title equals that of a listed item, n goes up by one. Otherwise the title is free, and `similar` lists open items (done today ones never are) whose title shares more than half of the trigrams: trigrams of a normalized title are the 3-character windows of each word padded with two spaces before and one after (as in pg_trgm), as a set over all words; similar when 2·|A∩B| > |A∪B|. Order: |A∩B|/|A∪B| descending (compare as cross products of integers), then list order; at most `limit`. Expect: taken → {status, item}; done_today → {status, item, next}; free → {status, similar: [ids]}.",
+  "cases": [
+    {
+      "name": "an open task with the same title, in any case and punctuation, takes it",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Выдать ВИП статус",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Купить молоко",
+            "done_today": false
+          }
+        ],
+        "title": "выдать вип-статус",
+        "limit": 3
+      },
+      "expect": {
+        "status": "taken",
+        "item": "t1"
+      }
+    },
+    {
+      "name": "a routine takes its title too",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Купить молоко",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Обед",
+            "done_today": false
+          }
+        ],
+        "title": "Обед",
+        "limit": 3
+      },
+      "expect": {
+        "status": "taken",
+        "item": "r1"
+      }
+    },
+    {
+      "name": "a skipped or unchecked routine is open: taken",
+      "input": {
+        "items": [
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Зарядка",
+            "done_today": false
+          }
+        ],
+        "title": "зарядка!",
+        "limit": 3
+      },
+      "expect": {
+        "status": "taken",
+        "item": "r1"
+      }
+    },
+    {
+      "name": "done today: offered again with number 1, spelled as the done one",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Выдать ВИП статус",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Купить молоко",
+            "done_today": false
+          }
+        ],
+        "title": "выдать вип статус",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "t1",
+        "next": "Выдать ВИП статус (1)"
+      }
+    },
+    {
+      "name": "a numbered title goes one number up",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Выдать ВИП статус",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Выдать ВИП статус (1)",
+            "done_today": true
+          }
+        ],
+        "title": "Выдать ВИП статус (1)",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "t2",
+        "next": "Выдать ВИП статус (2)"
+      }
+    },
+    {
+      "name": "the number goes past the highest of the same title, open ones too",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Выдать ВИП статус",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Выдать ВИП статус (1)",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t3",
+            "title": "Выдать ВИП статус (3)",
+            "done_today": false
+          }
+        ],
+        "title": "Выдать ВИП статус",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "t1",
+        "next": "Выдать ВИП статус (4)"
+      }
+    },
+    {
+      "name": "a routine done today is offered with a number too",
+      "input": {
+        "items": [
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Зарядка",
+            "done_today": true
+          }
+        ],
+        "title": "Зарядка",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "r1",
+        "next": "Зарядка (1)"
+      }
+    },
+    {
+      "name": "done today and still open under the same title: taken by the open one",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Позвонить маме",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Позвонить маме",
+            "done_today": false
+          }
+        ],
+        "title": "Позвонить маме",
+        "limit": 3
+      },
+      "expect": {
+        "status": "taken",
+        "item": "t2"
+      }
+    },
+    {
+      "name": "a number without a space before it is still the number",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Отчёт(2)",
+            "done_today": true
+          }
+        ],
+        "title": "отчет 2",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "t1",
+        "next": "Отчёт (3)"
+      }
+    },
+    {
+      "name": "a numbered title that would match another one is skipped",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Сдать",
+            "done_today": true
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Сдать 1",
+            "done_today": false
+          }
+        ],
+        "title": "Сдать",
+        "limit": 3
+      },
+      "expect": {
+        "status": "done_today",
+        "item": "t1",
+        "next": "Сдать (2)"
+      }
+    },
+    {
+      "name": "similar: another word form; unrelated ones are not",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Позвонить маме",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Купить молоко",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Прогулка",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t3",
+            "title": "Деплой на сервер энкп",
+            "done_today": false
+          }
+        ],
+        "title": "Позвонить мамой",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "t1"
+        ]
+      }
+    },
+    {
+      "name": "similar: the same words in another order",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Выдать ВИП статус",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Купить молоко",
+            "done_today": false
+          }
+        ],
+        "title": "Статус ВИП выдать",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "t1"
+        ]
+      }
+    },
+    {
+      "name": "similar: a typo in a one-word routine",
+      "input": {
+        "items": [
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Прогулка",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r2",
+            "title": "Обед",
+            "done_today": false
+          }
+        ],
+        "title": "Прогулко",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "r1"
+        ]
+      }
+    },
+    {
+      "name": "not similar: exactly half of the trigrams shared is not enough",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Купить молоко",
+            "done_today": false
+          }
+        ],
+        "title": "Купить",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": []
+      }
+    },
+    {
+      "name": "not similar: one shared word of two",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Купить молоко",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Японский: слова",
+            "done_today": false
+          }
+        ],
+        "title": "Японский: кандзи",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": []
+      }
+    },
+    {
+      "name": "similar: the larger share of trigrams first",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Дусе мазать зубы вечером",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Дусе мазать рот утром",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r2",
+            "title": "Дусе мазать рот вечером",
+            "done_today": false
+          }
+        ],
+        "title": "Дусе мазать зубы утром",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "r1",
+          "t1"
+        ]
+      }
+    },
+    {
+      "name": "similar: at most limit",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Дусе мазать зубы вечером",
+            "done_today": false
+          },
+          {
+            "kind": "routine",
+            "id": "r1",
+            "title": "Дусе мазать рот утром",
+            "done_today": false
+          }
+        ],
+        "title": "Дусе мазать зубы утром",
+        "limit": 1
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "r1"
+        ]
+      }
+    },
+    {
+      "name": "similar: an equal share keeps list order",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Маме позвонить",
+            "done_today": false
+          },
+          {
+            "kind": "task",
+            "id": "t2",
+            "title": "Позвонить маме",
+            "done_today": false
+          }
+        ],
+        "title": "Позвонить мамой",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": [
+          "t1",
+          "t2"
+        ]
+      }
+    },
+    {
+      "name": "items done today are never similar: adding one again is fine",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Купить молоко",
+            "done_today": true
+          }
+        ],
+        "title": "Купить молока",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": []
+      }
+    },
+    {
+      "name": "an empty title or one without letters and digits is free",
+      "input": {
+        "items": [
+          {
+            "kind": "task",
+            "id": "t1",
+            "title": "Купить молоко",
+            "done_today": false
+          }
+        ],
+        "title": " — ",
+        "limit": 3
+      },
+      "expect": {
+        "status": "free",
+        "similar": []
+      }
+    }
+  ]
+}

@@ -105,7 +105,7 @@ async function persist() {
 }
 
 async function save() {
-  if (!valid.value) return
+  if (!valid.value || !(props.id || titleInput.value?.confirm(form.title))) return
   await persist()
   emit('close')
 }

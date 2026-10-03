@@ -14,6 +14,7 @@ import type {
 import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
 import { localNow, logicalDay, partOfDay } from '../domain/dates'
+import type { ListedItem } from '../domain/duplicates'
 import { compareItems, pickTop, priorityRank } from '../domain/order'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
 import { routineAdherence, routinesForDay, type Adherence } from '../domain/routines'
@@ -340,6 +341,59 @@ export async function loadTitleHistory(store: Store, today: LocalDate): Promise<
   return titleHistory(tasks, today)
 }
 
+/** The latest version of every routine, archived ones included, edits that start after today too. */
+function latestVersions(versions: VersionWithMeta[]): Map<string, VersionWithMeta> {
+  const latest = new Map<string, VersionWithMeta>()
+  for (const v of versions) {
+    const cur = latest.get(v.routine_id)
+    if (
+      !cur ||
+      v.effective_from > cur.effective_from ||
+      (v.effective_from === cur.effective_from && v.hlc > cur.hlc)
+    ) {
+      latest.set(v.routine_id, v)
+    }
+  }
+  return latest
+}
+
+/** What the title of a new task is checked against; see domain/duplicates. */
+export async function loadListed(store: Store, today: LocalDate): Promise<ListedItem[]> {
+  const [tasks, versions, checks] = await Promise.all([
+    store.rows('task'),
+    routineVersions(store),
+    store.db.routine_check.where('fields.date').equals(today).toArray(),
+  ])
+  const doneToday = new Set(checks.filter((c) => c.fields.status === 'done').map((c) => c.fields.routine_id))
+  const items: ListedItem[] = []
+  for (const r of tasks) {
+    const t = r.fields
+    if (t.deleted || (t.done_on && t.done_on !== today)) continue
+    items.push({
+      kind: 'task',
+      id: r.id,
+      title: t.title ?? '',
+      emoji: t.emoji ?? null,
+      color: t.color ?? 0,
+      date: t.date ?? null,
+      done_today: Boolean(t.done_on),
+    })
+  }
+  for (const v of latestVersions(versions).values()) {
+    if (v.archived) continue
+    items.push({
+      kind: 'routine',
+      id: v.routine_id,
+      title: v.title,
+      emoji: v.emoji,
+      color: v.color,
+      date: null,
+      done_today: doneToday.has(v.routine_id),
+    })
+  }
+  return items
+}
+
 export interface RoutineListItem {
   id: string
   version: VersionWithMeta
@@ -353,17 +407,7 @@ export interface RoutineListItem {
 export async function loadRoutines(store: Store, today: LocalDate): Promise<RoutineListItem[]> {
   const s = await store.settings()
   const [versions, routines] = await Promise.all([routineVersions(store), store.rows('routine')])
-  const latest = new Map<string, VersionWithMeta>()
-  for (const v of versions) {
-    const cur = latest.get(v.routine_id)
-    if (
-      !cur ||
-      v.effective_from > cur.effective_from ||
-      (v.effective_from === cur.effective_from && v.hlc > cur.hlc)
-    ) {
-      latest.set(v.routine_id, v)
-    }
-  }
+  const latest = latestVersions(versions)
   const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
   const adherence = await adherenceByRoutine(store, versions, today, s)
   return [...latest.values()]

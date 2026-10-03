@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, shallowRef, useId, watch } from 'vue'
 import { useApp } from '../app/context'
+import { shortDate } from '../app/format'
 import { tr } from '../app/i18n'
-import { loadTitleHistory } from '../app/views'
+import { useLive } from '../app/useLive'
+import { loadListed, loadTitleHistory } from '../app/views'
+import { addDays } from '../domain/dates'
+import { checkTitle, withoutTaken, type ListedItem } from '../domain/duplicates'
 import { suggestTitles, type TitleHistory, type TitleSuggestion } from '../domain/suggest'
 import EmojiCircle from './EmojiCircle.vue'
 
@@ -11,29 +15,74 @@ import EmojiCircle from './EmojiCircle.vue'
  * Enter with nothing highlighted emits `enter`; a click or Enter on a suggestion emits `pick`,
  * the ↖ button (with `fillButton`) emits `fill` to put the title into the input for editing.
  * `plain` turns suggestions off (editing an existing task).
+ *
+ * For a new task the title is also checked against the listed tasks and routines (domain/duplicates):
+ * under the input it says when the title is taken, done today or similar to another one.
+ * Before creating, the parent calls `confirm(title)`.
  */
 const title = defineModel<string>({ required: true })
 const props = defineProps<{ placeholder?: string; ariaLabel?: string; fillButton?: boolean; plain?: boolean }>()
 const emit = defineEmits<{ enter: []; pick: [s: TitleSuggestion]; fill: [s: TitleSuggestion] }>()
-const { store, today } = useApp()
+const { store, today, openTask, openRoutine } = useApp()
 
 const input = ref<HTMLInputElement>()
 const list = ref<HTMLUListElement>()
+const offer = ref<HTMLButtonElement>()
 const history = shallowRef<TitleHistory>([])
+/** Followed live: a stale list would let a duplicate through or offer a number that is taken by now. */
+const listed = useLive(() => (props.plain ? Promise.resolve([]) : loadListed(store, today.value)), [] as ListedItem[], [today])
 const open = ref(false)
 const active = ref(-1)
+/** Enter on a taken title; each one shakes the notice anew. */
+const nudges = ref(0)
 const listId = useId()
 
-const items = computed(() => (open.value && !props.plain ? suggestTitles(history.value, title.value) : []))
+const offered = computed(() => withoutTaken(history.value, listed.value))
+const items = computed(() => (open.value && !props.plain ? suggestTitles(offered.value, title.value) : []))
+const check = computed(() => checkTitle(listed.value, title.value))
 
 async function load() {
   if (props.plain) return
   history.value = await loadTitleHistory(store, today.value)
 }
 
+/**
+ * Whether a task can be created under `t`, the parent's title: the model here catches up only on the
+ * next render. A taken title is refused with a nudge; one done today is refused too, with its numbered
+ * title offered (focused, so a second Enter takes it). Synchronous, so the input can be cleared before the write.
+ */
+function confirm(t: string): boolean {
+  const c = checkTitle(listed.value, t)
+  if (c.status === 'free') return true
+  if (c.status === 'taken') nudges.value++
+  else void nextTick(() => offer.value?.focus())
+  return false
+}
+
+function takeOffer(next: string) {
+  title.value = next
+  input.value?.focus()
+  emit('enter')
+}
+
+function openItem(i: ListedItem) {
+  title.value = ''
+  if (i.kind === 'task') openTask(i.id)
+  else openRoutine(i.id)
+}
+
+function where(i: ListedItem): string {
+  if (i.kind === 'routine') return tr('рутина', 'routine')
+  if (i.date === null) return tr('во входящих', 'in the inbox')
+  if (i.date <= today.value) return tr('на сегодня', 'for today')
+  if (i.date === addDays(today.value, 1)) return tr('на завтра', 'for tomorrow')
+  return tr(`на ${shortDate(i.date)}`, `for ${shortDate(i.date)}`)
+}
+
 // Re-read the history when a new title starts, so tasks added a moment ago are in it.
 watch(title, (v, old) => {
   active.value = -1
+  nudges.value = 0
   if (v.trim() && !old.trim()) void load()
 })
 
@@ -80,7 +129,7 @@ function choose(kind: 'pick' | 'fill', s: TitleSuggestion) {
   active.value = -1
 }
 
-defineExpose({ focus: () => input.value?.focus() })
+defineExpose({ focus: () => input.value?.focus(), confirm })
 </script>
 
 <template>
@@ -130,6 +179,52 @@ defineExpose({ focus: () => input.value?.focus() })
         </button>
       </li>
     </ul>
+    <div
+      v-if="check.status !== 'free' || check.similar.length"
+      :key="nudges"
+      class="notice"
+      :class="[check.status, { nudged: nudges > 0 }]"
+      role="status"
+    >
+      <template v-if="check.status === 'taken'">
+        <span class="text">
+          <template v-if="check.item.kind === 'task'">
+            {{ tr('Такая задача уже есть', 'Already on your list') }} {{ where(check.item) }}
+          </template>
+          <template v-else>{{ tr('Такая рутина уже есть', 'There is a routine with this name') }}</template>
+        </span>
+        <button class="btn ghost act" type="button" @click="openItem(check.item)">{{ tr('Открыть', 'Open') }}</button>
+      </template>
+      <template v-else-if="check.status === 'done_today'">
+        <span class="text">
+          ✓
+          {{
+            check.item.kind === 'task'
+              ? tr('Такая задача уже сделана сегодня', 'Already done today')
+              : tr('Эта рутина уже сделана сегодня', 'This routine is already done today')
+          }}
+        </span>
+        <button ref="offer" class="btn act" type="button" @click="takeOffer(check.next)">
+          {{ tr(`Добавить «${check.next}»`, `Add “${check.next}”`) }}
+        </button>
+      </template>
+      <template v-else>
+        <span class="text">{{ tr('Похожая уже есть:', 'A similar one exists:') }}</span>
+        <button
+          v-for="i in check.similar"
+          :key="i.id"
+          class="similar"
+          type="button"
+          :title="tr('Открыть', 'Open')"
+          @mousedown.prevent
+          @click="openItem(i)"
+        >
+          <EmojiCircle :emoji="i.emoji" :color="i.color" :size="20" />
+          <span class="name">{{ i.title }}</span>
+          <span class="where">{{ where(i) }}</span>
+        </button>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -186,5 +281,77 @@ defineExpose({ focus: () => input.value?.focus() })
 .fill:hover {
   background: var(--line);
   color: var(--fg);
+}
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.notice.taken {
+  background: var(--caution-soft);
+  color: var(--caution);
+}
+.notice.done_today {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+.notice .text {
+  min-width: 0;
+}
+.notice.taken .text,
+.notice.done_today .text {
+  flex: 1 1 auto;
+}
+/* A long title in the offer is cut, not wrapped. */
+.act {
+  display: block;
+  max-width: 100%;
+  margin-left: auto;
+  overflow: hidden;
+  padding: 3px 10px;
+  font-size: 14px;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.similar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 8px 2px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.similar:hover {
+  background: var(--line);
+}
+.similar .where {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+.nudged {
+  animation: nudge 0.35s;
+}
+@keyframes nudge {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 </style>

@@ -269,16 +269,31 @@ extension Store {
         }, today: today)
     }
 
+    /// What the title of a new task is checked against; see Rules.checkTitle.
+    public func loadListed(today: LocalDate) throws -> [Rules.ListedItem] {
+        try read { db in
+            let tasks = try Rows.fetch(.task, db, where: "done_on IS NULL OR done_on = ?", [today]).map(TaskRecord.init)
+            var items = tasks.filter { !$0.deleted }.map { t in
+                Rules.ListedItem(kind: .task, id: t.id, title: t.title, emoji: t.emoji, color: t.color, date: t.date,
+                                 doneToday: t.doneOn != nil)
+            }
+            let doneToday = Set(try Rows.fetch(.routine_check, db, where: "date = ?", [today]).compactMap {
+                $0.fields["status"]?.string == CheckStatus.done.rawValue ? $0.fields["routine_id"]?.string : nil
+            })
+            for v in latestVersions(try routineVersions(db)).values.sorted(by: { $0.routineID < $1.routineID }) where !v.archived {
+                items.append(Rules.ListedItem(kind: .routine, id: v.routineID, title: v.title, emoji: v.emoji, color: v.color,
+                                              doneToday: doneToday.contains(v.routineID)))
+            }
+            return items
+        }
+    }
+
     public func loadRoutines(today: LocalDate) throws -> [RoutineListItem] {
         try read { db in
             let s = try Rows.settings(db)
             let versions = try routineVersions(db)
             let adherence = try adherenceByRoutine(db, versions, today: today, s)
-            var latest: [String: RoutineVersionRecord] = [:]
-            for v in versions {
-                if let cur = latest[v.routineID], (cur.effectiveFrom, cur.hlc) >= (v.effectiveFrom, v.hlc) { continue }
-                latest[v.routineID] = v
-            }
+            let latest = latestVersions(versions)
             let sortKeys = Dictionary(
                 try Rows.fetch(.routine, db).map { ($0.id, $0.fields["sort_key"]?.string ?? "") }, uniquingKeysWith: { $1 })
             let order = DaySection.allCases
@@ -299,6 +314,16 @@ extension Store {
 }
 
 /// High priority leads the Now screen only once its time has come; before that it ranks as normal.
+/// The latest version of every routine, archived ones included, edits that start after today too.
+private func latestVersions(_ versions: [RoutineVersionRecord]) -> [String: RoutineVersionRecord] {
+    var latest: [String: RoutineVersionRecord] = [:]
+    for v in versions {
+        if let cur = latest[v.routineID], (cur.effectiveFrom, cur.hlc) >= (v.effectiveFrom, v.hlc) { continue }
+        latest[v.routineID] = v
+    }
+    return latest
+}
+
 private func nowRank(_ i: DayItem) -> Int {
     i.priority == .high && !i.started ? Priority.normal.rank : i.priority.rank
 }

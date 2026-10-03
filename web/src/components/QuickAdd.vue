@@ -12,6 +12,7 @@ type Look = Pick<NewTask, 'emoji' | 'color' | 'duration_min'>
 const props = defineProps<{ date: string | null; placeholder?: string }>()
 const { store, openTask } = useApp()
 const title = ref('')
+const input = ref<InstanceType<typeof TitleInput>>()
 /** Look of a suggestion put into the input with ↖, kept while its title is being edited. */
 let look: Look = {}
 
@@ -26,18 +27,17 @@ function lookOf(s: TitleSuggestion): Look {
 // The input is cleared before the write, so typing the next task right away loses nothing.
 async function add() {
   const t = title.value.trim()
-  if (!t) return
+  if (!t || !input.value?.confirm(t)) return
   const extra = look
   title.value = ''
   const id = await createTask(store, { title: t, date: props.date, ...extra })
   if (!extra.emoji) void autoEmoji(store, id, t)
 }
 
-/** A suggestion is added right away, looking like the last time. */
+/** A suggestion is added right away, looking like the last time; if it was done today, it waits in the input. */
 async function pick(s: TitleSuggestion) {
-  title.value = ''
-  const id = await createTask(store, { title: s.title, date: props.date, ...lookOf(s) })
-  if (!s.emoji) void autoEmoji(store, id, s.title)
+  fill(s)
+  await add()
 }
 
 function fill(s: TitleSuggestion) {
@@ -49,6 +49,7 @@ function fill(s: TitleSuggestion) {
 <template>
   <div class="quick">
     <TitleInput
+      ref="input"
       v-model="title"
       :placeholder="placeholder ?? tr('Добавить задачу и нажать Enter', 'Add a task and press Enter')"
       :aria-label="tr('Новая задача', 'New task')"
@@ -71,7 +72,11 @@ function fill(s: TitleSuggestion) {
 <style scoped>
 .quick {
   display: flex;
+  align-items: flex-start;
   gap: 6px;
+}
+.quick > .btn {
+  padding: 10px 12px;
 }
 .quick :deep(.input) {
   padding: 10px 12px;

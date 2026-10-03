@@ -141,6 +141,35 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(checked, after)
     }
 
+    func testListedForTitleCheck() throws {
+        let s = try store()
+        let yesterday = "2026-09-21"
+        _ = try s.createTask(TaskDraft(title: "Во входящих", date: nil))
+        _ = try s.createTask(TaskDraft(title: "Через неделю", date: "2026-09-29"))
+        let vip = try s.createTask(TaskDraft(title: "Выдать ВИП статус", date: today))
+        try s.completeTask(vip, today: today)
+        let old = try s.createTask(TaskDraft(title: "Вчерашняя", date: yesterday))
+        try s.completeTask(old, today: yesterday)
+        try s.deleteTask(try s.createTask(TaskDraft(title: "Удалённая", date: today)))
+        let lunch = try s.createRoutine(RoutineDraft(title: "Обед"), today: today)
+        let shower = try s.createRoutine(RoutineDraft(title: "Душ"), today: today)
+        try s.setRoutineCheck(shower, date: today, status: .done)
+        try s.archiveRoutine(try s.createRoutine(RoutineDraft(title: "Старая рутина"), today: yesterday), today: today)
+
+        let listed = try s.loadListed(today: today)
+        XCTAssertEqual(Set(listed.map { "\($0.kind) \($0.title) \($0.doneToday)" }), [
+            "routine Душ true", "routine Обед false",
+            "task Во входящих false", "task Выдать ВИП статус true", "task Через неделю false",
+        ])
+        guard case .taken(let item) = Rules.checkTitle(listed, title: "обед") else { return XCTFail("обед is taken") }
+        XCTAssertEqual(item.id, lunch)
+        guard case .doneToday(_, let next) = Rules.checkTitle(listed, title: "Выдать ВИП статус") else {
+            return XCTFail("done today")
+        }
+        XCTAssertEqual(next, "Выдать ВИП статус (1)")
+        XCTAssertEqual(Rules.checkTitle(listed, title: "Вчерашняя"), .free(similar: []))
+    }
+
     func testDayViewSectionsAndNow() throws {
         let s = try store()
         _ = try s.createRoutine(RoutineDraft(title: "Пообедать") .with { $0.timing = Timing(kind: .exact, time: "13:00") }, today: today)

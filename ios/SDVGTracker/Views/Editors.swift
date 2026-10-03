@@ -177,6 +177,10 @@ struct TaskEditor: View {
     @State private var moves = 0
     @State private var done = false
     @State private var history: [Rules.TitleGroup] = []
+    /// What the title of a new task is checked against (Rules.checkTitle).
+    @State private var listed: [Rules.ListedItem] = []
+    /// Saving under a taken title or one done today was refused; the notice shakes.
+    @State private var nudges = 0
     /// Day for a copy; nil = tomorrow.
     @State private var copyDate: LocalDate?
     @State private var copied: Copied?
@@ -190,12 +194,19 @@ struct TaskEditor: View {
     var body: some View {
         let today = model.today
         // Suggestions only for a new task: an existing one already has its title.
-        let suggestions = id == nil && titleFocused ? Rules.suggestTitles(history, query: draft.title) : []
+        let suggestions = id == nil && titleFocused ? Rules.suggestTitles(Rules.withoutTaken(history, listed), query: draft.title) : []
+        let check = Rules.checkTitle(listed, title: draft.title)
         NavigationStack {
             Form {
                 SwiftUI.Section {
                     TextField(tr("Что нужно сделать?", "What needs doing?"), text: $draft.title, axis: .vertical).font(.title3.weight(.semibold))
                         .focused($titleFocused)
+                    if !check.isClear {
+                        TitleCheckNotice(check: check, nudges: nudges) { next in
+                            draft.title = next
+                            add()
+                        }
+                    }
                     if !suggestions.isEmpty {
                         TitleSuggestions(items: suggestions) { s in
                             draft.apply(s)
@@ -270,20 +281,40 @@ struct TaskEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(tr("Отмена", "Cancel")) { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(tr("Сохранить", "Save")) { save(); dismiss() }.disabled(!valid) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(tr("Сохранить", "Save")) { if id == nil { add() } else { save(); dismiss() } }.disabled(!valid)
+                }
             }
             .onAppear {
                 guard let id else {
                     history = (try? model.store.loadTitleHistory(today: today)) ?? []
+                    loadListed()
                     return
                 }
                 moves = (try? model.store.moveCount(id)) ?? 0
                 done = (try? model.store.get(.task, id).map(TaskRecord.init))?.doneOn != nil
             }
+            .onChange(of: model.revision) { if id == nil { loadListed() } }
         }
     }
 
     private var valid: Bool { !draft.title.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// A new task, unless its title is taken or done today: the notice says why, and offers a numbered one for the latter.
+    private func add() {
+        guard valid else { return }
+        loadListed()
+        if case .free = Rules.checkTitle(listed, title: trimmed.title) {
+            save()
+            dismiss()
+        } else {
+            nudges += 1
+        }
+    }
+
+    private func loadListed() {
+        listed = (try? model.store.loadListed(today: model.today)) ?? []
+    }
 
     private var trimmed: TaskDraft {
         var d = draft

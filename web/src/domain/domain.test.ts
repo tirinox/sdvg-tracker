@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { domainCases, sharedFiles, type Case, type Json } from '../test/shared'
 import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './dates'
+import { checkTitle } from './duplicates'
 import { compareItems, pickTop } from './order'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routineAdherence, routinesForDay } from './routines'
@@ -58,6 +59,12 @@ const RUNNERS: Record<string, Runner> = {
   title_suggestions: (i) => ({
     suggestions: suggestTitles(titleHistory(i.tasks, i.today), i.query, i.limit),
   }),
+  title_check: (i) => {
+    const items = i.items.map((x: Json) => ({ ...x, emoji: null, color: 0, date: null }))
+    const c = checkTitle(items, i.title, i.limit)
+    if (c.status === 'free') return { status: c.status, similar: c.similar.map((x) => x.id) }
+    return c.status === 'taken' ? { status: c.status, item: c.item.id } : { status: c.status, item: c.item.id, next: c.next }
+  },
 }
 
 it('every domain fixture file has a runner', () => {

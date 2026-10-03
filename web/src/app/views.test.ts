@@ -1,12 +1,23 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { completeTask, createRoutine, createTask, postponeTask, setRoutineCheck, updateSettings } from '../db/actions'
+import {
+  archiveRoutine,
+  completeTask,
+  createRoutine,
+  createTask,
+  deleteTask,
+  postponeTask,
+  setRoutineCheck,
+  updateSettings,
+} from '../db/actions'
 import { Store } from '../db/store'
 import { DEMO_OPEN_TASK_COUNT, DEMO_ROUTINE_COUNT, clearDemo, generateDemo } from '../demo/demo'
+import { checkTitle } from '../domain/duplicates'
 import {
   claimRecordCelebration,
   dayGroups,
   loadDay,
   loadInbox,
+  loadListed,
   loadRecord,
   loadRoutineAdherence,
   loadRoutines,
@@ -132,6 +143,35 @@ describe('day record', () => {
 
     await completeTask(store, await createTask(store, { title: 'Три', date: TODAY }), TODAY)
     expect(await claimRecordCelebration(store, await loadRecord(store, TODAY), TODAY)).toBe(false)
+  })
+})
+
+describe('loadListed', () => {
+  it('has open tasks anywhere, tasks done today and routines; a done one can come again with a number', async () => {
+    const store = await openStore()
+    const YESTERDAY = '2026-09-21'
+    await createTask(store, { title: 'Во входящих', date: null })
+    await createTask(store, { title: 'Через неделю', date: '2026-09-29' })
+    const vip = await createTask(store, { title: 'Выдать ВИП статус', date: TODAY })
+    await completeTask(store, vip, TODAY)
+    await completeTask(store, await createTask(store, { title: 'Вчерашняя', date: YESTERDAY }), YESTERDAY)
+    await deleteTask(store, await createTask(store, { title: 'Удалённая', date: TODAY }))
+    const lunch = await createRoutine(store, { title: 'Обед' }, TODAY)
+    const shower = await createRoutine(store, { title: 'Душ' }, TODAY)
+    await setRoutineCheck(store, shower, TODAY, 'done')
+    await archiveRoutine(store, await createRoutine(store, { title: 'Старая рутина' }, YESTERDAY), TODAY)
+
+    const listed = await loadListed(store, TODAY)
+    expect(listed.map((i) => [i.kind, i.title, i.done_today]).sort()).toEqual([
+      ['routine', 'Душ', true],
+      ['routine', 'Обед', false],
+      ['task', 'Во входящих', false],
+      ['task', 'Выдать ВИП статус', true],
+      ['task', 'Через неделю', false],
+    ])
+    expect(checkTitle(listed, 'обед')).toMatchObject({ status: 'taken', item: { id: lunch } })
+    expect(checkTitle(listed, 'Выдать ВИП статус')).toMatchObject({ status: 'done_today', next: 'Выдать ВИП статус (1)' })
+    expect(checkTitle(listed, 'Вчерашняя')).toEqual({ status: 'free', similar: [] })
   })
 })
 

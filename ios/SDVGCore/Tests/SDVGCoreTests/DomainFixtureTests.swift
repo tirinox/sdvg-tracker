@@ -144,6 +144,17 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
              "duration_min": JSONValue($0.durationMin), "uses": .int($0.uses)]
         })]
     },
+    "title_check": { i in
+        let items = i["items"]!.array!.map {
+            Rules.ListedItem(kind: $0["kind"]!.string! == "task" ? .task : .routine, id: $0["id"]!.string!,
+                             title: $0["title"]!.string!, doneToday: $0["done_today"]!.bool!)
+        }
+        switch Rules.checkTitle(items, title: i["title"]!.string!, limit: i["limit"]!.int!) {
+        case .free(let similar): return ["status": "free", "similar": .array(similar.map { .string($0.id) })]
+        case .taken(let item): return ["status": "taken", "item": .string(item.id)]
+        case .doneToday(let item, let next): return ["status": "done_today", "item": .string(item.id), "next": .string(next)]
+        }
+    },
 ]
 
 final class DomainFixtureTests: XCTestCase {
