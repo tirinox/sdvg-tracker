@@ -35,6 +35,8 @@ public struct DayItem: Identifiable, Hashable, Sendable {
     public var deadlineTime: LocalTime?
     public var score: Int
     public var reasons: [Rules.ScoreReason]
+    /// Its time has come today (Rules.hasStarted): only then does high priority lead Now.
+    public var started = true
     public var sortKey: String
     /// Routines only: how regularly it is done as of today.
     public var adherence: Rules.Adherence? = nil
@@ -138,7 +140,8 @@ extension Store {
             durationMin: t.durationMin, priority: t.priority, section: sectionOf(t.timing, s), done: t.doneOn != nil, skipped: false,
             moves: moves, attention: Rules.attentionLevel(moves: moves, thresholds: s.attentionThresholds),
             deadline: deadline, deadlineDate: t.deadlineDate, deadlineTime: t.deadlineTime,
-            score: score, reasons: reasons, sortKey: t.sortKey)
+            score: score, reasons: reasons, started: Rules.hasStarted(now: now, settings: s, timing: t.timing),
+            sortKey: t.sortKey)
     }
 
     public func loadDay(_ date: LocalDate, now: LocalDateTime) throws -> DayView {
@@ -164,7 +167,8 @@ extension Store {
                     kind: .routine, refID: v.routineID, title: v.title, emoji: v.emoji, color: v.color, timing: v.timing,
                     durationMin: v.durationMin, priority: v.priority, section: sectionOf(v.timing, s), done: st == .done, skipped: st == .skipped,
                     moves: 0, attention: 0, deadline: .none, deadlineDate: nil, deadlineTime: nil,
-                    score: score, reasons: reasons, sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID]))
+                    score: score, reasons: reasons, started: Rules.hasStarted(now: now, settings: s, timing: v.timing),
+                    sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID]))
             }
             let moves = try moveCounts(db)
             for t in try Rows.fetch(.task, db, where: "date = ? OR done_on = ?", [date, date]).map(TaskRecord.init) {
@@ -294,13 +298,18 @@ extension Store {
     }
 }
 
-/// Top items for the "Now" screen (shared/domain-fixtures/now_pick.json): scored and high-priority
-/// items by priority and score, topped up with the next open items.
+/// High priority leads the Now screen only once its time has come; before that it ranks as normal.
+private func nowRank(_ i: DayItem) -> Int {
+    i.priority == .high && !i.started ? Priority.normal.rank : i.priority.rank
+}
+
+/// Top items for the "Now" screen (shared/domain-fixtures/now_pick.json): scored items and
+/// high-priority ones whose time has come, by priority and score, topped up with the next open items.
 public func pickNow(_ day: DayView, max: Int = 7, min: Int = 5) -> [DayItem] {
     let open = day.items.filter { !$0.done && !$0.skipped }
-    let ranked = open.filter { $0.score > 0 || $0.priority == .high }
+    let ranked = open.filter { $0.score > 0 || ($0.priority == .high && $0.started) }
         .sorted {
-            if $0.priority != $1.priority { return $0.priority.rank < $1.priority.rank }
+            if nowRank($0) != nowRank($1) { return nowRank($0) < nowRank($1) }
             return $0.score != $1.score ? $0.score > $1.score : compareItems($0, $1)
         }
         .prefix(max)

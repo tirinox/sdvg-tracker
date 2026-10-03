@@ -35,7 +35,8 @@ private func orderItem(_ j: JSONValue) -> DayItem {
         timing: j["time"]?.string.map { Timing(kind: .exact, time: $0) } ?? Timing(kind: .none),
         durationMin: nil, priority: Priority(j["priority"]), section: .anytime,
         done: j["done"]!.bool!, skipped: j["skipped"]!.bool!, moves: 0, attention: 0, deadline: .none,
-        deadlineDate: nil, deadlineTime: nil, score: j["score"]?.int ?? 0, reasons: [], sortKey: j["sort_key"]!.string!)
+        deadlineDate: nil, deadlineTime: nil, score: j["score"]?.int ?? 0, reasons: [], started: j["started"]?.bool ?? true,
+        sortKey: j["sort_key"]!.string!)
 }
 
 /// One adapter per shared/domain-fixtures file: fixture input -> implementation -> expect shape.
@@ -119,6 +120,9 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
     "now_pick": { i in
         let day = DayView(date: "", items: i["items"]!.array!.map(orderItem))
         return ["ids": .array(pickNow(day, max: i["max"]!.int!, min: i["min"]!.int!).map { .string($0.refID) })]
+    },
+    "time_started": { i in
+        ["started": .bool(Rules.hasStarted(now: i["now"]!.string!, settings: settings(i["settings"]), timing: timing(i["item"]!)))]
     },
     "heatmap_levels": { i in
         ["levels": .array(Rules.heatmapLevels(i["counts"]!.array!.map { $0.int! }).map(JSONValue.int))]

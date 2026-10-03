@@ -4,7 +4,7 @@ import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './da
 import { compareItems, pickTop } from './order'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routineAdherence, routinesForDay } from './routines'
-import { nowScore } from './score'
+import { hasStarted, nowScore } from './score'
 import { suggestTitles, titleHistory } from './suggest'
 import { attentionLevel, celebrationLevel, deadlineStatus, planRollover } from './tasks'
 
@@ -47,6 +47,7 @@ const RUNNERS: Record<string, Runner> = {
   streak: (i) => ({ streak: streak(i.today, i.days, i.streak_min_done) }),
   day_record: (i) => dayRecord(i.today, i.days),
   now_score: (i) => nowScore(i.now, i.settings, i.item),
+  time_started: (i) => ({ started: hasStarted(i.now, i.settings, i.item) }),
   item_order: (i) => ({ order: [...i.items].sort(compareItems).map((x: Json) => x.id) }),
   now_pick: (i) => ({ ids: pickTop(i.items, i.max, i.min).map((x: Json) => x.id) }),
   heatmap_levels: (i) => ({ levels: heatmapLevels(i.counts) }),

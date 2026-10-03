@@ -17,7 +17,7 @@ import { localNow, logicalDay, partOfDay } from '../domain/dates'
 import { compareItems, pickTop, priorityRank } from '../domain/order'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
 import { routineAdherence, routinesForDay, type Adherence } from '../domain/routines'
-import { nowScore, type ScoreReason } from '../domain/score'
+import { hasStarted, nowScore, type ScoreReason } from '../domain/score'
 import { titleHistory, type TitleHistory } from '../domain/suggest'
 import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
 
@@ -50,6 +50,8 @@ export interface DayItem {
   deadline_time: string | null
   score: number
   reasons: ScoreReason[]
+  /** Its time has come today (see domain/score hasStarted): only then does high priority lead Now. */
+  started: boolean
   sort_key: string
   /** Routines only: how regularly it is done as of today. */
   adherence: Adherence | null
@@ -139,7 +141,7 @@ export function taskItem(
     t.date === today && !base.done
       ? nowScore(now, s, { ...base, deadline_status: deadline })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons, adherence: null }
+  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence: null }
 }
 
 function routineItem(
@@ -176,7 +178,7 @@ function routineItem(
     isToday && !status
       ? nowScore(now, s, { ...base, deadline_status: 'none' })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons, adherence }
+  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence }
 }
 
 export interface DayView {

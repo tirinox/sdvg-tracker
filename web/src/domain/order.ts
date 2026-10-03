@@ -27,15 +27,21 @@ export function compareItems(a: OrderItem, b: OrderItem): number {
   return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0
 }
 
+/** High priority leads the Now screen only once its time has come; before that it ranks as normal. */
+function nowRank(i: OrderItem & { started?: boolean }): number {
+  return i.priority === 'high' && i.started === false ? priorityRank('normal') : priorityRank(i.priority)
+}
+
 /**
  * Top of the Now screen from items in day order (shared/domain-fixtures/now_pick.json):
- * scored and high-priority items by priority and score, topped up with the next open items.
+ * scored items and high-priority ones whose time has come, by priority and score, topped up
+ * with the next open items.
  */
-export function pickTop<T extends OrderItem & { score: number }>(items: T[], max = 7, min = 5): T[] {
+export function pickTop<T extends OrderItem & { score: number; started?: boolean }>(items: T[], max = 7, min = 5): T[] {
   const open = items.filter((i) => !i.done && !i.skipped)
   const ranked = open
-    .filter((i) => i.score > 0 || i.priority === 'high')
-    .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || b.score - a.score || compareItems(a, b))
+    .filter((i) => i.score > 0 || (i.priority === 'high' && i.started !== false))
+    .sort((a, b) => nowRank(a) - nowRank(b) || b.score - a.score || compareItems(a, b))
     .slice(0, max)
   const rest = open.filter((i) => !ranked.includes(i))
   return [...ranked, ...rest.slice(0, Math.max(0, min - ranked.length))]

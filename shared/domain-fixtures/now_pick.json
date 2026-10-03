@@ -1,5 +1,5 @@
 {
-  "description": "Top of the Now screen. Takes open items (not done, not skipped) of the day, given in day order. Candidates are items with score > 0 and every high-priority item; they are ranked by priority (high, normal, low; no priority = normal), then by score descending, then by item_order, and the first max of them are taken. If fewer than min are taken, the rest of the open items follow in day order until there are min. expect.ids lists the picked ids in screen order.",
+  "description": "Top of the Now screen. Takes open items (not done, not skipped) of the day, given in day order. Candidates are items with score > 0 and high-priority items whose time has come (started, see time_started; no started = true). They are ranked by priority (high, normal, low; no priority = normal; high that has not started ranks as normal), then by score descending, then by item_order, and the first max of them are taken. If fewer than min are taken, the rest of the open items follow in day order until there are min. expect.ids lists the picked ids in screen order.",
   "cases": [
     {
       "name": "high priority goes above a stuck task",
@@ -248,6 +248,104 @@
           "old",
           "normal",
           "low"
+        ]
+      }
+    },
+    {
+      "name": "high whose time has not come does not lead",
+      "input": {
+        "max": 7,
+        "min": 3,
+        "items": [
+          {
+            "id": "h-evening",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a0",
+            "score": 0,
+            "started": false
+          },
+          {
+            "id": "stuck",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a1",
+            "score": 70
+          },
+          {
+            "id": "h-now",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a2",
+            "score": 0,
+            "started": true
+          },
+          {
+            "id": "plain",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a3",
+            "score": 0
+          }
+        ]
+      },
+      "expect": {
+        "ids": [
+          "h-now",
+          "stuck",
+          "h-evening"
+        ]
+      }
+    },
+    {
+      "name": "high not started but scored ranks as normal",
+      "input": {
+        "max": 7,
+        "min": 0,
+        "items": [
+          {
+            "id": "n-due",
+            "priority": "normal",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a0",
+            "score": 80
+          },
+          {
+            "id": "h-later-due",
+            "priority": "high",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a1",
+            "score": 60,
+            "started": false
+          },
+          {
+            "id": "low-now",
+            "priority": "low",
+            "done": false,
+            "skipped": false,
+            "time": null,
+            "sort_key": "a2",
+            "score": 100
+          }
+        ]
+      },
+      "expect": {
+        "ids": [
+          "n-due",
+          "h-later-due",
+          "low-now"
         ]
       }
     }

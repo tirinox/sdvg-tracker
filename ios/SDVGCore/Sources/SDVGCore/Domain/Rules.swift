@@ -223,15 +223,34 @@ public enum Rules {
     public enum ScoreReason: String, Sendable { case now, deadline, postponed }
 
     /// Ranking for the "Now" screen: now + deadline + postpone components.
+    /// Minutes from an exact start to now; the start lies on the logical day, so times before
+    /// day_start_hour are after midnight.
+    static func minutesSinceStart(now: LocalDateTime, settings s: Settings, time: LocalTime) -> Int {
+        var day = Dates.logicalDay(now, dayStartHour: s.dayStartHour)
+        if (Int(time.prefix(2)) ?? 0) < s.dayStartHour { day = Dates.addDays(day, 1) }
+        return Dates.minutesBetween("\(day)T\(time)", now)
+    }
+
+    /// Whether an item's time has come today: without a time always; a part of the day from its start;
+    /// an exact time from 30 minutes before it (shared/domain-fixtures/time_started.json).
+    public static func hasStarted(now: LocalDateTime, settings s: Settings, timing: Timing) -> Bool {
+        switch timing.kind {
+        case .exact: return timing.time.map { minutesSinceStart(now: now, settings: s, time: $0) >= -30 } ?? true
+        case .part:
+            guard let part = timing.part else { return true }
+            let order = PartOfDay.allCases
+            return order.firstIndex(of: Dates.partOfDay(now, s))! >= order.firstIndex(of: part)!
+        case .none: return true
+        }
+    }
+
     public static func nowScore(
         now: LocalDateTime, settings s: Settings, timing: Timing, deadline: DeadlineStatus, moves: Int
     ) -> (score: Int, reasons: [ScoreReason]) {
         var reasons: [ScoreReason] = []
         var nowPart = 0
         if timing.kind == .exact, let time = timing.time {
-            var day = Dates.logicalDay(now, dayStartHour: s.dayStartHour)
-            if (Int(time.prefix(2)) ?? 0) < s.dayStartHour { day = Dates.addDays(day, 1) }
-            let mins = Dates.minutesBetween("\(day)T\(time)", now)
+            let mins = minutesSinceStart(now: now, settings: s, time: time)
             if mins >= -30 && mins <= 60 { nowPart = 100 }
         } else if timing.kind == .part, timing.part == Dates.partOfDay(now, s) {
             nowPart = 50

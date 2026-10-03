@@ -1,4 +1,4 @@
-import type { LocalDateTime, Settings, Timing } from '../core/types'
+import type { LocalDateTime, PartOfDay, Settings, Timing } from '../core/types'
 import { addDays, logicalDay, minutesBetween, partOfDay } from './dates'
 import type { DeadlineStatus } from './tasks'
 
@@ -11,6 +11,27 @@ export type ScoreReason = 'now' | 'deadline' | 'postponed'
 
 const DEADLINE_SCORE: Partial<Record<DeadlineStatus, number>> = { overdue: 90, today: 80, soon: 60 }
 
+/** Minutes from an exact start to now; the start lies on the logical day, so times before day_start_hour are after midnight. */
+function minutesSinceStart(now: LocalDateTime, s: Settings, time: string): number {
+  let day = logicalDay(now, s.day_start_hour)
+  if (Number(time.slice(0, 2)) < s.day_start_hour) day = addDays(day, 1)
+  return minutesBetween(`${day}T${time}`, now)
+}
+
+const PARTS: PartOfDay[] = ['morning', 'day', 'evening']
+
+/**
+ * Whether an item's time has come today: without a time always; a part of the day from its start;
+ * an exact time from 30 minutes before it (shared/domain-fixtures/time_started.json).
+ */
+export function hasStarted(now: LocalDateTime, s: Settings, item: Timing): boolean {
+  if (item.time_kind === 'exact' && item.time) return minutesSinceStart(now, s, item.time) >= -30
+  if (item.time_kind === 'part' && item.part_of_day) {
+    return PARTS.indexOf(partOfDay(now, s)) >= PARTS.indexOf(item.part_of_day)
+  }
+  return true
+}
+
 /** Ranking for the "Now" screen: now + deadline + postpone components. */
 export function nowScore(
   now: LocalDateTime,
@@ -20,10 +41,7 @@ export function nowScore(
   const reasons: ScoreReason[] = []
   let nowPart = 0
   if (item.time_kind === 'exact' && item.time) {
-    // Start lies on the logical day: times before day_start_hour are after midnight.
-    let day = logicalDay(now, s.day_start_hour)
-    if (Number(item.time.slice(0, 2)) < s.day_start_hour) day = addDays(day, 1)
-    const mins = minutesBetween(`${day}T${item.time}`, now)
+    const mins = minutesSinceStart(now, s, item.time)
     if (mins >= -30 && mins <= 60) nowPart = 100
   } else if (item.time_kind === 'part' && item.part_of_day === partOfDay(now, s)) {
     nowPart = 50
