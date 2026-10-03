@@ -50,6 +50,13 @@ struct RootView: View {
                 GoodMorningVideo(url: url) { model.goodMorning.finished() }.id(url)
             }
         }
+        .alert(tr("Сохранить заставки или больше не показывать?", "Keep the morning videos or stop showing them?"),
+               isPresented: Binding(get: { model.goodMorning.askToKeep }, set: { model.goodMorning.askToKeep = $0 })) {
+            Button(tr("Сохранить", "Keep"), role: .cancel) { model.goodMorning.keep(true) }
+            Button(tr("Больше не показывать", "Don’t show again"), role: .destructive) { model.goodMorning.keep(false) }
+        } message: {
+            Text(tr("Включить снова можно в настройках.", "You can turn them back on in Settings."))
+        }
     }
 }
 

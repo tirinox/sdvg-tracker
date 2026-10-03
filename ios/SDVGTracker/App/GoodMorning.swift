@@ -20,13 +20,16 @@ final class GoodMorning {
     /// The settings button is waiting for a download, or it failed.
     private(set) var loading = false
     private(set) var failed = false
+    /// After the first video this device shows: keep them, or turn them off? Asked once.
+    var askToKeep = false
 
     @ObservationIgnored private let baseURL: () -> String
     @ObservationIgnored private var preparing: Task<Void, Never>?
 
-    // Per device: the switch, the file ready for the next morning, the one shown last (not to
-    // repeat it) and the (logical) day it was shown.
+    // Per device, gone with the app: the switch, whether keeping them was asked, the file ready
+    // for the next morning, the one shown last (not to repeat it) and the (logical) day it was shown.
     private static let enabledKey = "goodmorning_enabled"
+    private static let askedKey = "goodmorning_asked"
     private static let nextKey = "goodmorning_next"
     private static let lastKey = "goodmorning_last"
     private static let shownKey = "goodmorning_shown_day"
@@ -97,7 +100,18 @@ final class GoodMorning {
     /// The video has faded out.
     func finished() {
         playing = nil
-        prepare()
+        if enabled, !defaults.bool(forKey: Self.askedKey) {
+            askToKeep = true  // tomorrow's video waits for the answer
+        } else {
+            prepare()
+        }
+    }
+
+    /// The answer to askToKeep.
+    func keep(_ keep: Bool) {
+        defaults.set(true, forKey: Self.askedKey)
+        askToKeep = false
+        if keep { prepare() } else { enabled = false }
     }
 
     /// Downloads a random video for the next morning unless one is ready (or the video is off),
