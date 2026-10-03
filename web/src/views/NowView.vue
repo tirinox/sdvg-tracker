@@ -41,7 +41,7 @@ const THINGS: [[string, string, string], [string, string]] = [
 
     <p v-if="syncStatus.state === 'unconfigured'" class="banner">
       {{ tr('Данные пока хранятся только в этом браузере.', 'For now, your data lives only in this browser.') }}
-      <RouterLink to="/settings">{{ tr('Подключить сервер', 'Connect a server') }}</RouterLink
+      <RouterLink to="/settings/sync">{{ tr('Подключить сервер', 'Connect a server') }}</RouterLink
       >{{ tr(', чтобы синхронизировать с телефоном.', ' to sync with your phone.') }}
     </p>
 

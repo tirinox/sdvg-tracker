@@ -19,6 +19,7 @@ const router = createRouter({
     { path: '/inbox', component: () => import('./views/InboxView.vue') },
     { path: '/routines', component: () => import('./views/RoutinesView.vue') },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
+    { path: '/settings/sync', component: () => import('./views/SyncSettingsView.vue') },
     { path: '/:rest(.*)*', redirect: '/' },
   ],
 })

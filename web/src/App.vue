@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { isOnboardingDone } from './app/connect'
 import { tr } from './app/i18n'
 import { useApp } from './app/context'
@@ -39,6 +40,7 @@ watch(record, async (r) => {
   }
 })
 
+const route = useRoute()
 const nav = computed(() => [
   { to: '/', label: tr('Сейчас', 'Now'), icon: '✦' },
   { to: '/day', label: tr('День', 'Day'), icon: '☰' },
@@ -80,7 +82,13 @@ const sync = computed(() => {
         {{ tr('СДВГ-трекер', 'ADHD tracker') }}
       </RouterLink>
       <nav class="tabs" :aria-label="tr('Разделы', 'Sections')">
-        <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="tab">
+        <RouterLink
+          v-for="n in nav"
+          :key="n.to"
+          :to="n.to"
+          class="tab"
+          :class="{ section: n.to !== '/' && route.path.startsWith(n.to) }"
+        >
           <span class="icon" aria-hidden="true">{{ n.icon }}</span>
           <span class="label">{{ n.label }}</span>
         </RouterLink>
@@ -96,7 +104,7 @@ const sync = computed(() => {
         <span class="dot" />
         <span class="text">{{ sync.text }}</span>
       </button>
-      <RouterLink v-else to="/settings" class="sync" :class="sync.cls" :title="sync.text">
+      <RouterLink v-else to="/settings/sync" class="sync" :class="sync.cls" :title="sync.text">
         <span class="dot" />
         <span class="text">{{ sync.text }}</span>
       </RouterLink>
@@ -182,7 +190,7 @@ const sync = computed(() => {
   background: var(--surface-2);
 }
 .tab.router-link-exact-active,
-.tab[href='/day'].router-link-active {
+.tab.section {
   background: var(--accent-soft);
   color: var(--accent);
 }

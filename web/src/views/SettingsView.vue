@@ -1,49 +1,20 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { ref } from 'vue'
 import { useApp } from '../app/context'
-import { lang, langPref, setLangPref, tr, type LangPref } from '../app/i18n'
-import { useLive } from '../app/useLive'
+import { langPref, setLangPref, tr, type LangPref } from '../app/i18n'
 import { updateSettings } from '../db/actions'
 import { clearDemo, generateDemo } from '../demo/demo'
-import { connectServer, type ConnectResult } from '../app/connect'
-import { loadSyncConfig } from '../sync/client'
+import { syncStateText } from '../app/connect'
 
-const { store, sync, syncStatus, settings, today, now } = useApp()
+const { store, syncStatus, settings, today, now } = useApp()
 
-const conn = reactive({ baseUrl: '', token: '' })
-const check = ref<'idle' | 'checking' | ConnectResult>('idle')
 const busy = ref('')
-const outbox = useLive(() => store.db.outbox.count(), 0)
-const rejected = useLive(() => store.db.rejected.count(), 0)
-
-onMounted(async () => {
-  const cfg = await loadSyncConfig(store)
-  if (cfg) Object.assign(conn, cfg)
-})
-
-async function connect() {
-  check.value = 'checking'
-  check.value = await connectServer(store, sync, conn.baseUrl, conn.token)
-}
 
 const LANGS = (): { id: LangPref; label: string }[] => [
   { id: 'system', label: tr('Как в системе', 'System default') },
   { id: 'ru', label: 'Русский' },
   { id: 'en', label: 'English' },
 ]
-
-function stateText(state: string): string {
-  const texts: Record<string, string> = {
-    idle: tr('синхронизировано', 'synced'),
-    syncing: tr('синхронизация…', 'syncing…'),
-    offline: tr('сервер недоступен — работаем офлайн', 'server unreachable — working offline'),
-    unauthorized: tr('неверный токен', 'wrong token'),
-    unconfigured: tr('сервер не подключён', 'no server connected'),
-    server_changed: tr('на паузе: данные на сервере сменились', 'paused: the data on the server changed'),
-    error: tr('ошибка', 'error'),
-  }
-  return texts[state] ?? ''
-}
 
 async function setNumber(key: keyof typeof settings.value, value: string) {
   const n = Number(value)
@@ -98,48 +69,11 @@ const removeDemo = () =>
       <p class="muted">{{ tr('Только на этом устройстве.', 'This device only.') }}</p>
     </div>
 
-    <div class="card block">
+    <RouterLink to="/settings/sync" class="card block link">
       <h2>{{ tr('Синхронизация', 'Sync') }}</h2>
-      <p class="muted">
-        {{
-          tr(
-            'Приложение работает и без сервера. Сервер нужен, чтобы данные были одинаковыми на телефоне и в браузере.',
-            'The app works without a server too. A server keeps your data the same on your phone and in the browser.',
-          )
-        }}
-        {{ tr('Токен — значение', 'The token is the') }} <code>API_TOKEN</code>
-        {{ tr('из файла', 'value from the') }} <code>.env</code>{{ tr('.', ' file.') }}
-      </p>
-      <label class="field">
-        <span>{{ tr('Адрес сервера (пусто — этот же сайт)', 'Server address (empty means this site)') }}</span>
-        <input v-model="conn.baseUrl" class="input" placeholder="http://192.168.1.10:8420" />
-      </label>
-      <label class="field">
-        <span>{{ tr('Токен', 'Token') }}</span>
-        <input v-model="conn.token" class="input" type="password" autocomplete="off" />
-      </label>
-      <div class="actions">
-        <button class="btn primary" type="button" :disabled="!conn.token || check === 'checking'" @click="connect">
-          {{ tr('Подключить', 'Connect') }}
-        </button>
-        <span v-if="check === 'ok'" class="ok">{{ tr('Подключено ✓', 'Connected ✓') }}</span>
-        <span v-else-if="check === 'bad-token'" class="bad">{{ tr('Неверный токен', 'Wrong token') }}</span>
-        <span v-else-if="check === 'offline'" class="bad">{{ tr('Сервер не отвечает', 'Server isn’t responding') }}</span>
-      </div>
-      <dl class="status">
-        <dt>{{ tr('Состояние', 'Status') }}</dt>
-        <dd>{{ stateText(syncStatus.state) }}</dd>
-        <dt>{{ tr('Последняя синхронизация', 'Last sync') }}</dt>
-        <dd>{{ syncStatus.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString(lang) : '—' }}</dd>
-        <dt>{{ tr('Ждут отправки', 'Waiting to send') }}</dt>
-        <dd>{{ outbox }}</dd>
-        <template v-if="rejected">
-          <dt>{{ tr('Отклонены сервером', 'Rejected by the server') }}</dt>
-          <dd class="bad">{{ rejected }}</dd>
-        </template>
-      </dl>
-      <button class="btn" type="button" @click="sync.sync()">{{ tr('Синхронизировать сейчас', 'Sync now') }}</button>
-    </div>
+      <span class="muted">{{ syncStateText(syncStatus.state) }}</span>
+      <span class="chevron" aria-hidden="true">›</span>
+    </RouterLink>
 
     <div class="card block">
       <h2>{{ tr('День', 'Day') }}</h2>
@@ -293,30 +227,22 @@ h1 {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
-.status {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 0;
+a.link {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  color: inherit;
+}
+a.link .muted {
+  justify-self: end;
   font-size: 14px;
+  text-align: right;
 }
-.status dt {
+a.link .chevron {
   color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
 }
-.status dd {
-  margin: 0;
-}
-.ok {
-  color: var(--ok);
-  font-weight: 600;
-}
-.bad {
-  color: var(--danger);
-  font-weight: 600;
-}
-code {
+a.link:hover {
   background: var(--surface-2);
-  border-radius: 5px;
-  padding: 0 4px;
 }
 </style>
