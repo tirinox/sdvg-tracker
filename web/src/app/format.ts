@@ -173,9 +173,13 @@ export function weekdaysLabel(mask: number): string {
     .join(', ')
 }
 
-/** "!! важно": the tag of a high-priority item. */
+/** Tag of a high-priority item, longest first: a crowded row takes a shorter one (see ItemRow). */
+export function priorityTags(): string[] {
+  return lang.value === 'ru' ? ['!!важно', '!!'] : ['!!important', '!imp', '!!']
+}
+
 export function priorityTag(): string {
-  return tr('!! важно', '!! important')
+  return priorityTags()[0]!
 }
 
 export function priorityTitle(p: Priority): string {

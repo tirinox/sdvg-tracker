@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useApp } from '../app/context'
 import {
   adherenceLabel,
   deadlineLabel,
   movesLabel,
   priorityStyle,
-  priorityTag,
+  priorityTags,
   reasonLabels,
   shortDate,
   timingLabel,
 } from '../app/format'
-import { tr } from '../app/i18n'
+import { lang, tr } from '../app/i18n'
 import { loadRoutineAdherence, type DayItem } from '../app/views'
 import {
   completeTask,
@@ -37,6 +37,44 @@ const props = defineProps<{
 const { store, today, now, openTask, openRoutine, celebrate } = useApp()
 
 const isTask = computed(() => props.item.kind === 'task')
+
+// The full priority tag while the meta line fits on one line, a shorter one when it would wrap.
+const metaEl = ref<HTMLElement>()
+const tagLevel = ref(0)
+const tag = computed(() => {
+  const tags = priorityTags()
+  return tags[Math.min(tagLevel.value, tags.length - 1)]
+})
+
+function wraps(el: HTMLElement): boolean {
+  const first = el.firstElementChild as HTMLElement | null
+  const last = el.lastElementChild as HTMLElement | null
+  return !!first && !!last && last.offsetTop >= first.offsetTop + first.offsetHeight
+}
+
+async function fitTag() {
+  tagLevel.value = 0
+  if (props.item.priority !== 'high') return
+  await nextTick()
+  while (metaEl.value && wraps(metaEl.value) && tagLevel.value < priorityTags().length - 1) {
+    tagLevel.value++
+    await nextTick()
+  }
+}
+
+// The row's width, not the meta line's: that one shrinks to its content, the tag included.
+const rowEl = ref<HTMLElement>()
+let rowWidth = 0
+const resize = new ResizeObserver(([e]) => {
+  // Only width matters: a shorter tag changes the height, and that must not start it over.
+  if (e && e.contentRect.width !== rowWidth) {
+    rowWidth = e.contentRect.width
+    void fitTag()
+  }
+})
+onMounted(() => rowEl.value && resize.observe(rowEl.value))
+onBeforeUnmount(() => resize.disconnect())
+watch(() => [props.item, lang.value], () => void fitTag())
 const day = computed(() => props.date ?? today.value)
 const timing = computed(() => timingLabel(props.item))
 const deadline = computed(() => deadlineLabel(props.item, today.value))
@@ -140,6 +178,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
 
 <template>
   <li
+    ref="rowEl"
     class="row"
     :class="[
       `att-${item.attention}`,
@@ -154,8 +193,8 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
       <EmojiCircle :emoji="item.emoji" :color="item.color" />
       <span class="text">
         <span class="title">{{ item.title }}</span>
-        <span class="meta">
-          <span v-if="item.priority === 'high'" class="prio-tag">{{ priorityTag() }}</span>
+        <span ref="metaEl" class="meta">
+          <span v-if="item.priority === 'high'" class="prio-tag">{{ tag }}</span>
           <span v-if="item.kind === 'routine'" class="tag routine" :title="tr('Регулярная', 'Routine')">⟳</span>
           <span v-if="timing">{{ timing }}</span>
           <span v-if="deadline && !item.done" class="tag deadline">{{ deadline }}</span>

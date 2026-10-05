@@ -50,7 +50,14 @@ struct ItemRow: View {
                                 .foregroundStyle(item.priority == .low ? .secondary : .primary)
                                 .strikethrough(item.done)
                                 .multilineTextAlignment(.leading)
-                            meta
+                            if high {
+                                // The full tag while the line fits, a shorter one when it would not.
+                                ViewThatFits(in: .horizontal) {
+                                    ForEach(Fmt.priorityTags, id: \.self) { meta(tag: $0) }
+                                }
+                            } else {
+                                meta(tag: nil)
+                            }
                             if showHint, let hint = Fmt.nowHint(item, now: model.now, today: model.today) {
                                 Tag(text: hint, fg: .accentColor, bg: Color.accentColor.opacity(0.13))
                             }
@@ -130,11 +137,11 @@ struct ItemRow: View {
         }
     }
 
-    @ViewBuilder private var meta: some View {
+    @ViewBuilder private func meta(tag: String?) -> some View {
         let timing = Fmt.timing(item.timing, duration: item.durationMin)
         let deadline = Fmt.deadline(item, today: model.today)
         HStack(spacing: 6) {
-            if high { Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24)) }
+            if let tag { Tag(text: tag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24)) }
             if !isTask { Image(systemName: "repeat").font(.caption2).foregroundStyle(.tertiary) }
             if !timing.isEmpty { Text(timing).font(.footnote).foregroundStyle(.secondary) }
             if !deadline.isEmpty && !item.done {

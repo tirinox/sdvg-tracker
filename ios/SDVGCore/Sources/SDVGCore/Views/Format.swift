@@ -121,8 +121,9 @@ public enum Fmt {
         }
     }
 
-    /// "!! важно": the tag of a high-priority item.
-    public static var priorityTag: String { tr("!! важно", "!! important") }
+    /// Tag of a high-priority item, longest first: a crowded row takes a shorter one.
+    public static var priorityTags: [String] { L10n.current == .ru ? ["!!важно", "!!"] : ["!!important", "!imp", "!!"] }
+    public static var priorityTag: String { priorityTags[0] }
     public static var lowPriority: String { tr("↓ не срочно", "↓ not urgent") }
 
     public static func priority(_ p: Priority) -> String {
