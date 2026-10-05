@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApp } from '../app/context'
-import { adherenceLabel, weekdayNames } from '../app/format'
+import { adherenceLabel, shortDate, streakLabel, weekdayNames } from '../app/format'
 import { tr } from '../app/i18n'
-import { loadRoutineAdherence } from '../app/views'
+import { loadRoutineAdherence, loadRoutineHistory } from '../app/views'
 import type { RoutineVersion } from '../core/types'
-import type { Adherence } from '../domain/routines'
+import { addDays } from '../domain/dates'
+import type { Adherence, DayMark, RoutineHistory } from '../domain/routines'
 import { archiveRoutine, createRoutine, editRoutine, routineVersions, type RoutineContent } from '../db/actions'
 import AppearanceFields from './AppearanceFields.vue'
+import DayMarks from './DayMarks.vue'
 import Modal from './Modal.vue'
 import PriorityField from './PriorityField.vue'
 import TimingFields from './TimingFields.vue'
@@ -30,6 +32,8 @@ const form = reactive<Required<RoutineContent>>({
 let original: Required<RoutineContent> | null = null
 const loaded = ref(props.id === null)
 const adherence = ref<Adherence | null>(null)
+const history = ref<RoutineHistory | null>(null)
+const count = (m: DayMark) => history.value?.days.filter((x) => x === m).length ?? 0
 
 onMounted(async () => {
   if (!props.id) return
@@ -43,6 +47,7 @@ onMounted(async () => {
     Object.assign(form, original)
   }
   adherence.value = await loadRoutineAdherence(store, props.id, today.value)
+  history.value = await loadRoutineHistory(store, props.id, today.value)
   loaded.value = true
 })
 
@@ -125,7 +130,7 @@ async function archive() {
           </button>
         </div>
       </div>
-      <p v-if="adherence?.percent != null" class="rate" :class="{ warn: adherence.warning }">
+      <div v-if="adherence?.percent != null" class="rate" :class="{ warn: adherence.warning }">
         <strong>
           {{ adherence.warning ? tr('⚠︎ Пропускается', '⚠︎ Being skipped') : tr('Выполняется', 'Completion rate') }}:
           {{ percent(adherence.percent) }}
@@ -147,7 +152,20 @@ async function archive() {
             }}
           </template>
         </span>
-      </p>
+        <template v-if="history">
+          <DayMarks class="month" big :marks="history.days" />
+          <span class="ends muted">
+            <span>{{ shortDate(addDays(today, 1 - history.days.length)) }}</span>
+            <span>{{ tr('сегодня', 'today') }}</span>
+          </span>
+          <span class="counts">
+            <span class="k done">{{ tr('сделано', 'done') }} {{ count('done') }}</span>
+            <span class="k missed">{{ tr('не сделано', 'missed') }} {{ count('missed') }}</span>
+            <span class="k skipped">{{ tr('пропущено', 'skipped') }} {{ count('skipped') }}</span>
+          </span>
+          <span class="streak">🔥 {{ streakLabel(history) }}</span>
+        </template>
+      </div>
       <p class="muted note">
         {{
           tr(
@@ -193,5 +211,40 @@ async function archive() {
   display: block;
   margin-top: 2px;
   font-size: 13px;
+}
+.rate .month {
+  margin-top: 10px;
+}
+.rate .ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.k::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: var(--faint);
+}
+.k.done::before {
+  background: var(--ok);
+}
+.k.missed::before {
+  background: var(--danger);
+}
+.streak {
+  display: block;
+  margin-top: 6px;
+  font-weight: 600;
 }
 </style>

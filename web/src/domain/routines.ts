@@ -56,6 +56,27 @@ export interface Adherence {
   warning: boolean
 }
 
+/** Per routine: its marks by day, whether a day is scheduled, and the first scheduled day it was done (up to today). */
+function* routineMarks(today: LocalDate, versions: VersionRef[], checks: CheckRef[]) {
+  const own = new Map<string, VersionRef[]>()
+  for (const v of versions) own.set(v.routine_id, [...(own.get(v.routine_id) ?? []), v])
+  const marks = new Map<string, Map<LocalDate, CheckStatus>>()
+  for (const c of checks) {
+    if (!marks.has(c.routine_id)) marks.set(c.routine_id, new Map())
+    marks.get(c.routine_id)!.set(c.date, c.status)
+  }
+  for (const [rid, vs] of own) {
+    const status = marks.get(rid) ?? new Map<LocalDate, CheckStatus>()
+    const scheduled = (d: LocalDate) => routinesForDay(d, vs).has(rid)
+    const first = [...status]
+      .filter(([d, s]) => s === 'done' && d <= today)
+      .map(([d]) => d)
+      .sort()
+      .find(scheduled)
+    yield { rid, status, scheduled, first }
+  }
+}
+
 /**
  * How regularly each routine is done over the last ADHERENCE_DAYS, but not before the first day it
  * was done (shared/domain-fixtures/routine_adherence.json).
@@ -66,24 +87,9 @@ export function routineAdherence(
   checks: CheckRef[],
   warnBelow: number,
 ): Map<string, Adherence> {
-  const own = new Map<string, VersionRef[]>()
-  for (const v of versions) own.set(v.routine_id, [...(own.get(v.routine_id) ?? []), v])
-  const marks = new Map<string, Map<LocalDate, CheckStatus>>()
-  for (const c of checks) {
-    if (!marks.has(c.routine_id)) marks.set(c.routine_id, new Map())
-    marks.get(c.routine_id)!.set(c.date, c.status)
-  }
-
   const windowStart = addDays(today, 1 - ADHERENCE_DAYS)
   const result = new Map<string, Adherence>()
-  for (const [rid, vs] of own) {
-    const status = marks.get(rid) ?? new Map<LocalDate, CheckStatus>()
-    const scheduled = (d: LocalDate) => routinesForDay(d, vs).has(rid)
-    const first = [...status]
-      .filter(([d, s]) => s === 'done' && d <= today)
-      .map(([d]) => d)
-      .sort()
-      .find(scheduled)
+  for (const { rid, status, scheduled, first } of routineMarks(today, versions, checks)) {
     const from = first === undefined ? null : first > windowStart ? first : windowStart
     let done = 0
     let total = 0
@@ -95,6 +101,46 @@ export function routineAdherence(
     }
     const percent = total ? Math.floor((200 * done + total) / (2 * total)) : null
     result.set(rid, { from, done, total, percent, warning: percent !== null && percent < warnBelow })
+  }
+  return result
+}
+
+/**
+ * A day of a routine: done, missed (scheduled, not marked, already past), skipped on purpose,
+ * pending (today, not marked yet) or off (not scheduled, or before the first day it was done).
+ */
+export type DayMark = 'done' | 'missed' | 'skipped' | 'pending' | 'off'
+
+export interface RoutineHistory {
+  /** The last ADHERENCE_DAYS days, oldest first; the last one is today. */
+  days: DayMark[]
+  /** Done days in a row up to today: a miss ends it; skipped, off and pending days neither count nor end it. */
+  streak: number
+  /** The longest such run ever. */
+  best: number
+}
+
+/** Day by day marks and streaks of each routine (shared/domain-fixtures/routine_history.json). */
+export function routineHistory(today: LocalDate, versions: VersionRef[], checks: CheckRef[]): Map<string, RoutineHistory> {
+  const windowStart = addDays(today, 1 - ADHERENCE_DAYS)
+  const result = new Map<string, RoutineHistory>()
+  for (const { rid, status, scheduled, first } of routineMarks(today, versions, checks)) {
+    const days: DayMark[] = []
+    let streak = 0
+    let best = 0
+    // ponytail: walks every day since the first done one on each load; cache per routine if years of history get slow.
+    for (let d = first !== undefined && first < windowStart ? first : windowStart; d <= today; d = addDays(d, 1)) {
+      let mark: DayMark = 'off'
+      if (scheduled(d)) {
+        const s = status.get(d) ?? null
+        if (s) mark = s
+        else if (first !== undefined && d >= first) mark = d < today ? 'missed' : 'pending'
+      }
+      if (mark === 'done') best = Math.max(best, ++streak)
+      else if (mark === 'missed') streak = 0
+      if (d >= windowStart) days.push(mark)
+    }
+    result.set(rid, { days, streak, best })
   }
   return result
 }

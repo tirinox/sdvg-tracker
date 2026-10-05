@@ -22,6 +22,7 @@ import {
 } from '../db/actions'
 import type { Adherence } from '../domain/routines'
 import { celebrationLevel } from '../domain/tasks'
+import DayMarks from './DayMarks.vue'
 import EmojiCircle from './EmojiCircle.vue'
 
 const props = defineProps<{
@@ -104,6 +105,12 @@ const lagging = computed(() => {
   if (checking.value && boost.value) return boost.value
   const a = props.item.adherence
   return a?.warning && !props.item.done && !props.item.skipped ? a : null
+})
+/** The routine's last week of marks; a check on today shows at once. */
+const week = computed(() => {
+  const marks = props.item.history?.days.slice(-7)
+  if (marks && checking.value && day.value === today.value) marks[6] = 'done'
+  return marks
 })
 const shownPercent = ref(lagging.value?.percent ?? 0)
 // Green with a thumbs up; follows the warning once the count has got there.
@@ -249,6 +256,8 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
       </button>
     </div>
 
+    <DayMarks v-if="week" class="week" :marks="week" />
+
     <div v-if="item.attention >= 4 && !item.done" class="stuck">
       {{ tr('Застряла?', 'Stuck?') }}
       <button type="button" @click="edit">{{ tr('Разбить на шаги', 'Break into steps') }}</button>
@@ -363,6 +372,12 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   font-weight: 600;
 }
 
+/* In the corner under the check, so the row keeps its layout. */
+.week {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+}
 .actions {
   display: flex;
   align-items: center;

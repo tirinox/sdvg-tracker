@@ -1,0 +1,363 @@
+{
+  "description": "Day by day marks and streaks of each routine that has versions. Scheduled days and `first` (the earliest scheduled day <= today with status done) are as in routine_adherence. Each day D gets a mark: scheduled and done -> d (done); scheduled and skipped -> s (skipped); scheduled, no mark or status null: m (missed) if first exists and first <= D < today, p (pending) if first exists and D = today, otherwise o (off); not scheduled -> o. days = the marks of the last 30 days, today last, as one string. The streak walks all days from first to today: d -> streak + 1, m -> streak = 0, the rest leave it; streak = its value at today, best = the largest value it ever had. expect.routines maps routine_id -> result.",
+  "cases": [
+    {
+      "name": "never done: skips show, nothing is missed, no streak",
+      "input": {
+        "today": "2026-09-22",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        ],
+        "checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-20",
+            "status": "skipped"
+          }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": {
+            "days": "ooooooooooooooooooooooooooosoo",
+            "streak": 0,
+            "best": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "a miss ends the streak; a skip, a cleared mark on today and days before the first done do not",
+      "input": {
+        "today": "2026-09-22",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-09-01",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        ],
+        "checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-10",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-11",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-12",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-14",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-15",
+            "status": "skipped"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-16",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-17",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-19",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-20",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "skipped"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": null
+          }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": {
+            "days": "ooooooooooooooooodddmdsddmddsp",
+            "streak": 2,
+            "best": 3
+          }
+        }
+      }
+    },
+    {
+      "name": "only scheduled weekdays count, the streak reaches back past the 30 days, today done",
+      "input": {
+        "today": "2026-09-21",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-07-01",
+            "weekdays": 21,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        ],
+        "checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-07-06",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-07-08",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-04",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-03",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-05",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-07",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-10",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-12",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-14",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-17",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-19",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-21",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-24",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-26",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-28",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-08-31",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-02",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-04",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-07",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-09",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-11",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-14",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-16",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-18",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "done"
+          }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": {
+            "days": "odododoodododoodododoodododood",
+            "streak": 22,
+            "best": 22
+          }
+        }
+      }
+    },
+    {
+      "name": "the best streak is kept after it ends",
+      "input": {
+        "today": "2026-09-22",
+        "versions": [
+          {
+            "id": "0192f0a0-0000-7000-8000-000000000301",
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "effective_from": "2026-06-01",
+            "weekdays": 127,
+            "archived": false,
+            "hlc": "1790000000000-0000-aaaaaaaaaaaaaaaa"
+          }
+        ],
+        "checks": [
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-01",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-02",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-03",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-04",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-05",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-06",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-07",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-08",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-09",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-06-10",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-20",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-21",
+            "status": "done"
+          },
+          {
+            "routine_id": "0192f0a0-0000-7000-8000-000000000101",
+            "date": "2026-09-22",
+            "status": "done"
+          }
+        ]
+      },
+      "expect": {
+        "routines": {
+          "0192f0a0-0000-7000-8000-000000000101": {
+            "days": "mmmmmmmmmmmmmmmmmmmmmmmmmmmddd",
+            "streak": 3,
+            "best": 10
+          }
+        }
+      }
+    }
+  ]
+}

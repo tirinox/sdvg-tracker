@@ -17,7 +17,13 @@ import { localNow, logicalDay, partOfDay } from '../domain/dates'
 import type { ListedItem } from '../domain/duplicates'
 import { compareItems, pickTop, priorityRank } from '../domain/order'
 import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
-import { routineAdherence, routinesForDay, type Adherence } from '../domain/routines'
+import {
+  routineAdherence,
+  routineHistory,
+  routinesForDay,
+  type Adherence,
+  type RoutineHistory,
+} from '../domain/routines'
 import { hasStarted, nowScore, type ScoreReason } from '../domain/score'
 import { titleHistory, type TitleHistory } from '../domain/suggest'
 import { attentionLevel, deadlineStatus, type DeadlineStatus } from '../domain/tasks'
@@ -56,6 +62,8 @@ export interface DayItem {
   sort_key: string
   /** Routines only: how regularly it is done as of today. */
   adherence: Adherence | null
+  /** Routines only: its last days mark by mark, and its streak. */
+  history: RoutineHistory | null
 }
 
 /** Section a timed item belongs to: exact times fall into the part of day they are in. */
@@ -77,19 +85,17 @@ function localDateOf(isoUtc: string): LocalDate {
   return localNow(new Date(isoUtc)).slice(0, 10)
 }
 
-/** Adherence of every routine as of today; see domain/routines. */
-async function adherenceByRoutine(
-  store: Store,
-  versions: VersionWithMeta[],
-  today: LocalDate,
-  s: Settings,
-): Promise<Map<string, Adherence>> {
+/** Adherence and day by day history of every routine as of today; see domain/routines. */
+async function routineStats(store: Store, versions: VersionWithMeta[], today: LocalDate, s: Settings) {
   const checks = (await store.rows('routine_check')).map((c) => ({
     routine_id: c.fields.routine_id!,
     date: c.fields.date!,
     status: c.fields.status ?? null,
   }))
-  return routineAdherence(today, versions, checks, s.routine_warn_below)
+  return {
+    adherence: routineAdherence(today, versions, checks, s.routine_warn_below),
+    history: routineHistory(today, versions, checks),
+  }
 }
 
 async function moveCounts(store: Store): Promise<Map<string, number>> {
@@ -142,7 +148,7 @@ export function taskItem(
     t.date === today && !base.done
       ? nowScore(now, s, { ...base, deadline_status: deadline })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence: null }
+  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence: null, history: null }
 }
 
 function routineItem(
@@ -153,6 +159,7 @@ function routineItem(
   s: Settings,
   isToday: boolean,
   adherence: Adherence | null,
+  history: RoutineHistory | null,
 ): DayItem {
   const base = {
     key: `routine:${v.routine_id}`,
@@ -179,7 +186,7 @@ function routineItem(
     isToday && !status
       ? nowScore(now, s, { ...base, deadline_status: 'none' })
       : { score: 0, reasons: [] }
-  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence }
+  return { ...base, section: sectionOf(base, s), score, reasons, started: hasStarted(now, s, base), adherence, history }
 }
 
 export interface DayView {
@@ -202,13 +209,14 @@ export async function loadDay(store: Store, date: LocalDate, now: LocalDateTime)
   ])
   const status = new Map(checks.map((c) => [c.fields.routine_id, c.fields.status ?? null]))
   const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
-  const adherence = await adherenceByRoutine(store, versions, today, s)
+  const { adherence, history } = await routineStats(store, versions, today, s)
 
   const items: DayItem[] = []
   for (const v of routinesForDay(date, versions).values()) {
     const st = status.get(v.routine_id) ?? null
     const a = adherence.get(v.routine_id) ?? null
-    items.push(routineItem(v, st, sortKeys.get(v.routine_id) ?? '', now, s, date === today, a))
+    const h = history.get(v.routine_id) ?? null
+    items.push(routineItem(v, st, sortKeys.get(v.routine_id) ?? '', now, s, date === today, a, h))
   }
   const seen = new Set<string>()
   for (const row of [...planned, ...doneThatDay]) {
@@ -402,6 +410,7 @@ export interface RoutineListItem {
   section: Section
   sort_key: string
   adherence: Adherence
+  history: RoutineHistory
 }
 
 export async function loadRoutines(store: Store, today: LocalDate): Promise<RoutineListItem[]> {
@@ -409,7 +418,7 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
   const [versions, routines] = await Promise.all([routineVersions(store), store.rows('routine')])
   const latest = latestVersions(versions)
   const sortKeys = new Map(routines.map((r) => [r.id, r.fields.sort_key ?? '']))
-  const adherence = await adherenceByRoutine(store, versions, today, s)
+  const { adherence, history } = await routineStats(store, versions, today, s)
   return [...latest.values()]
     .filter((v) => !v.archived)
     .map((v) => ({
@@ -419,6 +428,7 @@ export async function loadRoutines(store: Store, today: LocalDate): Promise<Rout
       section: sectionOf(v as RoutineVersion, s),
       sort_key: sortKeys.get(v.routine_id) ?? '',
       adherence: adherence.get(v.routine_id)!,
+      history: history.get(v.routine_id)!,
     }))
     .sort((a, b) =>
       SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section) ||
@@ -447,4 +457,14 @@ export async function loadRoutineAdherence(
   // A later mark of the same day wins.
   if (doneOn) marks.push({ routine_id: routineId, date: doneOn, status: 'done' })
   return routineAdherence(today, versions, marks, s.routine_warn_below).get(routineId) ?? null
+}
+
+/** Day by day history and streak of one routine, for its editor; null for a routine without versions. */
+export async function loadRoutineHistory(store: Store, routineId: string, today: LocalDate): Promise<RoutineHistory | null> {
+  const [versions, checks] = await Promise.all([
+    routineVersions(store, routineId),
+    store.db.routine_check.where('fields.routine_id').equals(routineId).toArray(),
+  ])
+  const marks = checks.map((c) => ({ routine_id: routineId, date: c.fields.date!, status: c.fields.status ?? null }))
+  return routineHistory(today, versions, marks).get(routineId) ?? null
 }

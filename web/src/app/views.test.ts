@@ -20,6 +20,7 @@ import {
   loadListed,
   loadRecord,
   loadRoutineAdherence,
+  loadRoutineHistory,
   loadRoutines,
   loadStats,
   pickNow,
@@ -112,6 +113,10 @@ describe('routine adherence', () => {
       ['Лампочка', null],
     ])
     expect(await loadRoutineAdherence(store, r, TODAY)).toEqual(listed!.adherence)
+    expect(listed!.history).toMatchObject({ streak: 0, best: 1 })
+    expect(listed!.history.days.slice(-5)).toEqual(['done', 'missed', 'missed', 'skipped', 'pending'])
+    expect(day.items.map((i) => i.history)).toEqual([listed!.history, null])
+    expect(await loadRoutineHistory(store, r, TODAY)).toEqual(listed!.history)
 
     await updateSettings(store, { routine_warn_below: 30 })
     expect((await loadRoutines(store, TODAY))[0]!.adherence.warning).toBe(false)

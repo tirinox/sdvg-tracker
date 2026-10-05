@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useApp } from '../app/context'
-import { adherenceLabel, priorityStyle, priorityTag, sectionTitle, shortDate, timingLabel, weekdaysLabel } from '../app/format'
+import {
+  adherenceLabel,
+  priorityStyle,
+  priorityTag,
+  sectionTitle,
+  shortDate,
+  streakLabel,
+  timingLabel,
+  weekdaysLabel,
+} from '../app/format'
 import { tr, trn } from '../app/i18n'
 import { useLive } from '../app/useLive'
 import { SECTIONS, loadRoutines, type RoutineListItem } from '../app/views'
+import DayMarks from '../components/DayMarks.vue'
 import EmojiCircle from '../components/EmojiCircle.vue'
 
 const { store, today, settings, openRoutine } = useApp()
@@ -71,13 +81,14 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
                 }}</span>
               </span>
             </span>
-            <span
-              v-if="r.adherence.percent !== null"
-              class="rate"
-              :class="{ warn: r.adherence.warning }"
-              :title="adherenceLabel(r.adherence)"
-            >
-              <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}{{ tr('\u00a0%', '%') }}
+            <span v-if="r.adherence.percent !== null" class="stats">
+              <span class="numbers">
+                <span v-if="r.history.streak > 1" class="streak" :title="streakLabel(r.history)">🔥 {{ r.history.streak }}</span>
+                <span class="rate" :class="{ warn: r.adherence.warning }" :title="adherenceLabel(r.adherence)">
+                  <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}{{ tr('\u00a0%', '%') }}
+                </span>
+              </span>
+              <DayMarks :marks="r.history.days.slice(-7)" />
             </span>
           </button>
         </li>
@@ -147,8 +158,23 @@ h1 {
   color: var(--accent);
   font-weight: 600;
 }
-.rate {
+.stats {
   flex-shrink: 0;
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+.numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.streak {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rate {
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);

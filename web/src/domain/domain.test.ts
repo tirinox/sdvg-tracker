@@ -4,7 +4,7 @@ import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './da
 import { checkTitle } from './duplicates'
 import { compareItems, pickTop } from './order'
 import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
-import { routineAdherence, routinesForDay } from './routines'
+import { routineAdherence, routineHistory, routinesForDay } from './routines'
 import { hasStarted, nowScore } from './score'
 import { suggestTitles, titleHistory } from './suggest'
 import { attentionLevel, celebrationLevel, deadlineStatus, planRollover } from './tasks'
@@ -27,6 +27,11 @@ const RUNNERS: Record<string, Runner> = {
   }),
   routine_adherence: (i) => ({
     routines: Object.fromEntries(routineAdherence(i.today, i.versions, i.checks, i.warn_below)),
+  }),
+  routine_history: (i) => ({
+    routines: Object.fromEntries(
+      [...routineHistory(i.today, i.versions, i.checks)].map(([rid, h]) => [rid, { ...h, days: h.days.map((m) => m[0]).join('') }]),
+    ),
   }),
   auto_rollover: (i) => {
     const { moves, dates } = planRollover(i.today, i.tasks)

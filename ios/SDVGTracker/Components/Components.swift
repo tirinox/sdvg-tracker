@@ -74,6 +74,39 @@ struct Tag: View {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }
 
+/// A routine's last days as a row of squares, oldest first: green done, red missed, grey skipped,
+/// hollow for today not marked yet, faint for days off.
+struct DayMarks: View {
+    var marks: [Rules.DayMark]
+    /// Squares stretch to fill the width (the month in the editor) instead of staying tiny.
+    var big = false
+
+    var body: some View {
+        HStack(spacing: big ? 3 : 2) {
+            ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
+                let shape = RoundedRectangle(cornerRadius: big ? 3 : 1.5)
+                Group {
+                    switch mark {
+                    case .done: shape.fill(Palette.ok)
+                    case .missed: shape.fill(Palette.danger)
+                    case .skipped: shape.fill(Color(.tertiaryLabel))
+                    case .pending: shape.strokeBorder(Color(.tertiaryLabel), lineWidth: 1)
+                    case .off: shape.fill(Color(.quaternarySystemFill))
+                    }
+                }
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: big ? 16 : 5)
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(tr(
+            "Последние \(marks.count) дн.: сделано \(count(.done)), не сделано \(count(.missed)), пропущено \(count(.skipped))",
+            "Last \(marks.count) days: \(count(.done)) done, \(count(.missed)) missed, \(count(.skipped)) skipped"))
+    }
+
+    func count(_ mark: Rules.DayMark) -> Int { marks.filter { $0 == mark }.count }
+}
+
 struct Card<Content: View>: View {
     @ViewBuilder var content: Content
 

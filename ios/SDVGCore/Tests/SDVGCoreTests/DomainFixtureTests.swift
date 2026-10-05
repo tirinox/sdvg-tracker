@@ -22,6 +22,12 @@ private func versions(_ i: JSONValue) -> [FixtureVersion] {
     }
 }
 
+private func checks(_ i: JSONValue) -> [Rules.CheckRef] {
+    i["checks"]!.array!.map {
+        (routineID: $0["routine_id"]!.string!, date: $0["date"]!.string!, status: $0["status"]?.string.flatMap(CheckStatus.init))
+    }
+}
+
 private func timing(_ i: JSONValue) -> Timing {
     Timing([
         "time_kind": i["time_kind"] ?? "none", "part_of_day": i["part_of_day"] ?? nil, "time": i["time"] ?? nil,
@@ -58,10 +64,14 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
         let picked = Rules.routinesForDay(i["date"]!.string!, versions(i))
         return ["versions": .object(picked.mapValues { .string($0.id) })]
     },
+    "routine_history": { i in
+        let result = Rules.routineHistory(today: i["today"]!.string!, versions: versions(i), checks: checks(i))
+        return ["routines": .object(result.mapValues { h in
+            ["days": .string(String(h.days.map { $0.rawValue.first! })), "streak": .int(h.streak), "best": .int(h.best)]
+        })]
+    },
     "routine_adherence": { i in
-        let checks = i["checks"]!.array!.map {
-            (routineID: $0["routine_id"]!.string!, date: $0["date"]!.string!, status: $0["status"]?.string.flatMap(CheckStatus.init))
-        }
+        let checks = checks(i)
         let result = Rules.routineAdherence(
             today: i["today"]!.string!, versions: versions(i), checks: checks, warnBelow: i["warn_below"]!.int!)
         return ["routines": .object(result.mapValues { a in

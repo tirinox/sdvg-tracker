@@ -360,6 +360,7 @@ struct RoutineEditor: View {
     let id: String?
     @State private var draft = RoutineDraft()
     @State private var adherence: Rules.Adherence?
+    @State private var history: Rules.RoutineHistory?
 
     var body: some View {
         NavigationStack {
@@ -392,6 +393,25 @@ struct RoutineEditor: View {
                                 .foregroundStyle(a.warning ? Palette.warn : .primary)
                             Text(Fmt.adherence(a))
                         }
+                        if let h = history {
+                            VStack(alignment: .leading, spacing: 8) {
+                                DayMarks(marks: h.days, big: true)
+                                HStack {
+                                    Text(Fmt.shortDate(Dates.addDays(model.today, 1 - h.days.count)))
+                                    Spacer()
+                                    Text(tr("сегодня", "today"))
+                                }
+                                .font(.caption).foregroundStyle(.secondary)
+                                HStack(spacing: 12) {
+                                    count(tr("сделано", "done"), h, .done, Palette.ok)
+                                    count(tr("не сделано", "missed"), h, .missed, Palette.danger)
+                                    count(tr("пропущено", "skipped"), h, .skipped, Color(.tertiaryLabel))
+                                }
+                                .font(.footnote)
+                            }
+                            .padding(.vertical, 4)
+                            Text(verbatim: "🔥 \(Fmt.streak(h))").fontWeight(.semibold)
+                        }
                     } footer: {
                         Text(tr("Считается за последние 30 дней, но не раньше первого выполнения; пропуски кнопкой «Пропуск» не в счёт.",
                                 "Counted over the last 30 days, but not before the first time it was done; days marked “Skip” don’t count.")
@@ -420,8 +440,19 @@ struct RoutineEditor: View {
             }
             .onAppear {
                 if let id, let v = try? model.store.latestVersion(id) { draft = RoutineDraft(v) }
-                if let id { adherence = try? model.store.loadRoutineAdherence(id, today: model.today) }
+                if let id {
+                    adherence = try? model.store.loadRoutineAdherence(id, today: model.today)
+                    history = try? model.store.loadRoutineHistory(id, today: model.today)
+                }
             }
+        }
+    }
+
+    /// One line of the legend under the month of marks.
+    private func count(_ label: String, _ h: Rules.RoutineHistory, _ mark: Rules.DayMark, _ color: Color) -> some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
+            Text(verbatim: "\(label) \(h.days.filter { $0 == mark }.count)")
         }
     }
 

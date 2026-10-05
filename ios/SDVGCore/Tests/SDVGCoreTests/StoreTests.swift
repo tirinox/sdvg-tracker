@@ -128,6 +128,11 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(day.items.map(\.title), ["Зарядка", "Лампочка"])
         XCTAssertEqual(day.items.map(\.adherence?.percent), [33, nil])
         XCTAssertEqual(try s.loadRoutineAdherence(r, today: today), listed)
+        let history = try XCTUnwrap(s.loadRoutines(today: today).first).history
+        XCTAssertEqual([history.streak, history.best], [0, 1])
+        XCTAssertEqual(history.days.suffix(5), [.done, .missed, .missed, .skipped, .pending])
+        XCTAssertEqual(day.items.map(\.history), [history, nil])
+        XCTAssertEqual(try s.loadRoutineHistory(r, today: today), history)
 
         try s.updateSettings(["routine_warn_below": 30])
         XCTAssertFalse(try s.loadRoutines(today: today)[0].adherence.warning)

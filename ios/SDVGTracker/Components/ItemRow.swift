@@ -38,6 +38,13 @@ struct ItemRow: View {
         }
     }
 
+    /// The routine's last week of marks; a check on today shows at once.
+    private var week: [Rules.DayMark]? {
+        guard var marks = item.history.map({ Array($0.days.suffix(7)) }), !marks.isEmpty else { return nil }
+        if checking, day == model.today { marks[marks.count - 1] = .done }
+        return marks
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
@@ -130,6 +137,10 @@ struct ItemRow: View {
             if high { PriorityMarks(color: item.color, key: item.id, pulse: !item.done && !item.skipped) }
         }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
+        // In the corner under the check, so the row keeps its layout.
+        .overlay(alignment: .bottomTrailing) {
+            if let week { DayMarks(marks: week).frame(height: 5).padding(.trailing, 10).padding(.bottom, 4) }
+        }
         .opacity(item.done || item.skipped ? 0.55 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
         .onChange(of: checking) { _, on in

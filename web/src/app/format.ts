@@ -1,7 +1,7 @@
 // Labels for dates, timing, deadlines and reasons, in the interface language.
 import type { LocalDate, LocalDateTime, PartOfDay, Priority } from '../core/types'
 import { addDays, daysBetween, minutesBetween } from '../domain/dates'
-import type { Adherence } from '../domain/routines'
+import type { Adherence, RoutineHistory } from '../domain/routines'
 import { lang, plural, tr, trn, type Lang } from './i18n'
 import type { DayGroupId, DayItem, Section } from './views'
 
@@ -134,6 +134,12 @@ export function adherenceLabel(a: Adherence): string {
     `сделано ${a.done} из ${a.total} ${plural(a.total, 'дня', 'дней', 'дней')}${from ? ` с ${from}` : ''}`,
     `done ${a.done} of ${a.total} ${a.total === 1 ? 'day' : 'days'}${from ? ` since ${from}` : ''}`,
   )
+}
+
+/** A routine's streak in words: «5 дней подряд, лучший — 12». */
+export function streakLabel(h: RoutineHistory): string {
+  const days = (n: number) => trn(n, ['день', 'дня', 'дней'], ['day', 'days'])
+  return tr(`${days(h.streak)} подряд, лучший — ${h.best}`, `${days(h.streak)} in a row, best ${h.best}`)
 }
 
 /** Short "why is this here" hints for the Now screen. */

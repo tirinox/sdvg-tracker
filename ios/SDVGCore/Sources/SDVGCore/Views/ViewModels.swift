@@ -40,6 +40,8 @@ public struct DayItem: Identifiable, Hashable, Sendable {
     public var sortKey: String
     /// Routines only: how regularly it is done as of today.
     public var adherence: Rules.Adherence? = nil
+    /// Routines only: its last days mark by mark, and its streak.
+    public var history: Rules.RoutineHistory? = nil
 
     var closed: Bool { done || skipped }
 }
@@ -101,24 +103,19 @@ public struct RoutineListItem: Identifiable, Sendable {
     public var section: DaySection
     public var sortKey: String
     public var adherence: Rules.Adherence
+    public var history: Rules.RoutineHistory
 }
 
 extension Store {
-    /// Adherence of every routine as of today, or of one; see Rules.routineAdherence.
-    func adherenceByRoutine(
-        _ db: Database, _ versions: [RoutineVersionRecord], today: LocalDate, _ s: Settings,
-        routineID: String? = nil, doneOn: LocalDate? = nil
-    ) throws -> [String: Rules.Adherence] {
+    /// The marks of every routine, or of one.
+    func routineChecks(_ db: Database, routineID: String? = nil) throws -> [Rules.CheckRef] {
         let sql = "SELECT routine_id, date, json_extract(fields, '$.status') AS status FROM routine_check"
         let rows = try routineID.map { try GRDB.Row.fetchAll(db, sql: sql + " WHERE routine_id = ?", arguments: [$0]) }
             ?? GRDB.Row.fetchAll(db, sql: sql)
-        var checks: [Rules.CheckRef] = rows.compactMap { r in
+        return rows.compactMap { r in
             guard let rid: String = r["routine_id"], let d: String = r["date"] else { return nil }
             return (rid, d, (r["status"] as String?).flatMap(CheckStatus.init))
         }
-        // A later mark of the same day wins.
-        if let routineID, let doneOn { checks.append((routineID, doneOn, .done)) }
-        return Rules.routineAdherence(today: today, versions: versions, checks: checks, warnBelow: s.routineWarnBelow)
     }
 
     func moveCounts(_ db: Database) throws -> [String: Int] {
@@ -156,7 +153,9 @@ extension Store {
                 try Rows.fetch(.routine, db).map { ($0.id, $0.fields["sort_key"]?.string ?? "") }, uniquingKeysWith: { $1 })
 
             let versions = try routineVersions(db)
-            let adherence = try adherenceByRoutine(db, versions, today: today, s)
+            let checks = try routineChecks(db)
+            let adherence = Rules.routineAdherence(today: today, versions: versions, checks: checks, warnBelow: s.routineWarnBelow)
+            let history = Rules.routineHistory(today: today, versions: versions, checks: checks)
             var items: [DayItem] = []
             for v in Rules.routinesForDay(date, versions).values {
                 let st = status[v.routineID] ?? nil
@@ -168,7 +167,8 @@ extension Store {
                     durationMin: v.durationMin, priority: v.priority, section: sectionOf(v.timing, s), done: st == .done, skipped: st == .skipped,
                     moves: 0, attention: 0, deadline: .none, deadlineDate: nil, deadlineTime: nil,
                     score: score, reasons: reasons, started: Rules.hasStarted(now: now, settings: s, timing: v.timing),
-                    sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID]))
+                    sortKey: sortKeys[v.routineID] ?? "", adherence: adherence[v.routineID],
+                    history: history[v.routineID]))
             }
             let moves = try moveCounts(db)
             for t in try Rows.fetch(.task, db, where: "date = ? OR done_on = ?", [date, date]).map(TaskRecord.init) {
@@ -251,8 +251,20 @@ extension Store {
     public func loadRoutineAdherence(_ routineID: String, today: LocalDate, doneOn: LocalDate? = nil) throws -> Rules.Adherence? {
         try read { db in
             let versions = try routineVersions(db, routineID: routineID)
-            return try adherenceByRoutine(
-                db, versions, today: today, try Rows.settings(db), routineID: routineID, doneOn: doneOn)[routineID]
+            var checks = try routineChecks(db, routineID: routineID)
+            // A later mark of the same day wins.
+            if let doneOn { checks.append((routineID, doneOn, .done)) }
+            return Rules.routineAdherence(
+                today: today, versions: versions, checks: checks, warnBelow: try Rows.settings(db).routineWarnBelow)[routineID]
+        }
+    }
+
+    /// Day by day history and streak of one routine, for its editor; nil for a routine without versions.
+    public func loadRoutineHistory(_ routineID: String, today: LocalDate) throws -> Rules.RoutineHistory? {
+        try read { db in
+            Rules.routineHistory(
+                today: today, versions: try routineVersions(db, routineID: routineID),
+                checks: try routineChecks(db, routineID: routineID))[routineID]
         }
     }
 
@@ -292,7 +304,9 @@ extension Store {
         try read { db in
             let s = try Rows.settings(db)
             let versions = try routineVersions(db)
-            let adherence = try adherenceByRoutine(db, versions, today: today, s)
+            let checks = try routineChecks(db)
+            let adherence = Rules.routineAdherence(today: today, versions: versions, checks: checks, warnBelow: s.routineWarnBelow)
+            let history = Rules.routineHistory(today: today, versions: versions, checks: checks)
             let latest = latestVersions(versions)
             let sortKeys = Dictionary(
                 try Rows.fetch(.routine, db).map { ($0.id, $0.fields["sort_key"]?.string ?? "") }, uniquingKeysWith: { $1 })
@@ -301,7 +315,7 @@ extension Store {
                 RoutineListItem(
                     version: $0, pendingFrom: $0.effectiveFrom > today ? $0.effectiveFrom : nil,
                     section: sectionOf($0.timing, s), sortKey: sortKeys[$0.routineID] ?? "",
-                    adherence: adherence[$0.routineID] ?? .init())
+                    adherence: adherence[$0.routineID] ?? .init(), history: history[$0.routineID] ?? .init())
             }.sorted {
                 let a = order.firstIndex(of: $0.section)!, b = order.firstIndex(of: $1.section)!
                 if a != b { return a < b }

@@ -144,6 +144,12 @@ public enum Fmt {
             "done \(a.done) of \(a.total) \(a.total == 1 ? "day" : "days")\(from.map { " since \($0)" } ?? "")")
     }
 
+    /// A routine's streak in words: «5 дней подряд, лучший — 12».
+    public static func streak(_ h: Rules.RoutineHistory) -> String {
+        let days = trn(h.streak, ru: ("день", "дня", "дней"), en: ("day", "days"))
+        return tr("\(days) подряд, лучший — \(h.best)", "\(days) in a row, best \(h.best)")
+    }
+
     /// Timing hint for the Now screen (deadline and moves already have tags on the row).
     public static func nowHint(_ i: DayItem, now: LocalDateTime, today: LocalDate) -> String? {
         guard i.reasons.contains(.now) else { return nil }

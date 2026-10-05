@@ -43,20 +43,28 @@ public enum Rules {
 
     public typealias CheckRef = (routineID: String, date: LocalDate, status: CheckStatus?)
 
+    /// Per routine: its marks by day, whether a day is scheduled, and the first scheduled day it was done (up to today).
+    private static func routineMarks<V: VersionRef>(
+        today: LocalDate, versions: [V], checks: [CheckRef]
+    ) -> [(rid: String, status: [LocalDate: CheckStatus], scheduled: (LocalDate) -> Bool, first: LocalDate?)] {
+        // A cleared mark (nil status) is the same as no mark.
+        var marks: [String: [LocalDate: CheckStatus]] = [:]
+        for c in checks { marks[c.routineID, default: [:]][c.date] = c.status }
+        return Dictionary(grouping: versions, by: \.routineID).map { rid, own in
+            let status = marks[rid] ?? [:]
+            let scheduled = { (d: LocalDate) in routinesForDay(d, own)[rid] != nil }
+            let first = status.filter { $0.value == .done && $0.key <= today }.keys.sorted().first(where: scheduled)
+            return (rid, status, scheduled, first)
+        }
+    }
+
     /// How regularly each routine is done over the last adherenceDays, but not before the first day it was done.
     public static func routineAdherence<V: VersionRef>(
         today: LocalDate, versions: [V], checks: [CheckRef], warnBelow: Int
     ) -> [String: Adherence] {
-        // A cleared mark (nil status) is the same as no mark.
-        var marks: [String: [LocalDate: CheckStatus]] = [:]
-        for c in checks { marks[c.routineID, default: [:]][c.date] = c.status }
-
         let windowStart = Dates.addDays(today, 1 - adherenceDays)
         var result: [String: Adherence] = [:]
-        for (rid, own) in Dictionary(grouping: versions, by: \.routineID) {
-            let status = marks[rid] ?? [:]
-            let scheduled = { (d: LocalDate) in routinesForDay(d, own)[rid] != nil }
-            let first = status.filter { $0.value == .done && $0.key <= today }.keys.sorted().first(where: scheduled)
+        for (rid, status, scheduled, first) in routineMarks(today: today, versions: versions, checks: checks) {
             var a = Adherence(from: first.map { max($0, windowStart) })
             var d = a.from
             while let day = d, day <= today {
@@ -71,6 +79,54 @@ public enum Rules {
             }
             a.warning = a.percent.map { $0 < warnBelow } ?? false
             result[rid] = a
+        }
+        return result
+    }
+
+    /// A day of a routine: done, missed (scheduled, not marked, already past), skipped on purpose,
+    /// pending (today, not marked yet) or off (not scheduled, or before the first day it was done).
+    public enum DayMark: String, Sendable {
+        case done, missed, skipped, pending, off
+    }
+
+    public struct RoutineHistory: Hashable, Sendable {
+        /// The last adherenceDays days, oldest first; the last one is today.
+        public var days: [DayMark] = []
+        /// Done days in a row up to today: a miss ends it; skipped, off and pending days neither count nor end it.
+        public var streak = 0
+        /// The longest such run ever.
+        public var best = 0
+
+        public init() {}
+    }
+
+    /// Day by day marks and streaks of each routine (shared/domain-fixtures/routine_history.json).
+    public static func routineHistory<V: VersionRef>(today: LocalDate, versions: [V], checks: [CheckRef]) -> [String: RoutineHistory] {
+        let windowStart = Dates.addDays(today, 1 - adherenceDays)
+        var result: [String: RoutineHistory] = [:]
+        for (rid, status, scheduled, first) in routineMarks(today: today, versions: versions, checks: checks) {
+            var h = RoutineHistory()
+            // ponytail: walks every day since the first done one on each load; cache per routine if years of history get slow.
+            var d = min(first ?? windowStart, windowStart)
+            while d <= today {
+                var mark = DayMark.off
+                if scheduled(d) {
+                    switch status[d] {
+                    case .done: mark = .done
+                    case .skipped: mark = .skipped
+                    case nil: if let first, d >= first { mark = d < today ? .missed : .pending }
+                    }
+                }
+                if mark == .done {
+                    h.streak += 1
+                    h.best = max(h.best, h.streak)
+                } else if mark == .missed {
+                    h.streak = 0
+                }
+                if d >= windowStart { h.days.append(mark) }
+                d = Dates.addDays(d, 1)
+            }
+            result[rid] = h
         }
         return result
     }
