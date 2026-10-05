@@ -22,7 +22,6 @@ import {
 } from '../db/actions'
 import type { Adherence } from '../domain/routines'
 import { celebrationLevel } from '../domain/tasks'
-import DayMarks from './DayMarks.vue'
 import EmojiCircle from './EmojiCircle.vue'
 
 const props = defineProps<{
@@ -106,10 +105,10 @@ const lagging = computed(() => {
   const a = props.item.adherence
   return a?.warning && !props.item.done && !props.item.skipped ? a : null
 })
-/** The routine's last week of marks; a check on today shows at once. */
+/** The routine's last week of marks, today last; a check on today shows at once. */
 const week = computed(() => {
   const marks = props.item.history?.days.slice(-7)
-  if (marks && checking.value && day.value === today.value) marks[6] = 'done'
+  if (marks && checking.value && day.value === today.value) marks[marks.length - 1] = 'done'
   return marks
 })
 const shownPercent = ref(lagging.value?.percent ?? 0)
@@ -256,7 +255,7 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
       </button>
     </div>
 
-    <DayMarks v-if="week" class="week" :marks="week" />
+    <span v-if="week" class="week" aria-hidden="true"><i v-for="(m, k) in week" :key="k" :class="m" /></span>
 
     <div v-if="item.attention >= 4 && !item.done" class="stuck">
       {{ tr('Застряла?', 'Stuck?') }}
@@ -372,11 +371,31 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
   font-weight: 600;
 }
 
-/* In the corner under the check, so the row keeps its layout. */
+/* A routine's last week along the bottom edge, today on the right: green done, red missed, grey skipped or still waiting, faint for days off. */
 .week {
   position: absolute;
-  right: 10px;
-  bottom: 4px;
+  inset: 0;
+  border-radius: calc(var(--radius) - 1px);
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+.week i {
+  flex: 1;
+  height: 3px;
+  background: var(--line);
+}
+.week .done {
+  background: var(--ok);
+}
+.week .missed {
+  background: var(--danger);
+}
+.week .skipped,
+.week .pending {
+  background: var(--faint);
 }
 .actions {
   display: flex;

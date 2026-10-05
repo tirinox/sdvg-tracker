@@ -38,11 +38,26 @@ struct ItemRow: View {
         }
     }
 
-    /// The routine's last week of marks; a check on today shows at once.
-    private var week: [Rules.DayMark]? {
-        guard var marks = item.history.map({ Array($0.days.suffix(7)) }), !marks.isEmpty else { return nil }
-        if checking, day == model.today { marks[marks.count - 1] = .done }
-        return marks
+    /// The routine's last week along the bottom edge, today on the right; a check on today shows at once.
+    @ViewBuilder private var weekBar: some View {
+        if var marks = item.history.map({ Array($0.days.suffix(7)) }), !marks.isEmpty {
+            let _ = { if checking, day == model.today { marks[marks.count - 1] = .done } }()
+            HStack(spacing: 2) {
+                ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
+                    switch mark {
+                    case .done: Palette.ok
+                    case .missed: Palette.danger
+                    case .skipped, .pending: Color(.systemGray2)
+                    case .off: Color(.systemGray5)
+                    }
+                }
+            }
+            .frame(height: 3)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
     }
 
     var body: some View {
@@ -136,11 +151,8 @@ struct ItemRow: View {
         .overlay {
             if high { PriorityMarks(color: item.color, key: item.id, pulse: !item.done && !item.skipped) }
         }
+        .overlay { weekBar }
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(borderColor, lineWidth: item.attention >= 3 && !item.done ? 1.5 : 1))
-        // In the corner under the check, so the row keeps its layout.
-        .overlay(alignment: .bottomTrailing) {
-            if let week { DayMarks(marks: week).frame(height: 5).padding(.trailing, 10).padding(.bottom, 4) }
-        }
         .opacity(item.done || item.skipped ? 0.55 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.55), value: checking)
         .onChange(of: checking) { _, on in
