@@ -88,6 +88,8 @@ export interface Settings {
   show_day_total: boolean
   /** Warn that a routine is being skipped when its percent done is below this; 0 turns it off. */
   routine_warn_below: number
+  /** Show under each color in the picker how many tasks wear it. */
+  show_color_uses: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -99,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   streak_min_done: 1,
   show_day_total: true,
   routine_warn_below: 50,
+  show_color_uses: true,
 }
 
 export interface EntityFields {

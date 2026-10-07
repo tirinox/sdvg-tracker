@@ -281,6 +281,15 @@ extension Store {
         }, today: today)
     }
 
+    /// How many live tasks wear each of the 12 palette colors, for the color picker.
+    public func loadColorUses() throws -> [Int] {
+        var uses = [Int](repeating: 0, count: 12)
+        for t in try read({ db in try Rows.fetch(.task, db).map(TaskRecord.init) }) where !t.deleted {
+            uses[(t.color % 12 + 12) % 12] += 1
+        }
+        return uses
+    }
+
     /// What the title of a new task is checked against; see Rules.checkTitle.
     public func loadListed(today: LocalDate) throws -> [Rules.ListedItem] {
         try read { db in

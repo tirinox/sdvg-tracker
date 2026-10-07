@@ -166,6 +166,8 @@ public struct Settings: Hashable, Sendable {
     public var showDayTotal = true
     /// Warn that a routine is being skipped when its percent done is below this; 0 turns it off.
     public var routineWarnBelow = 50
+    /// Show under each color in the picker how many tasks wear it.
+    public var showColorUses = true
 
     public init() {}
 
@@ -178,5 +180,6 @@ public struct Settings: Hashable, Sendable {
         if let v = f["streak_min_done"]?.int { streakMinDone = v }
         if let v = f["show_day_total"]?.bool { showDayTotal = v }
         if let v = f["routine_warn_below"]?.int { routineWarnBelow = v }
+        if let v = f["show_color_uses"]?.bool { showColorUses = v }
     }
 }

@@ -14,6 +14,8 @@ struct AppearancePicker: View {
     /// The emoji this view set by itself; any other value is the user's choice.
     @State private var autoValue: String?
     @State private var chosen: Bool?
+    /// How many live tasks wear each color: shown under the swatch, so a neglected color can be chosen.
+    @State private var uses = [Int](repeating: 0, count: 12)
 
     static let emojis = [
         "✅", "📞", "💬", "📧", "🛒", "💳", "🧾", "📦", "🛠️", "💡", "🧹", "🧺", "🍲", "🥣", "☕", "💊",
@@ -28,14 +30,25 @@ struct AppearancePicker: View {
                 .accessibilityLabel(tr("Выбрать эмодзи", "Choose emoji"))
             FlowLayout(spacing: 7) {
                 ForEach(0..<12) { i in
-                    Circle().fill(Palette.color(i)).frame(width: 24, height: 24)
-                        .overlay(Circle().strokeBorder(Color.primary, lineWidth: color == i ? 2 : 0))
-                        .onTapGesture { color = i }
-                        .accessibilityLabel(tr("Цвет \(i + 1)", "Color \(i + 1)"))
-                        .accessibilityAddTraits(color == i ? .isSelected : [])
+                    VStack(spacing: 4) {
+                        Circle().fill(Palette.color(i)).frame(width: 24, height: 24)
+                            .overlay(Circle().strokeBorder(Color.primary, lineWidth: color == i ? 2 : 0))
+                        if model.settings.showColorUses {
+                            // The least and the most worn colors stand out.
+                            let extreme = uses[i] == uses.min() || uses[i] == uses.max()
+                            Text("\(uses[i])").font(.system(size: 10, weight: extreme ? .bold : .regular))
+                                .foregroundStyle(extreme ? .primary : .secondary)
+                        }
+                    }
+                    .onTapGesture { color = i }
+                    .accessibilityLabel(model.settings.showColorUses
+                        ? tr("Цвет \(i + 1), задач: \(uses[i])", "Color \(i + 1), \(uses[i]) tasks")
+                        : tr("Цвет \(i + 1)", "Color \(i + 1)"))
+                    .accessibilityAddTraits(color == i ? .isSelected : [])
                 }
             }
         }
+        .task { if model.settings.showColorUses { uses = (try? model.store.loadColorUses()) ?? uses } }
         .onChange(of: emoji) { if emoji != autoValue { chosen = true } }
         .task(id: title.trimmingCharacters(in: .whitespacesAndNewlines)) { await suggest() }
         if !suggested.isEmpty {

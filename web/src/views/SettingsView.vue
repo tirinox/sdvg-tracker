@@ -144,6 +144,26 @@ const removeDemo = () =>
     </div>
 
     <div class="card block">
+      <h2>{{ tr('Вид', 'Appearance') }}</h2>
+      <label class="check">
+        <input
+          type="checkbox"
+          :checked="settings.show_color_uses"
+          @change="updateSettings(store, { show_color_uses: ($event.target as HTMLInputElement).checked })"
+        />
+        <span>{{ tr('Показывать популярность цвета', 'Show color popularity') }}</span>
+      </label>
+      <p class="muted">
+        {{
+          tr(
+            'Под каждым кружком в редакторе — сколько задач носят этот цвет; самый редкий и самый частый выделены.',
+            'Under every swatch in the editor: how many tasks wear the color; the rarest and the commonest stand out.',
+          )
+        }}
+      </p>
+    </div>
+
+    <div class="card block">
       <h2>{{ tr('Рутины', 'Routines') }}</h2>
       <label class="field narrow">
         <span>{{ tr('Предупреждать, если сделано меньше (%)', 'Warn when done less than (%)') }}</span>
@@ -221,6 +241,16 @@ h1 {
 }
 .narrow {
   max-width: 300px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }
 .grid {
   display: grid;

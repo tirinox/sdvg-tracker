@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useApp } from '../app/context'
-import { tr } from '../app/i18n'
+import { tr, trn } from '../app/i18n'
 import { suggestEmoji } from '../sync/emoji'
 import EmojiCircle from './EmojiCircle.vue'
 
@@ -12,7 +12,7 @@ import EmojiCircle from './EmojiCircle.vue'
 const props = defineProps<{ title?: string; auto?: boolean }>()
 const emoji = defineModel<string | null>('emoji', { required: true })
 const color = defineModel<number>('color', { required: true })
-const { store } = useApp()
+const { store, settings } = useApp()
 
 const suggested = ref<string[]>([])
 /** The emoji this component set by itself; any other value is the user's choice. */
@@ -56,6 +56,17 @@ const EMOJIS = [
   '🪴', '🐶', '🎨', '🎵', '🧠', '🌙', '☀️', '⭐', '🔥', '🎯', '🧪', '🦷',
 ]
 const open = ref(false)
+
+/** How many live tasks wear each color: the picker shows it, so a neglected color can be chosen. */
+const uses = ref<number[]>(Array(12).fill(0))
+onMounted(async () => {
+  if (!settings.value.show_color_uses) return
+  const n = Array(12).fill(0)
+  for (const { fields: t } of await store.rows('task')) if (!t.deleted) n[((t.color ?? 0) % 12 + 12) % 12]++
+  uses.value = n
+})
+/** The least and the most worn colors stand out. */
+const extreme = (n: number) => n === Math.min(...uses.value) || n === Math.max(...uses.value)
 </script>
 
 <template>
@@ -63,7 +74,7 @@ const open = ref(false)
     <button class="preview" type="button" :title="tr('Выбрать эмодзи', 'Pick an emoji')" @click="open = !open">
       <EmojiCircle :emoji="emoji" :color="color" :size="52" />
     </button>
-    <div class="colors" role="radiogroup" :aria-label="tr('Цвет', 'Color')">
+    <div class="colors" :class="{ counted: settings.show_color_uses }" role="radiogroup" :aria-label="tr('Цвет', 'Color')">
       <button
         v-for="c in 12"
         :key="c"
@@ -71,6 +82,9 @@ const open = ref(false)
         class="swatch"
         role="radio"
         :aria-checked="color === c - 1"
+        :class="{ extreme: settings.show_color_uses && extreme(uses[c - 1]!) }"
+        :data-uses="settings.show_color_uses ? uses[c - 1] : null"
+        :title="settings.show_color_uses ? trn(uses[c - 1]!, ['задача', 'задачи', 'задач'], ['task', 'tasks']) : undefined"
         :style="{ background: `var(--c${c - 1})` }"
         @click="color = c - 1"
       />
@@ -126,7 +140,12 @@ const open = ref(false)
   flex-wrap: wrap;
   gap: 7px;
 }
+.colors.counted {
+  gap: 16px 7px;
+  padding-bottom: 16px;
+}
 .swatch {
+  position: relative;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -136,6 +155,22 @@ const open = ref(false)
 }
 .swatch[aria-checked='true'] {
   box-shadow: 0 0 0 2px var(--fg);
+}
+/* The count of tasks in the color, under the swatch. */
+.swatch[data-uses]::after {
+  content: attr(data-uses);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: -6px;
+  right: -6px;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+.swatch.extreme::after {
+  color: var(--fg);
+  font-weight: 700;
 }
 .emojis {
   display: grid;

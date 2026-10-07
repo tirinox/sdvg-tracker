@@ -62,6 +62,11 @@
       "maximum": 100,
       "default": 50,
       "description": "Warn that a routine is being skipped when it is done on fewer percent of its days; 0 turns the warning off"
+    },
+    "show_color_uses": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show under each color in the picker how many tasks wear it"
     }
   },
   "required": [
@@ -72,7 +77,8 @@
     "attention_thresholds",
     "streak_min_done",
     "show_day_total",
-    "routine_warn_below"
+    "routine_warn_below",
+    "show_color_uses"
   ],
   "additionalProperties": false
 }

@@ -95,12 +95,17 @@ struct SettingsScreen: View {
                 Toggle(tr("Показывать «сделано из всего»", "Show “done out of total”"), isOn: Binding(
                     get: { s.showDayTotal },
                     set: { v in model.perform { try $0.updateSettings(["show_day_total": .bool(v)]) } }))
+                Toggle(tr("Показывать популярность цвета", "Show color popularity"), isOn: Binding(
+                    get: { s.showColorUses },
+                    set: { v in model.perform { try $0.updateSettings(["show_color_uses": .bool(v)]) } }))
                 NavigationLink(tr("Как выглядят виджеты", "Widget preview")) { WidgetPreviewScreen() }
             } header: {
                 Text(tr("Вид", "Appearance"))
             } footer: {
-                Text(tr("Без общего числа виджеты и экран «Сейчас» показывают только количество сделанного.",
-                         "Without the total, the widgets and the Now screen show only how much is done."))
+                Text(tr("Без общего числа виджеты и экран «Сейчас» показывают только количество сделанного. "
+                        + "Популярность цвета — сколько задач его носят, под каждым кружком в редакторе.",
+                         "Without the total, the widgets and the Now screen show only how much is done. "
+                        + "Color popularity is how many tasks wear each color, under every swatch in the editor."))
             }
             SwiftUI.Section {
                 Toggle(tr("Показывать утром", "Show in the morning"), isOn: Binding(
