@@ -36,6 +36,20 @@ struct RootView: View {
         }
         .animation(.snappy(duration: 0.3), value: model.undoToast?.id)
         .overlay {
+            if let flight = model.inboxFlight {
+                GeometryReader { geo in
+                    let g = geo.frame(in: .global)
+                    // ponytail: Day is the 2nd of 5 evenly spaced tabs, icon ~30pt above the bar's bottom; measure the bar if the tabs change.
+                    InboxFlightView(flight: flight, to: CGPoint(x: g.minX + g.width * 0.32, y: g.maxY - 30)) {
+                        if model.inboxFlight?.id == flight.id { model.inboxFlight = nil }
+                    }
+                    .offset(x: -g.minX, y: -g.minY)
+                }
+                .id(flight.id)
+                .allowsHitTesting(false)
+            }
+        }
+        .overlay {
             if let record = model.celebration {
                 RecordCelebration(record: record) { model.celebration = nil }
             }
@@ -284,24 +298,10 @@ struct InboxScreen: View {
                          "Everything without a day yet. When you’re ready, send it to today or tomorrow."))
                     .font(.subheadline).foregroundStyle(.secondary)
                 QuickAdd(date: nil, placeholder: tr("Записать мысль или задачу…", "Jot down a thought or a task…"))
-                ForEach(items) { item in
+                ForEach(items.filter { !sent.contains($0.id) }) { item in
                     HStack(spacing: 8) {
-                        Button { model.openTask(item.refID) } label: {
-                            HStack(spacing: 10) {
-                                EmojiCircle(emoji: item.emoji, color: item.color, size: 34)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.title)
-                                        .font(.body.weight(item.priority == .high ? .bold : item.priority == .low ? .regular : .medium))
-                                        .foregroundStyle(item.priority == .low ? .secondary : .primary)
-                                        .multilineTextAlignment(.leading)
-                                    if item.priority == .high {
-                                        Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24))
-                                    }
-                                }
-                                Spacer(minLength: 0)
-                            }
-                        }
-                        .buttonStyle(.plain)
+                        Button { model.openTask(item.refID) } label: { InboxCard(item: item) }
+                            .buttonStyle(.plain)
                         Button(tr("Сегодня", "Today")) { plan(item, model.today) }.buttonStyle(.bordered).controlSize(.small)
                         Button(tr("Завтра", "Tomorrow")) { plan(item, Dates.addDays(model.today, 1)) }.buttonStyle(.bordered).controlSize(.small)
                     }
@@ -315,6 +315,7 @@ struct InboxScreen: View {
                             }
                         }
                     }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frames.byID[item.id] = $0 }
                 }
                 if items.isEmpty { Text(tr("Входящие пусты ✨", "Inbox is empty ✨")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 30) }
             }
@@ -322,10 +323,68 @@ struct InboxScreen: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle(tr("Входящие", "Inbox"))
+        // The database answer lands a moment later; by then the row is gone for real.
+        .onChange(of: model.revision) { sent = [] }
     }
 
+    @State private var sent: Set<String> = []
+    /// Row frames, kept out of view state so scrolling doesn't redraw the list.
+    @State private var frames = Frames()
+    private final class Frames { var byID: [String: CGRect] = [:] }
+
+    /// The row flies off to the Day tab while the rows below close the gap.
     private func plan(_ item: DayItem, _ date: LocalDate) {
+        if let from = frames.byID[item.id] { model.inboxFlight = InboxFlight(item: item, from: from) }
+        withAnimation(.snappy(duration: 0.35)) { _ = sent.insert(item.id) }
         model.perform { try $0.updateTask(item.refID, ["date": .string(date)]) }
+    }
+}
+
+private struct InboxCard: View {
+    let item: DayItem
+
+    var body: some View {
+        HStack(spacing: 10) {
+            EmojiCircle(emoji: item.emoji, color: item.color, size: 34)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(.body.weight(item.priority == .high ? .bold : item.priority == .low ? .regular : .medium))
+                    .foregroundStyle(item.priority == .low ? .secondary : .primary)
+                    .multilineTextAlignment(.leading)
+                if item.priority == .high {
+                    Tag(text: Fmt.priorityTag, fg: Palette.text(item.color), bg: Palette.color(item.color).opacity(0.24))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+struct InboxFlight: Identifiable {
+    let id = UUID()
+    var item: DayItem
+    /// The row's frame, in global coordinates.
+    var from: CGRect
+}
+
+/// An inbox row shrinking on its way to the Day tab icon.
+struct InboxFlightView: View {
+    let flight: InboxFlight
+    let to: CGPoint
+    let done: () -> Void
+    @State private var landed = false
+
+    var body: some View {
+        InboxCard(item: flight.item)
+            .padding(10)
+            .frame(width: flight.from.width, height: flight.from.height)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground)).shadow(radius: 6))
+            .scaleEffect(landed ? 0.06 : 1)
+            .opacity(landed ? 0.4 : 1)
+            .position(landed ? to : CGPoint(x: flight.from.midX, y: flight.from.midY))
+            .onAppear {
+                withAnimation(.easeIn(duration: 0.5)) { landed = true } completion: { done() }
+            }
     }
 }
 

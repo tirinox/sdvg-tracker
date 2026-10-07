@@ -45,6 +45,8 @@ final class AppModel {
     var pendingDone: [String: PendingDone] = [:]
     /// The bar offering to undo the latest done mark.
     var undoToast: UndoToast?
+    /// An inbox row just sent to a day, flying to the Day tab.
+    var inboxFlight: InboxFlight?
     /// The interface language picked on this device; the root view rebuilds when it changes.
     private(set) var language: LanguagePreference = L10n.preference
 
