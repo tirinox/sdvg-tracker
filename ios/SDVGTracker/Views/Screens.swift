@@ -436,21 +436,23 @@ struct RoutinesScreen: View {
                                     Spacer(minLength: 0)
                                     if let percent = r.adherence.percent {
                                         VStack(alignment: .trailing, spacing: 5) {
-                                            HStack(spacing: 8) {
-                                                if r.history.streak > 1 {
-                                                    Text(verbatim: "🔥 \(r.history.streak)").font(.footnote.weight(.semibold))
-                                                        .accessibilityLabel(Fmt.streak(r.history))
-                                                }
-                                                Group {
-                                                    if r.adherence.warning {
-                                                        Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
-                                                    } else {
-                                                        Text("\(percent)\u{00A0}%").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                                            if model.settings.showRoutinePercent {
+                                                HStack(spacing: 8) {
+                                                    if r.history.streak > 1 {
+                                                        Text(verbatim: "🔥 \(r.history.streak)").font(.footnote.weight(.semibold))
+                                                            .accessibilityLabel(Fmt.streak(r.history))
                                                     }
+                                                    Group {
+                                                        if r.adherence.warning {
+                                                            Tag(text: "⚠︎ \(percent)\u{00A0}%", fg: Palette.warn, bg: Palette.warn.opacity(0.14))
+                                                        } else {
+                                                            Text("\(percent)\u{00A0}%").font(.footnote.weight(.semibold)).foregroundStyle(Palette.ok)
+                                                        }
+                                                    }
+                                                    .accessibilityLabel("\(r.adherence.warning ? tr("Пропускается", "Being skipped") : tr("Выполняется", "On track")): \(percent)\u{00A0}%, \(Fmt.adherence(r.adherence))")
                                                 }
-                                                .accessibilityLabel("\(r.adherence.warning ? tr("Пропускается", "Being skipped") : tr("Выполняется", "On track")): \(percent)\u{00A0}%, \(Fmt.adherence(r.adherence))")
+                                                .monospacedDigit()
                                             }
-                                            .monospacedDigit()
                                             DayMarks(marks: Array(r.history.days.suffix(7))).frame(height: 5)
                                         }
                                     }

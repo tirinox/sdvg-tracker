@@ -23,10 +23,10 @@ struct ItemRow: View {
 
     private var high: Bool { item.priority == .high }
 
-    /// What the "being skipped" tag shows, if anything: once the row is checked, the new rate.
+    /// What the percent tag shows, if anything: once the row is checked, the new rate.
     private var lagging: Rules.Adherence? {
         if checking, let boost { return boost }
-        guard let a = item.adherence, a.warning, !item.done, !item.skipped else { return nil }
+        guard model.settings.showRoutinePercent, let a = item.adherence, a.percent != nil, !item.done, !item.skipped else { return nil }
         return a
     }
 
@@ -186,7 +186,7 @@ struct ItemRow: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(a.warning
                         ? tr("Рутина пропускается: \(Fmt.adherence(a))", "Routine being skipped: \(Fmt.adherence(a))")
-                        : tr("Рутина снова выполняется: \(Fmt.adherence(a))", "Routine back on track: \(Fmt.adherence(a))"))
+                        : tr("Рутина выполняется: \(Fmt.adherence(a))", "Routine on track: \(Fmt.adherence(a))"))
             }
             if item.skipped { Text(tr("пропущено", "skipped")).font(.footnote).foregroundStyle(.secondary) }
             if item.priority == .low && !item.done && !item.skipped {
@@ -229,15 +229,17 @@ struct ItemRow: View {
 }
 
 /// How regularly a routine is done, on the row of one that is being skipped. When a check moves the
-/// rate, the number counts to the new one; out of the warning zone it turns green with a thumbs up.
+/// rate, the number counts to the new one; a count that leaves the warning zone turns green with a thumbs up.
 struct AdherenceTag: View {
     var percent: Int
     var warning: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown: Double
-    /// Green with a thumbs up; follows `warning` once the count has got there.
+    /// Green; follows `warning` once the count has got there.
     @State private var ok: Bool
+    /// The count left the warning zone.
+    @State private var thumb = false
 
     init(percent: Int, warning: Bool) {
         self.percent = percent
@@ -250,10 +252,10 @@ struct AdherenceTag: View {
         let color = ok ? Palette.ok : Palette.warn
         HStack(spacing: 3) {
             ZStack {
-                if ok {
+                if thumb {
                     Image(systemName: "hand.thumbsup.fill")
                         .transition(.scale(scale: 0.1, anchor: .bottom).combined(with: .opacity))
-                } else {
+                } else if !ok {
                     Text(verbatim: "⚠︎").transition(.opacity)
                 }
             }
@@ -266,20 +268,22 @@ struct AdherenceTag: View {
         .foregroundStyle(color)
         .onChange(of: percent) { _, target in
             let warning = warning
+            let crossing = !warning && !ok
             guard !reduceMotion else {
                 shown = Double(target)
                 ok = !warning
+                thumb = crossing
                 return
             }
             // Back into the warning zone (the check was taken back): the thumbs up goes at once.
-            if warning { withAnimation(.snappy(duration: 0.2)) { ok = false } }
+            if warning { withAnimation(.snappy(duration: 0.2)) { ok = false; thumb = false } }
             // The count takes longer the further the percent goes.
             withAnimation(.easeOut(duration: min(0.7, 0.2 + 0.05 * abs(Double(target) - shown)))) {
                 shown = Double(target)
             } completion: {
                 // Unless the number has been sent elsewhere meanwhile.
                 guard !warning, shown == Double(target) else { return }
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.45)) { ok = true }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.45)) { ok = true; thumb = crossing }
             }
         }
     }

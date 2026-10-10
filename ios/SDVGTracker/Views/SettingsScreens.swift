@@ -141,6 +141,9 @@ struct SettingsScreen: View {
                          "From midnight until the day starts, it still counts as “yesterday” and “evening”."))
             }
             SwiftUI.Section {
+                Toggle(tr("Показывать процент выполнения", "Show the completion rate"), isOn: Binding(
+                    get: { s.showRoutinePercent },
+                    set: { v in model.perform { try $0.updateSettings(["show_routine_percent": .bool(v)]) } }))
                 Stepper(
                     s.routineWarnBelow == 0 ? tr("Не предупреждать", "Don’t warn") : tr("Предупреждать ниже \(s.routineWarnBelow)\u{00A0}%", "Warn below \(s.routineWarnBelow)%"),
                     value: binding(s.routineWarnBelow, "routine_warn_below"), in: 0...100, step: 5)

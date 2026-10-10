@@ -168,6 +168,8 @@ public struct Settings: Hashable, Sendable {
     public var routineWarnBelow = 50
     /// Show under each color in the picker how many tasks wear it.
     public var showColorUses = true
+    /// Show each routine's percent done on its rows and in the routines list.
+    public var showRoutinePercent = true
 
     public init() {}
 
@@ -181,5 +183,6 @@ public struct Settings: Hashable, Sendable {
         if let v = f["show_day_total"]?.bool { showDayTotal = v }
         if let v = f["routine_warn_below"]?.int { routineWarnBelow = v }
         if let v = f["show_color_uses"]?.bool { showColorUses = v }
+        if let v = f["show_routine_percent"]?.bool { showRoutinePercent = v }
     }
 }

@@ -165,6 +165,14 @@ const removeDemo = () =>
 
     <div class="card block">
       <h2>{{ tr('Рутины', 'Routines') }}</h2>
+      <label class="check">
+        <input
+          type="checkbox"
+          :checked="settings.show_routine_percent"
+          @change="updateSettings(store, { show_routine_percent: ($event.target as HTMLInputElement).checked })"
+        />
+        <span>{{ tr('Показывать процент выполнения', 'Show the completion rate') }}</span>
+      </label>
       <label class="field narrow">
         <span>{{ tr('Предупреждать, если сделано меньше (%)', 'Warn when done less than (%)') }}</span>
         <input

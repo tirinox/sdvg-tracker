@@ -82,7 +82,7 @@ const lagging = computed(() => routines.value.filter((r) => r.adherence.warning)
               </span>
             </span>
             <span v-if="r.adherence.percent !== null" class="stats">
-              <span class="numbers">
+              <span v-if="settings.show_routine_percent" class="numbers">
                 <span v-if="r.history.streak > 1" class="streak" :title="streakLabel(r.history)">🔥 {{ r.history.streak }}</span>
                 <span class="rate" :class="{ warn: r.adherence.warning }" :title="adherenceLabel(r.adherence)">
                   <template v-if="r.adherence.warning">⚠︎ </template>{{ r.adherence.percent }}{{ tr('\u00a0%', '%') }}
@@ -177,7 +177,7 @@ h1 {
 .rate {
   font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--ok);
   font-variant-numeric: tabular-nums;
 }
 .rate.warn {

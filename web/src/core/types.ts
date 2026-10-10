@@ -90,6 +90,8 @@ export interface Settings {
   routine_warn_below: number
   /** Show under each color in the picker how many tasks wear it. */
   show_color_uses: boolean
+  /** Show each routine's percent done on its rows and in the routines list. */
+  show_routine_percent: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -102,6 +104,7 @@ export const DEFAULT_SETTINGS: Settings = {
   show_day_total: true,
   routine_warn_below: 50,
   show_color_uses: true,
+  show_routine_percent: true,
 }
 
 export interface EntityFields {

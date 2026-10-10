@@ -34,7 +34,7 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
-const { store, today, now, openTask, openRoutine, celebrate } = useApp()
+const { store, today, now, settings, openTask, openRoutine, celebrate } = useApp()
 
 const isTask = computed(() => props.item.kind === 'task')
 
@@ -99,11 +99,11 @@ const checked = computed(() => props.item.done || checking.value)
 
 // The routine's adherence as the check makes it; the tag counts up to it at once.
 const boost = ref<Adherence | null>(null)
-/** What the "being skipped" tag shows, if anything: once the row is checked, the new rate. */
+/** What the percent tag shows, if anything: once the row is checked, the new rate. */
 const lagging = computed(() => {
   if (checking.value && boost.value) return boost.value
   const a = props.item.adherence
-  return a?.warning && !props.item.done && !props.item.skipped ? a : null
+  return settings.value.show_routine_percent && a?.percent != null && !props.item.done && !props.item.skipped ? a : null
 })
 /** The routine's last week of marks, today last; a check on today shows at once. */
 const week = computed(() => {
@@ -112,8 +112,9 @@ const week = computed(() => {
   return marks
 })
 const shownPercent = ref(lagging.value?.percent ?? 0)
-// Green with a thumbs up; follows the warning once the count has got there.
-const ok = ref(false)
+// Green; follows the warning once the count has got there. The thumbs up marks a count that left the warning zone.
+const ok = ref(!(lagging.value?.warning ?? true))
+const thumb = ref(false)
 let counting = 0
 
 watch(
@@ -123,11 +124,13 @@ watch(
     if (target === null) return
     const warning = lagging.value!.warning
     const from = shownPercent.value
-    if (warning) ok.value = false
+    const crossing = !warning && !ok.value && before !== null
+    if (warning) ok.value = thumb.value = false
     // A tag that was not there has nothing to count from.
     if (before === null || reducedMotion() || from === target) {
       shownPercent.value = target
       ok.value = !warning
+      thumb.value = crossing
       return
     }
     const ms = Math.min(COUNT_MS, 200 + 50 * Math.abs(target - from))
@@ -136,7 +139,10 @@ watch(
       const k = Math.min(1, (t - start) / ms)
       shownPercent.value = Math.round(from + (target - from) * (1 - (1 - k) ** 3))
       if (k < 1) counting = requestAnimationFrame(step)
-      else ok.value = !warning
+      else {
+        ok.value = !warning
+        thumb.value = crossing
+      }
     }
     counting = requestAnimationFrame(step)
   },
@@ -214,10 +220,10 @@ const edit = () => (isTask.value ? openTask(props.item.id) : openRoutine(props.i
             :title="
               lagging.warning
                 ? tr(`Рутина пропускается: ${adherenceLabel(lagging)}`, `Routine being skipped: ${adherenceLabel(lagging)}`)
-                : tr(`Рутина снова выполняется: ${adherenceLabel(lagging)}`, `Routine back on track: ${adherenceLabel(lagging)}`)
+                : tr(`Рутина выполняется: ${adherenceLabel(lagging)}`, `Routine on track: ${adherenceLabel(lagging)}`)
             "
           >
-            <span v-if="ok" class="thumb" aria-hidden="true">👍</span><template v-else>⚠︎</template>
+            <span v-if="thumb" class="thumb" aria-hidden="true">👍</span><template v-else-if="!ok">⚠︎</template>
             {{ shownPercent }}{{ tr('\u00a0%', '%') }}
           </span>
           <span v-if="item.skipped">{{ tr('пропущено', 'skipped') }}</span>

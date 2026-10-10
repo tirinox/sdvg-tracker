@@ -67,6 +67,11 @@
       "type": "boolean",
       "default": true,
       "description": "Show under each color in the picker how many tasks wear it"
+    },
+    "show_routine_percent": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show each routine's percent done on its rows and in the routines list; the warning below routine_warn_below is part of it"
     }
   },
   "required": [
@@ -78,7 +83,8 @@
     "streak_min_done",
     "show_day_total",
     "routine_warn_below",
-    "show_color_uses"
+    "show_color_uses",
+    "show_routine_percent"
   ],
   "additionalProperties": false
 }
