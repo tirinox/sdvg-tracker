@@ -45,6 +45,14 @@ status)
 	today=$(date +%F)
 	[[ "$(cat $stamp 2>/dev/null)" == $today ]] && exit 0
 	echo "== $(date '+%F %T')"
+	# Xcode reuses a cached profile until it expires, so a daily install alone still runs out
+	# on day 7. Drop the app's profiles two days early and the build fetches fresh ones.
+	for f in ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobileprovision(N); do
+		p=$(security cms -D -i $f 2>/dev/null) || continue
+		[[ $(plutil -extract Name raw - <<< $p) == *com.tirinox.sdvgtracker* ]] || continue
+		exp=$(date -ju -f %Y-%m-%dT%H:%M:%SZ $(plutil -extract ExpirationDate raw - <<< $p) +%s)
+		(( exp - $(date +%s) < 2 * 86400 )) && rm -f $f && echo "Profile expires soon, renewing: ${f:t}"
+	done
 	make -C $repo --no-print-directory ios-install IOS_LAUNCH=0 && echo $today > $stamp
 	;;
 esac
