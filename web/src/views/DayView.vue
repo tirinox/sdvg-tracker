@@ -31,7 +31,7 @@ const addPlaceholder = computed(() => {
 // of the day left empty folds its header away, instead of rows jumping between separate lists.
 const rows = computed(() =>
   dayGroups(day.value?.items ?? []).flatMap((g) => [
-    { key: `head:${g.id}`, title: groupTitle(g.id), item: null },
+    { key: `head:${g.id}`, title: `${groupTitle(g.id)} (${g.items.length})`, item: null },
     ...g.items.map((item) => ({ key: item.key, title: null, item })),
   ]),
 )

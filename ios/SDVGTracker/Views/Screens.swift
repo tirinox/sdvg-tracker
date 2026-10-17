@@ -202,8 +202,8 @@ struct DayScreen: View {
                 }
                 ForEach(rows) { row in
                     switch row {
-                    case .header(let group):
-                        Text(Fmt.groupTitle(group).uppercased())
+                    case .header(let group, let count):
+                        Text("\(Fmt.groupTitle(group).uppercased()) (\(count))")
                             .font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
                     case .item(let item):
                         ItemRow(item: item, date: date).transition(.row)
@@ -238,19 +238,19 @@ struct DayScreen: View {
 /// Headers and rows of the Day screen in one flat list, so a row that gets done moves down into
 /// "Сделано" instead of leaving one list and appearing in another.
 private enum DayListRow: Identifiable {
-    case header(DayGroup)
+    case header(DayGroup, count: Int)
     case item(DayItem)
 
     var id: String {
         switch self {
-        case .header(.section(let s)): "head:\(s.rawValue)"
-        case .header(.done): "head:done"
+        case .header(.section(let s), _): "head:\(s.rawValue)"
+        case .header(.done, _): "head:done"
         case .item(let item): item.id
         }
     }
 
     static func rows(_ day: DayView) -> [DayListRow] {
-        day.groups.flatMap { [.header($0.group)] + $0.items.map(DayListRow.item) }
+        day.groups.flatMap { [.header($0.group, count: $0.items.count)] + $0.items.map(DayListRow.item) }
     }
 }
 
