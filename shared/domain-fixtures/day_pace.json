@@ -1,0 +1,76 @@
+{
+  "description": "How much is usually done by this time of the logical day. A done mark (task done_on or routine check 'done') comes with `at`, the local moment it was written (from its HLC clock). It counts only when `at` falls on its own logical day `date`; a mark written on another day (an import, a past day checked later) has no usable time and is ignored. Its offset is the minutes from the start of that logical day (day_start_hour). Window: the 28 days before today, but not before the first day with a counted mark; days in it with nothing count as 0. usual = marks in the window with offset <= now's offset, divided by the number of days, rounded to 1 decimal. Fewer than 3 days: usual null.",
+  "cases": [
+    {
+      "name": "no history",
+      "input": { "now": "2026-10-17T15:00", "day_start_hour": 4, "marks": [] },
+      "expect": { "usual": null, "days": 0 }
+    },
+    {
+      "name": "only marks up to now's offset count, quiet days in the window are zeros",
+      "input": {
+        "now": "2026-10-17T15:00",
+        "day_start_hour": 4,
+        "marks": [
+          { "date": "2026-10-14", "at": "2026-10-14T09:00" },
+          { "date": "2026-10-14", "at": "2026-10-14T15:00" },
+          { "date": "2026-10-14", "at": "2026-10-14T20:00" },
+          { "date": "2026-10-16", "at": "2026-10-16T10:30" },
+          { "date": "2026-10-16", "at": "2026-10-16T12:00" },
+          { "date": "2026-10-17", "at": "2026-10-17T08:00" }
+        ]
+      },
+      "expect": { "usual": 1.3, "days": 3 }
+    },
+    {
+      "name": "after midnight the night belongs to the day before, and late marks of past days count",
+      "input": {
+        "now": "2026-10-18T01:00",
+        "day_start_hour": 4,
+        "marks": [
+          { "date": "2026-10-13", "at": "2026-10-14T00:30" },
+          { "date": "2026-10-13", "at": "2026-10-14T02:00" },
+          { "date": "2026-10-14", "at": "2026-10-14T23:00" },
+          { "date": "2026-10-15", "at": "2026-10-15T05:00" }
+        ]
+      },
+      "expect": { "usual": 0.8, "days": 4 }
+    },
+    {
+      "name": "marks written on another day are ignored, so imported history does not start the window",
+      "input": {
+        "now": "2026-10-17T12:00",
+        "day_start_hour": 0,
+        "marks": [
+          { "date": "2026-06-01", "at": "2026-09-20T10:00" },
+          { "date": "2026-10-10", "at": "2026-10-11T09:00" },
+          { "date": "2026-10-14", "at": "2026-10-14T11:00" },
+          { "date": "2026-10-15", "at": "2026-10-15T11:59" }
+        ]
+      },
+      "expect": { "usual": 0.7, "days": 3 }
+    },
+    {
+      "name": "too few days",
+      "input": {
+        "now": "2026-10-17T12:00",
+        "day_start_hour": 4,
+        "marks": [{ "date": "2026-10-15", "at": "2026-10-15T10:00" }]
+      },
+      "expect": { "usual": null, "days": 2 }
+    },
+    {
+      "name": "the window is the last 28 days",
+      "input": {
+        "now": "2026-10-30T12:00",
+        "day_start_hour": 0,
+        "marks": [
+          { "date": "2026-09-01", "at": "2026-09-01T10:00" },
+          { "date": "2026-10-02", "at": "2026-10-02T10:00" },
+          { "date": "2026-10-29", "at": "2026-10-29T10:00" }
+        ]
+      },
+      "expect": { "usual": 0.1, "days": 28 }
+    }
+  ]
+}

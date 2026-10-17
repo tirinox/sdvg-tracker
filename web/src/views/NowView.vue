@@ -5,7 +5,8 @@ import { dayTitle, shortDate } from '../app/format'
 import { tr, trn, trWord } from '../app/i18n'
 import { rowEnter, rowLeave } from '../app/listMotion'
 import { useLive } from '../app/useLive'
-import { loadDay, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
+import { loadDay, loadPace, loadStats, pickNow, type DayView, type StatsView } from '../app/views'
+import type { DayPace } from '../domain/progress'
 import DayCountdown from '../components/DayCountdown.vue'
 import Heatmap from '../components/Heatmap.vue'
 import ItemRow from '../components/ItemRow.vue'
@@ -21,6 +22,12 @@ const progress = computed(() =>
   day.value && day.value.total ? Math.round((day.value.done / day.value.total) * 100) : 0,
 )
 const record = computed(() => stats.value?.record ?? null)
+const pace = useLive<DayPace | null>(() => loadPace(store, now.value), null, [now])
+// Today against an average day by this hour: ahead (> 0), behind (< 0) or on pace.
+const ahead = computed(() =>
+  pace.value?.usual != null && record.value ? Math.round(record.value.today_done - pace.value.usual) : null,
+)
+const usual = computed(() => tr(String(pace.value?.usual).replace('.', ','), String(pace.value?.usual)))
 const left = computed(() => (day.value ? day.value.total - day.value.done : 0))
 
 const THINGS: [[string, string, string], [string, string]] = [
@@ -96,6 +103,27 @@ const THINGS: [[string, string, string], [string, string]] = [
       <span v-if="!record.broken" class="bar">
         <span :style="{ width: `${(record.today_done / (record.best_done + 1)) * 100}%` }" />
       </span>
+    </div>
+
+    <div v-if="ahead !== null && record" class="pace card" :class="{ ahead: ahead > 0, behind: ahead < 0 }">
+      <span class="icon" aria-hidden="true">{{ ahead > 0 ? '🚀' : ahead < 0 ? '🐢' : '⚖️' }}</span>
+      <div>
+        <b v-if="ahead > 0">{{
+          tr(`На ${trn(ahead, ...THINGS)} быстрее, чем обычно`, `${trn(ahead, ...THINGS)} ahead of your usual pace`)
+        }}</b>
+        <b v-else-if="ahead < 0">{{
+          tr(`На ${trn(-ahead, ...THINGS)} медленнее, чем обычно`, `${trn(-ahead, ...THINGS)} behind your usual pace`)
+        }}</b>
+        <b v-else>{{ tr('В обычном темпе', 'Right on your usual pace') }}</b>
+        <span class="muted">
+          {{
+            tr(
+              `Обычно к этому часу сделано ${usual}, сегодня — ${record.today_done}. `,
+              `By this hour you usually have ${usual} done, today ${record.today_done}. `,
+            )
+          }}{{ ahead > 0 ? tr('Так держать!', 'Keep it up!') : ahead < 0 ? tr('Догоняйте!', 'Catch up!') : '' }}
+        </span>
+      </div>
     </div>
 
     <h2 class="section-title">{{ tr('Главное сейчас', 'Up next') }}</h2>
@@ -199,6 +227,25 @@ const THINGS: [[string, string, string], [string, string]] = [
 }
 .record .bar span {
   background: var(--warn);
+}
+.pace {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+.pace b {
+  display: block;
+  font-size: 15px;
+}
+.pace .icon {
+  font-size: 26px;
+}
+.pace.ahead {
+  background: color-mix(in srgb, var(--ok) 14%, var(--surface));
 }
 .record.broken {
   background: var(--warn-soft);

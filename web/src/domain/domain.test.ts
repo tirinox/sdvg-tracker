@@ -3,7 +3,7 @@ import { domainCases, sharedFiles, type Case, type Json } from '../test/shared'
 import { dayEnd, dayEndLevel, logicalDay, minutesBetween, partOfDay } from './dates'
 import { checkTitle } from './duplicates'
 import { compareItems, pickTop } from './order'
-import { dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
+import { dayPace, dayRecord, dayStats, heatmapGrid, heatmapLevels, streak } from './progress'
 import { routineAdherence, routineHistory, routinesForDay } from './routines'
 import { hasStarted, nowScore } from './score'
 import { suggestTitles, titleHistory } from './suggest'
@@ -52,6 +52,7 @@ const RUNNERS: Record<string, Runner> = {
   day_stats: (i) => dayStats(i.date, i.tasks, i.routine_checks),
   streak: (i) => ({ streak: streak(i.today, i.days, i.streak_min_done) }),
   day_record: (i) => dayRecord(i.today, i.days),
+  day_pace: (i) => dayPace(i.now, i.day_start_hour, i.marks),
   now_score: (i) => nowScore(i.now, i.settings, i.item),
   time_started: (i) => ({ started: hasStarted(i.now, i.settings, i.item) }),
   item_order: (i) => ({ order: [...i.items].sort(compareItems).map((x: Json) => x.id) }),

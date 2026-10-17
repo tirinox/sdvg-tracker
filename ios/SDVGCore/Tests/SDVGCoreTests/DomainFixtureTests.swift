@@ -117,6 +117,11 @@ private let runners: [String: @Sendable (JSONValue) -> JSONValue] = [
         return ["best_date": r.bestDate.map(JSONValue.string) ?? .null, "best_done": .int(r.bestDone),
                 "today_done": .int(r.todayDone), "to_beat": .int(r.toBeat), "broken": .bool(r.broken)]
     },
+    "day_pace": { i in
+        let marks = i["marks"]!.array!.map { Rules.DoneMark(date: $0["date"]!.string!, at: $0["at"]!.string!) }
+        let r = Rules.dayPace(now: i["now"]!.string!, dayStartHour: i["day_start_hour"]!.int!, marks: marks)
+        return ["usual": r.usual.map(JSONValue.double) ?? .null, "days": .int(r.days)]
+    },
     "now_score": { i in
         let item = i["item"]!
         let r = Rules.nowScore(

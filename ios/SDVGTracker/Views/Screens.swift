@@ -124,6 +124,9 @@ struct NowScreen: View {
                     stat("\(stats?.totalDone ?? 0)", tr("всего сделано", "done in total"))
                 }
                 if let record = stats?.record, record.bestDate != nil { RecordCard(record: record) }
+                if let usual = (try? model.store.loadPace(now: model.now))?.usual, let stats {
+                    PaceCard(usual: usual, todayDone: stats.record.todayDone)
+                }
                 Text(tr("ГЛАВНОЕ СЕЙЧАС", "UP NEXT")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
                 if top.isEmpty {
                     Card {

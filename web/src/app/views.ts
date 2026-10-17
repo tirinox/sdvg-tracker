@@ -13,10 +13,21 @@ import type {
 } from '../core/types'
 import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
+import { parseHlc } from '../core/hlc'
 import { localNow, logicalDay, partOfDay } from '../domain/dates'
 import type { ListedItem } from '../domain/duplicates'
 import { compareItems, pickTop, priorityRank } from '../domain/order'
-import { dayRecord, heatmapGrid, heatmapLevels, streak, type DayRecord, type DayStats } from '../domain/progress'
+import {
+  dayPace,
+  dayRecord,
+  heatmapGrid,
+  heatmapLevels,
+  streak,
+  type DayPace,
+  type DayRecord,
+  type DayStats,
+  type DoneMark,
+} from '../domain/progress'
 import {
   routineAdherence,
   routineHistory,
@@ -303,6 +314,18 @@ export async function loadStats(store: Store, today: LocalDate): Promise<StatsVi
     record: dayRecord(today, byDay),
     heatmap,
   }
+}
+
+/** Done marks with the moment their clock says they were written, for the day_pace rule. */
+export async function loadPace(store: Store, now: LocalDateTime): Promise<DayPace> {
+  const [s, tasks, checks] = await Promise.all([store.settings(), store.rows('task'), store.rows('routine_check')])
+  const marks: DoneMark[] = []
+  const add = (date: LocalDate, hlc: string | undefined) => {
+    if (hlc) marks.push({ date, at: localNow(new Date(parseHlc(hlc).ms)) })
+  }
+  for (const t of tasks) if (t.fields.done_on) add(t.fields.done_on, t.clocks.done_on)
+  for (const c of checks) if (c.fields.status === 'done') add(c.fields.date!, c.clocks.status)
+  return dayPace(now, s.day_start_hour, marks)
 }
 
 export async function loadRecord(store: Store, today: LocalDate): Promise<DayRecord> {

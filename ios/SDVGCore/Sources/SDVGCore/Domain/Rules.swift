@@ -259,6 +259,36 @@ public enum Rules {
         return r
     }
 
+    /// A done mark and the local moment it was written.
+    public struct DoneMark: Hashable, Sendable {
+        public var date: LocalDate
+        public var at: LocalDateTime
+        public init(date: LocalDate, at: LocalDateTime) { self.date = date; self.at = at }
+    }
+
+    public struct DayPace: Hashable, Sendable {
+        /// Done by this time of day on an average day; nil with fewer than 3 days to go by.
+        public var usual: Double?
+        public var days = 0
+    }
+
+    public static let paceWindow = 28
+
+    /// How much is usually done by now's time of day (shared/domain-fixtures/day_pace.json).
+    public static func dayPace(now: LocalDateTime, dayStartHour: Int, marks: [DoneMark]) -> DayPace {
+        func offset(_ date: LocalDate, _ at: LocalDateTime) -> Int {
+            Dates.minutesBetween(Dates.dayEnd(Dates.addDays(date, -1), dayStartHour: dayStartHour), at)
+        }
+        let today = Dates.logicalDay(now, dayStartHour: dayStartHour)
+        let timed = marks.filter { Dates.logicalDay($0.at, dayStartHour: dayStartHour) == $0.date }
+        guard let first = timed.map(\.date).min(), first < today else { return DayPace() }
+        let from = max(first, Dates.addDays(today, -paceWindow))
+        let days = Dates.daysBetween(from, today)
+        let by = offset(today, now)
+        let n = timed.filter { $0.date >= from && $0.date < today && offset($0.date, $0.at) <= by }.count
+        return DayPace(usual: days < 3 ? nil : (Double(n) / Double(days) * 10).rounded() / 10, days: days)
+    }
+
     /// Levels 0...4 relative to personal history: quartiles of the non-zero counts.
     public static func heatmapLevels(_ counts: [Int]) -> [Int] {
         let v = counts.filter { $0 > 0 }.sorted()

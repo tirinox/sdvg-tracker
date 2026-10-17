@@ -205,6 +205,22 @@ extension Store {
         try read { Rules.dayRecord(today: today, days: try Self.statsByDay($0)) }
     }
 
+    /// Done marks with the moment their clock says they were written, for the day_pace rule.
+    public func loadPace(now: LocalDateTime) throws -> Rules.DayPace {
+        try read { db in
+            let sql = """
+                SELECT done_on AS date, json_extract(clocks, '$.done_on') AS hlc FROM task WHERE done_on IS NOT NULL
+                UNION ALL
+                SELECT date, json_extract(clocks, '$.status') FROM routine_check WHERE json_extract(fields, '$.status') = 'done'
+                """
+            let marks = try GRDB.Row.fetchAll(db, sql: sql).compactMap { r -> Rules.DoneMark? in
+                guard let date: String = r["date"], let hlc: String = r["hlc"], let t = HLCTimestamp(hlc) else { return nil }
+                return Rules.DoneMark(date: date, at: Dates.localNow(Date(timeIntervalSince1970: Double(t.ms) / 1000)))
+            }
+            return Rules.dayPace(now: now, dayStartHour: try Rows.settings(db).dayStartHour, marks: marks)
+        }
+    }
+
     /// True once per day on this device: when today's record is broken and it was not celebrated yet.
     /// Marks the day as celebrated.
     public func claimRecordCelebration(_ record: Rules.DayRecord, today: LocalDate) throws -> Bool {

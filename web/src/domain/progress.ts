@@ -1,5 +1,5 @@
-import type { CheckStatus, LocalDate } from '../core/types'
-import { addDays, weekdayIndex } from './dates'
+import type { CheckStatus, LocalDate, LocalDateTime } from '../core/types'
+import { addDays, dayEnd, daysBetween, logicalDay, minutesBetween, weekdayIndex } from './dates'
 
 export interface DayStats {
   done: number
@@ -78,6 +78,35 @@ export function dayRecord(today: LocalDate, days: Record<LocalDate, DayStats>): 
     to_beat: Math.max(0, best_done + 1 - today_done),
     broken: best_done > 0 && today_done > best_done,
   }
+}
+
+/** A done mark and the local moment it was written. */
+export interface DoneMark {
+  date: LocalDate
+  at: LocalDateTime
+}
+
+export interface DayPace {
+  /** Done by this time of day on an average day; null with fewer than 3 days to go by. */
+  usual: number | null
+  days: number
+}
+
+export const PACE_WINDOW = 28
+
+/** How much is usually done by now's time of day (shared/domain-fixtures/day_pace.json). */
+export function dayPace(now: LocalDateTime, dayStartHour: number, marks: DoneMark[]): DayPace {
+  const offset = (date: LocalDate, at: LocalDateTime) => minutesBetween(dayEnd(addDays(date, -1), dayStartHour), at)
+  const today = logicalDay(now, dayStartHour)
+  const timed = marks.filter((m) => logicalDay(m.at, dayStartHour) === m.date)
+  const first = timed.reduce<LocalDate | null>((a, m) => (a === null || m.date < a ? m.date : a), null)
+  if (first === null || first >= today) return { usual: null, days: 0 }
+  const window = addDays(today, -PACE_WINDOW)
+  const from = first > window ? first : window
+  const days = daysBetween(from, today)
+  const by = offset(today, now)
+  const n = timed.filter((m) => m.date >= from && m.date < today && offset(m.date, m.at) <= by).length
+  return { usual: days < 3 ? null : Math.round((n / days) * 10) / 10, days }
 }
 
 /** Levels 0..4 relative to personal history: quartiles of the non-zero counts. */

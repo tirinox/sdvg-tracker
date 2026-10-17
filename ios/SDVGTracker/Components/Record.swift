@@ -34,6 +34,35 @@ struct RecordCard: View {
     }
 }
 
+/// Today against an average day by this hour: praise when ahead, a nudge when behind.
+struct PaceCard: View {
+    var usual: Double
+    var todayDone: Int
+
+    var body: some View {
+        let ahead = Int((Double(todayDone) - usual).rounded())
+        let usualText = tr(String(usual).replacingOccurrences(of: ".", with: ","), String(usual))
+        HStack(spacing: 12) {
+            Text(ahead > 0 ? "🚀" : ahead < 0 ? "🐢" : "⚖️").font(.title)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ahead > 0 ? tr("На \(things(ahead)) быстрее, чем обычно", "\(things(ahead)) ahead of your usual pace")
+                     : ahead < 0 ? tr("На \(things(-ahead)) медленнее, чем обычно", "\(things(-ahead)) behind your usual pace")
+                     : tr("В обычном темпе", "Right on your usual pace"))
+                    .font(.subheadline.bold())
+                Text(tr("Обычно к этому часу сделано \(usualText), сегодня — \(todayDone). ",
+                        "By this hour you usually have \(usualText) done, today \(todayDone). ")
+                     + (ahead > 0 ? tr("Так держать!", "Keep it up!") : ahead < 0 ? tr("Догоняйте!", "Catch up!") : ""))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14).fill(
+            ahead > 0 ? Palette.ok.opacity(0.15) : Color(.secondarySystemGroupedBackground)))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Full-screen confetti with a "new record" toast; dismisses itself.
 struct RecordCelebration: View {
     var record: Rules.DayRecord
