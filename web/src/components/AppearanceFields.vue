@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useApp } from '../app/context'
 import { tr, trn } from '../app/i18n'
+import { loadColorUses } from '../app/views'
 import { suggestEmoji } from '../sync/emoji'
 import EmojiCircle from './EmojiCircle.vue'
 
@@ -12,7 +13,7 @@ import EmojiCircle from './EmojiCircle.vue'
 const props = defineProps<{ title?: string; auto?: boolean }>()
 const emoji = defineModel<string | null>('emoji', { required: true })
 const color = defineModel<number>('color', { required: true })
-const { store, settings } = useApp()
+const { store, settings, today } = useApp()
 
 const suggested = ref<string[]>([])
 /** The emoji this component set by itself; any other value is the user's choice. */
@@ -57,13 +58,10 @@ const EMOJIS = [
 ]
 const open = ref(false)
 
-/** How many live tasks wear each color: the picker shows it, so a neglected color can be chosen. */
+/** How many recent tasks wear each color: the picker shows it, so a neglected color can be chosen. */
 const uses = ref<number[]>(Array(12).fill(0))
 onMounted(async () => {
-  if (!settings.value.show_color_uses) return
-  const n = Array(12).fill(0)
-  for (const { fields: t } of await store.rows('task')) if (!t.deleted) n[((t.color ?? 0) % 12 + 12) % 12]++
-  uses.value = n
+  if (settings.value.show_color_uses) uses.value = await loadColorUses(store, today.value)
 })
 /** The least and the most worn colors stand out. */
 const extreme = (n: number) => n === Math.min(...uses.value) || n === Math.max(...uses.value)

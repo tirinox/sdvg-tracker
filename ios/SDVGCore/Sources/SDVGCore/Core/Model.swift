@@ -166,7 +166,7 @@ public struct Settings: Hashable, Sendable {
     public var showDayTotal = true
     /// Warn that a routine is being skipped when its percent done is below this; 0 turns it off.
     public var routineWarnBelow = 50
-    /// Show under each color in the picker how many tasks wear it.
+    /// Show under each color in the picker how many tasks of the last 7 days wear it.
     public var showColorUses = true
     /// Show each routine's percent done on its rows and in the routines list.
     public var showRoutinePercent = true

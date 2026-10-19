@@ -15,6 +15,7 @@ import { checkTitle } from '../domain/duplicates'
 import {
   claimRecordCelebration,
   dayGroups,
+  loadColorUses,
   loadDay,
   loadInbox,
   loadListed,
@@ -184,6 +185,18 @@ describe('loadListed', () => {
     expect(checkTitle(listed, 'обед')).toMatchObject({ status: 'taken', item: { id: lunch } })
     expect(checkTitle(listed, 'Выдать ВИП статус')).toMatchObject({ status: 'done_today', next: 'Выдать ВИП статус (1)' })
     expect(checkTitle(listed, 'Вчерашняя')).toEqual({ status: 'free', similar: [] })
+  })
+})
+
+describe('loadColorUses', () => {
+  it('counts tasks done or created in the last 7 days, today included, deleted ones aside', async () => {
+    const store = await openStore()
+    await createTask(store, { title: 'Открытая', date: TODAY, color: 3 })
+    await completeTask(store, await createTask(store, { title: 'Неделю назад', date: TODAY, color: 3 }), '2026-09-16')
+    await completeTask(store, await createTask(store, { title: 'Давно', date: TODAY, color: 3 }), '2026-09-15')
+    await deleteTask(store, await createTask(store, { title: 'Удалённая', date: TODAY, color: 5 }))
+    const uses = await loadColorUses(store, TODAY)
+    expect(uses).toEqual([0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0])
   })
 })
 

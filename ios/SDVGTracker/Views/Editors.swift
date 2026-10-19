@@ -14,7 +14,7 @@ struct AppearancePicker: View {
     /// The emoji this view set by itself; any other value is the user's choice.
     @State private var autoValue: String?
     @State private var chosen: Bool?
-    /// How many live tasks wear each color: shown under the swatch, so a neglected color can be chosen.
+    /// How many recent tasks wear each color: shown under the swatch, so a neglected color can be chosen.
     @State private var uses = [Int](repeating: 0, count: 12)
 
     static let emojis = [
@@ -48,7 +48,7 @@ struct AppearancePicker: View {
                 }
             }
         }
-        .task { if model.settings.showColorUses { uses = (try? model.store.loadColorUses()) ?? uses } }
+        .task { if model.settings.showColorUses { uses = (try? model.store.loadColorUses(today: model.today)) ?? uses } }
         .onChange(of: emoji) { if emoji != autoValue { chosen = true } }
         .task(id: title.trimmingCharacters(in: .whitespacesAndNewlines)) { await suggest() }
         if !suggested.isEmpty {

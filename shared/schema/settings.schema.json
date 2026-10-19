@@ -66,7 +66,7 @@
     "show_color_uses": {
       "type": "boolean",
       "default": true,
-      "description": "Show under each color in the picker how many tasks wear it"
+      "description": "Show under each color in the picker how many tasks of the last 7 days wear it"
     },
     "show_routine_percent": {
       "type": "boolean",

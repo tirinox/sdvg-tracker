@@ -14,7 +14,7 @@ import type {
 import { routineVersions, type VersionWithMeta } from '../db/actions'
 import type { Store } from '../db/store'
 import { parseHlc } from '../core/hlc'
-import { localNow, logicalDay, partOfDay } from '../domain/dates'
+import { daysBetween, localNow, logicalDay, partOfDay } from '../domain/dates'
 import type { ListedItem } from '../domain/duplicates'
 import { compareItems, pickTop, priorityRank } from '../domain/order'
 import {
@@ -94,6 +94,22 @@ const isClosed = (i: DayItem) => i.done || i.skipped
 /** created_at is UTC; deadlines are measured in local days. */
 function localDateOf(isoUtc: string): LocalDate {
   return localNow(new Date(isoUtc)).slice(0, 10)
+}
+
+export const COLOR_USES_DAYS = 7
+
+/**
+ * How many tasks wear each of the 12 palette colors, for the color picker: the ones done or, while
+ * open, created in the last COLOR_USES_DAYS days, today included.
+ */
+export async function loadColorUses(store: Store, today: LocalDate): Promise<number[]> {
+  const uses = Array<number>(12).fill(0)
+  for (const { fields: t } of await store.rows('task')) {
+    if (t.deleted) continue
+    const used = t.done_on ?? (t.created_at ? localDateOf(t.created_at) : today)
+    if (daysBetween(used, today) < COLOR_USES_DAYS) uses[(((t.color ?? 0) % 12) + 12) % 12]!++
+  }
+  return uses
 }
 
 /** Adherence and day by day history of every routine as of today; see domain/routines. */

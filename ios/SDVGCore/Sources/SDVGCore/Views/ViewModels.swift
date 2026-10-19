@@ -297,11 +297,15 @@ extension Store {
         }, today: today)
     }
 
-    /// How many live tasks wear each of the 12 palette colors, for the color picker.
-    public func loadColorUses() throws -> [Int] {
+    public static let colorUsesDays = 7
+
+    /// How many tasks wear each of the 12 palette colors, for the color picker: the ones done or, while
+    /// open, created in the last `colorUsesDays` days, today included. Mirrors loadColorUses in web/src/app/views.ts.
+    public func loadColorUses(today: LocalDate) throws -> [Int] {
         var uses = [Int](repeating: 0, count: 12)
         for t in try read({ db in try Rows.fetch(.task, db).map(TaskRecord.init) }) where !t.deleted {
-            uses[(t.color % 12 + 12) % 12] += 1
+            let used = t.doneOn ?? t.createdAt.flatMap { Dates.localDate(ofISO: $0) } ?? today
+            if Dates.daysBetween(used, today) < Self.colorUsesDays { uses[(t.color % 12 + 12) % 12] += 1 }
         }
         return uses
     }

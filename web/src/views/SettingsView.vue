@@ -156,8 +156,8 @@ const removeDemo = () =>
       <p class="muted">
         {{
           tr(
-            'Под каждым кружком в редакторе — сколько задач носят этот цвет; самый редкий и самый частый выделены.',
-            'Under every swatch in the editor: how many tasks wear the color; the rarest and the commonest stand out.',
+            'Под каждым кружком в редакторе — сколько задач за последние 7 дней носят этот цвет; самый редкий и самый частый выделены.',
+            'Under every swatch in the editor: how many tasks of the last 7 days wear the color; the rarest and the commonest stand out.',
           )
         }}
       </p>

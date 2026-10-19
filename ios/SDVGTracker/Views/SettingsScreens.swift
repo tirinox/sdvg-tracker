@@ -103,9 +103,9 @@ struct SettingsScreen: View {
                 Text(tr("Вид", "Appearance"))
             } footer: {
                 Text(tr("Без общего числа виджеты и экран «Сейчас» показывают только количество сделанного. "
-                        + "Популярность цвета — сколько задач его носят, под каждым кружком в редакторе.",
+                        + "Популярность цвета — сколько задач за последние 7 дней его носят, под каждым кружком в редакторе.",
                          "Without the total, the widgets and the Now screen show only how much is done. "
-                        + "Color popularity is how many tasks wear each color, under every swatch in the editor."))
+                        + "Color popularity is how many tasks of the last 7 days wear each color, under every swatch in the editor."))
             }
             SwiftUI.Section {
                 Toggle(tr("Показывать утром", "Show in the morning"), isOn: Binding(

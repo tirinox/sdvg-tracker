@@ -88,7 +88,7 @@ export interface Settings {
   show_day_total: boolean
   /** Warn that a routine is being skipped when its percent done is below this; 0 turns it off. */
   routine_warn_below: number
-  /** Show under each color in the picker how many tasks wear it. */
+  /** Show under each color in the picker how many tasks of the last 7 days wear it. */
   show_color_uses: boolean
   /** Show each routine's percent done on its rows and in the routines list. */
   show_routine_percent: boolean
