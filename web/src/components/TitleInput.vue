@@ -21,7 +21,8 @@ import EmojiCircle from './EmojiCircle.vue'
  * Before creating, the parent calls `confirm(title)`.
  */
 const title = defineModel<string>({ required: true })
-const props = defineProps<{ placeholder?: string; ariaLabel?: string; fillButton?: boolean; plain?: boolean }>()
+/** `date`: the day the new task goes to (null: the inbox); only that day's tasks take a title. */
+const props = defineProps<{ date: string | null; placeholder?: string; ariaLabel?: string; fillButton?: boolean; plain?: boolean }>()
 const emit = defineEmits<{ enter: []; pick: [s: TitleSuggestion]; fill: [s: TitleSuggestion] }>()
 const { store, today, openTask, openRoutine } = useApp()
 
@@ -30,7 +31,7 @@ const list = ref<HTMLUListElement>()
 const offer = ref<HTMLButtonElement>()
 const history = shallowRef<TitleHistory>([])
 /** Followed live: a stale list would let a duplicate through or offer a number that is taken by now. */
-const listed = useLive(() => (props.plain ? Promise.resolve([]) : loadListed(store, today.value)), [] as ListedItem[], [today])
+const listed = useLive(() => (props.plain ? Promise.resolve([]) : loadListed(store, today.value, props.date)), [] as ListedItem[], [today, () => props.date])
 const open = ref(false)
 const active = ref(-1)
 /** Enter on a taken title; each one shakes the notice anew. */

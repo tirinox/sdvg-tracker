@@ -306,11 +306,13 @@ extension Store {
         return uses
     }
 
-    /// What the title of a new task is checked against; see Rules.checkTitle.
-    public func loadListed(today: LocalDate) throws -> [Rules.ListedItem] {
-        try read { db in
+    /// What the title of a new task planned for `date` (nil: the inbox) is checked against; see Rules.checkTitle.
+    /// Tasks count only on the same day (a missed one is today's, as the rollover makes it); routines on any day.
+    public func loadListed(today: LocalDate, date: LocalDate?) throws -> [Rules.ListedItem] {
+        let day = { (d: LocalDate?) in d.map { $0 < today ? today : $0 } }
+        return try read { db in
             let tasks = try Rows.fetch(.task, db, where: "done_on IS NULL OR done_on = ?", [today]).map(TaskRecord.init)
-            var items = tasks.filter { !$0.deleted }.map { t in
+            var items = tasks.filter { !$0.deleted && ($0.doneOn != nil ? today : day($0.date)) == day(date) }.map { t in
                 Rules.ListedItem(kind: .task, id: t.id, title: t.title, emoji: t.emoji, color: t.color, date: t.date,
                                  doneToday: t.doneOn != nil)
             }

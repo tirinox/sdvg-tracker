@@ -388,18 +388,23 @@ function latestVersions(versions: VersionWithMeta[]): Map<string, VersionWithMet
   return latest
 }
 
-/** What the title of a new task is checked against; see domain/duplicates. */
-export async function loadListed(store: Store, today: LocalDate): Promise<ListedItem[]> {
+/**
+ * What the title of a new task planned for `date` (null: the inbox) is checked against; see domain/duplicates.
+ * Tasks count only on the same day (a missed one is today's, as the rollover makes it); routines on any day.
+ */
+export async function loadListed(store: Store, today: LocalDate, date: LocalDate | null): Promise<ListedItem[]> {
   const [tasks, versions, checks] = await Promise.all([
     store.rows('task'),
     routineVersions(store),
     store.db.routine_check.where('fields.date').equals(today).toArray(),
   ])
   const doneToday = new Set(checks.filter((c) => c.fields.status === 'done').map((c) => c.fields.routine_id))
+  const day = (d: LocalDate | null) => (d !== null && d < today ? today : d)
   const items: ListedItem[] = []
   for (const r of tasks) {
     const t = r.fields
     if (t.deleted || (t.done_on && t.done_on !== today)) continue
+    if ((t.done_on ? today : day(t.date ?? null)) !== day(date)) continue
     items.push({
       kind: 'task',
       id: r.id,

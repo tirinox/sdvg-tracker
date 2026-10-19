@@ -51,6 +51,7 @@ function fill(s: TitleSuggestion) {
     <TitleInput
       ref="input"
       v-model="title"
+      :date="date"
       :placeholder="placeholder ?? tr('Добавить задачу и нажать Enter', 'Add a task and press Enter')"
       :aria-label="tr('Новая задача', 'New task')"
       fill-button

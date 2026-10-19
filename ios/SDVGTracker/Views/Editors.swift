@@ -189,6 +189,8 @@ struct TaskEditor: View {
     @State var draft: TaskDraft
     @State private var moves = 0
     @State private var done = false
+    /// Local "YYYY-MM-DDTHH:MM" of when the task was first created; nil for a new one.
+    @State private var created: LocalDateTime?
     @State private var history: [Rules.TitleGroup] = []
     /// What the title of a new task is checked against (Rules.checkTitle).
     @State private var listed: [Rules.ListedItem] = []
@@ -265,6 +267,12 @@ struct TaskEditor: View {
                             .foregroundStyle(Palette.warn)
                     }
                 }
+                if let created {
+                    SwiftUI.Section {
+                        Text("\(tr("Создана", "Created")) \(dayLabel(String(created.prefix(10)))), \(created.suffix(5))")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 if let id {
                     SwiftUI.Section(tr("Копия задачи", "Copy of the task")) {
                         let target = copyDate ?? Dates.addDays(today, 1)
@@ -305,9 +313,12 @@ struct TaskEditor: View {
                     return
                 }
                 moves = (try? model.store.moveCount(id)) ?? 0
-                done = (try? model.store.get(.task, id).map(TaskRecord.init))?.doneOn != nil
+                let task = try? model.store.get(.task, id).map(TaskRecord.init)
+                done = task?.doneOn != nil
+                created = task?.createdAt.flatMap { Dates.localMoment(ofISO: $0) }
             }
             .onChange(of: model.revision) { if id == nil { loadListed() } }
+            .onChange(of: draft.date) { if id == nil { loadListed() } }
         }
     }
 
@@ -326,7 +337,7 @@ struct TaskEditor: View {
     }
 
     private func loadListed() {
-        listed = (try? model.store.loadListed(today: model.today)) ?? []
+        listed = (try? model.store.loadListed(today: model.today, date: draft.date)) ?? []
     }
 
     private var trimmed: TaskDraft {

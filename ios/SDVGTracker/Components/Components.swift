@@ -240,6 +240,6 @@ struct QuickAdd: View {
     }
 
     private func loadListed() {
-        listed = (try? model.store.loadListed(today: model.today)) ?? []
+        listed = (try? model.store.loadListed(today: model.today, date: date)) ?? []
     }
 }

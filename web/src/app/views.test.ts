@@ -152,7 +152,7 @@ describe('day record', () => {
 })
 
 describe('loadListed', () => {
-  it('has open tasks anywhere, tasks done today and routines; a done one can come again with a number', async () => {
+  it("has the day's open tasks, tasks done today and routines; a done one can come again with a number", async () => {
     const store = await openStore()
     const YESTERDAY = '2026-09-21'
     await createTask(store, { title: 'Во входящих', date: null })
@@ -166,14 +166,21 @@ describe('loadListed', () => {
     await setRoutineCheck(store, shower, TODAY, 'done')
     await archiveRoutine(store, await createRoutine(store, { title: 'Старая рутина' }, YESTERDAY), TODAY)
 
-    const listed = await loadListed(store, TODAY)
+    // Missed yesterday: rolled over to today.
+    await createTask(store, { title: 'Пропущенная', date: YESTERDAY })
+
+    const listed = await loadListed(store, TODAY, TODAY)
     expect(listed.map((i) => [i.kind, i.title, i.done_today]).sort()).toEqual([
       ['routine', 'Душ', true],
       ['routine', 'Обед', false],
-      ['task', 'Во входящих', false],
       ['task', 'Выдать ВИП статус', true],
-      ['task', 'Через неделю', false],
+      ['task', 'Пропущенная', false],
     ])
+    // Another day has its own tasks; routines are on every day.
+    const later = await loadListed(store, TODAY, '2026-09-29')
+    expect(later.map((i) => i.title).sort()).toEqual(['Душ', 'Обед', 'Через неделю'])
+    expect(checkTitle(later, 'Выдать ВИП статус')).toEqual({ status: 'free', similar: [] })
+    expect((await loadListed(store, TODAY, null)).map((i) => i.title).sort()).toEqual(['Во входящих', 'Душ', 'Обед'])
     expect(checkTitle(listed, 'обед')).toMatchObject({ status: 'taken', item: { id: lunch } })
     expect(checkTitle(listed, 'Выдать ВИП статус')).toMatchObject({ status: 'done_today', next: 'Выдать ВИП статус (1)' })
     expect(checkTitle(listed, 'Вчерашняя')).toEqual({ status: 'free', similar: [] })

@@ -66,12 +66,17 @@ public enum Dates {
         return String(format: "%04d-%02d-%02dT%02d:%02d", c.year!, c.month!, c.day!, c.hour!, c.minute!)
     }
 
-    /// Local date of a UTC ISO instant ("2026-09-22T07:00:00Z").
-    public static func localDate(ofISO iso: String, calendar: Calendar = .current) -> LocalDate? {
+    /// Local "YYYY-MM-DDTHH:MM" of a UTC ISO instant ("2026-09-22T07:00:00Z").
+    public static func localMoment(ofISO iso: String, calendar: Calendar = .current) -> LocalDateTime? {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let date = f.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
-        return date.map { String(localNow($0, calendar: calendar).prefix(10)) }
+        return date.map { localNow($0, calendar: calendar) }
+    }
+
+    /// Local date of a UTC ISO instant.
+    public static func localDate(ofISO iso: String, calendar: Calendar = .current) -> LocalDate? {
+        localMoment(ofISO: iso, calendar: calendar).map { String($0.prefix(10)) }
     }
 
     public static func isoNow(_ date: Date = Date()) -> String {

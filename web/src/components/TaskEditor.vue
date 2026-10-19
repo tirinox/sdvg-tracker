@@ -14,7 +14,7 @@ import {
   updateTask,
   type NewTask,
 } from '../db/actions'
-import { addDays } from '../domain/dates'
+import { addDays, localNow } from '../domain/dates'
 import type { TitleSuggestion } from '../domain/suggest'
 import { autoEmoji } from '../sync/emoji'
 import AppearanceFields from './AppearanceFields.vue'
@@ -43,6 +43,8 @@ const form = reactive({
   ...props.defaults,
 })
 const moves = ref(0)
+/** Local 'YYYY-MM-DDTHH:MM' of when the task was first created; empty for a new one. */
+const created = ref('')
 const done = ref(false)
 let originalDate: string | null = null
 const loaded = ref(props.id === null)
@@ -55,6 +57,7 @@ onMounted(async () => {
       Object.assign(form, pick(t))
       originalDate = t.date
       done.value = Boolean(t.done_on)
+      if (t.created_at) created.value = localNow(new Date(t.created_at))
     }
     moves.value = await moveCount(store, props.id)
     loaded.value = true
@@ -153,6 +156,7 @@ async function remove() {
       <TitleInput
         ref="titleInput"
         v-model="form.title"
+        :date="form.date"
         class="title"
         :placeholder="tr('Что нужно сделать?', 'What needs doing?')"
         :plain="Boolean(id)"
@@ -220,6 +224,10 @@ async function remove() {
             `This task has been moved ${trn(moves, ['раз', 'раза', 'раз'], ['time', 'times'])} already. Maybe break it into smaller steps?`,
           )
         }}
+      </p>
+
+      <p v-if="created" class="created">
+        {{ tr('Создана', 'Created') }} {{ dayLabel(created.slice(0, 10)) }}, {{ created.slice(11, 16) }}
       </p>
 
       <div v-if="id" class="field">
@@ -290,6 +298,11 @@ async function remove() {
 .copied .btn {
   padding: 2px 8px;
   color: var(--accent);
+}
+.created {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
 }
 .moves {
   margin: 0;

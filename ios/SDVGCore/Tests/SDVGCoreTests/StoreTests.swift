@@ -161,11 +161,19 @@ final class StoreTests: XCTestCase {
         try s.setRoutineCheck(shower, date: today, status: .done)
         try s.archiveRoutine(try s.createRoutine(RoutineDraft(title: "Старая рутина"), today: yesterday), today: today)
 
-        let listed = try s.loadListed(today: today)
+        // Missed yesterday: rolled over to today.
+        _ = try s.createTask(TaskDraft(title: "Пропущенная", date: yesterday))
+
+        let listed = try s.loadListed(today: today, date: today)
         XCTAssertEqual(Set(listed.map { "\($0.kind) \($0.title) \($0.doneToday)" }), [
             "routine Душ true", "routine Обед false",
-            "task Во входящих false", "task Выдать ВИП статус true", "task Через неделю false",
+            "task Выдать ВИП статус true", "task Пропущенная false",
         ])
+        // Another day has its own tasks; routines are on every day.
+        let later = try s.loadListed(today: today, date: "2026-09-29")
+        XCTAssertEqual(Set(later.map(\.title)), ["Душ", "Обед", "Через неделю"])
+        XCTAssertEqual(Rules.checkTitle(later, title: "Выдать ВИП статус"), .free(similar: []))
+        XCTAssertEqual(Set(try s.loadListed(today: today, date: nil).map(\.title)), ["Во входящих", "Душ", "Обед"])
         guard case .taken(let item) = Rules.checkTitle(listed, title: "обед") else { return XCTFail("обед is taken") }
         XCTAssertEqual(item.id, lunch)
         guard case .doneToday(_, let next) = Rules.checkTitle(listed, title: "Выдать ВИП статус") else {
